@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Castle Itinerary Builder</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Castle Itinerary Builder</h1>
+  </header>
+  <main class="app-layout" aria-live="polite">
+    <section class="panel calendar-panel" aria-label="Calendar">
+      <div class="calendar-controls">
+        <button type="button" class="calendar-nav" id="calendar-prev" aria-label="Previous month">&#8592;</button>
+        <div class="calendar-current" id="calendar-current-month"></div>
+        <button type="button" class="calendar-nav" id="calendar-next" aria-label="Next month">&#8594;</button>
+      </div>
+      <button type="button" class="today-button" id="calendar-today">Today</button>
+      <div class="calendar-grid" id="calendar-grid" role="grid" aria-labelledby="calendar-current-month"></div>
+    </section>
+
+    <section class="panel activities-panel" aria-label="Activities">
+      <h2 class="day-header" id="day-header"></h2>
+      <div id="activities-placeholder" class="activities-placeholder">Activities will appear once data is ready.</div>
+      <ul class="activities-list" id="activities-list" hidden></ul>
+    </section>
+
+    <section class="panel preview-panel" aria-label="Current itinerary">
+      <h2>Current Itinerary:</h2>
+      <div id="preview-placeholder" class="activities-placeholder">Itinerary updates as you pick a day.</div>
+      <ul class="preview-list" id="preview-list"></ul>
+    </section>
+  </main>
+
+  <section class="panel time-wheel-panel" aria-label="Time wheel demo">
+    <h2>Time Wheel Preview</h2>
+    <div class="time-wheel" id="time-wheel">
+      <div class="time-wheel-column" id="time-wheel-hours" role="listbox" aria-label="Hours"></div>
+      <div class="time-wheel-column" id="time-wheel-minutes" role="listbox" aria-label="Minutes"></div>
+      <div class="time-wheel-column" id="time-wheel-period" role="listbox" aria-label="Period"></div>
+      <div class="time-wheel-focus"></div>
+    </div>
+  </section>
+</body>
+</html>
