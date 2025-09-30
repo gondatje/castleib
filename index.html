@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CHS Itinerary Builder — Wave 0.8.2 (Full, Debugged)</title>
+<title>CHS Itinerary Builder — Wave 0.8.3 (Full, Debugged)</title>
 <style>
   :root{
     --bg:#0b0c0f; --panel:#12141a; --ink:#e8ebf0; --muted:#a9b1bd; --accent:#5ea1ff;
@@ -12,14 +12,29 @@
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
-  .app{display:grid;grid-template-columns:minmax(300px,360px) minmax(420px,1fr) minmax(340px,440px);gap:16px;padding:16px;max-width:1440px;margin:0 auto}
-  @media (max-width:1279px){.app{grid-template-columns:minmax(320px,420px) 1fr;gap:14px}.right{grid-column:1 / -1}}.right{grid-column:1 / -1}}
-  @media (max-width:1023px){.app{grid-template-columns:1fr;gap:12px}.left,.center,.right{grid-column:1/-1}}.center,.right{grid-column:1/-1}}
-  .card{background:var(--panel);border:1px solid #1d212b;border-radius:16px;padding:16px}
+
+  /* App grid with named areas and stable widths */
+  .app{display:grid;grid-template-columns:minmax(300px,340px) minmax(520px,1fr) minmax(360px,440px);grid-template-areas:'left center right';gap:16px;padding:16px;max-width:1440px;margin:0 auto}
+  @media (max-width:1279px){
+    .app{grid-template-columns:minmax(320px,420px) 1fr;grid-template-areas:'left center' 'right right';gap:14px}
+  }
+  @media (max-width:1023px){
+    .app{grid-template-columns:1fr;grid-template-areas:'left' 'center' 'right';gap:12px}
+  }
+
+  .left{grid-area:left}
+  .center{grid-area:center}
+  .right{grid-area:right}
+  @media (min-width:1280px){.left{position:sticky;top:16px;align-self:start;height:fit-content}}
+
+  .card{background:var(--panel);border:1px solid #1d212b;border-radius:16px;padding:16px;overflow:hidden;position:relative;display:flex;flex-direction:column;min-height:0}
   h2{margin:0 0 12px 0;font-size:14px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.nowrap{flex-wrap:nowrap;min-width:0}
+  .row.space-between{justify-content:space-between}
+  .row.stick-right{justify-content:flex-end}
   .section{margin-top:12px}
-  button{appearance:none;border:1px solid #2a2f3a;background:#141821;color:var(--ink);padding:8px 12px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  button{appearance:none;border:1px solid #2a2f3a;background:#141821;color:var(--ink);padding:8px 12px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-height:36px}
   button:hover{border-color:#3a4150}
   .iconbtn{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}
   .iconbtn svg{width:24px;height:24px}
@@ -27,7 +42,7 @@
   .toolicon svg{width:24px;height:24px}
   .input{background:#0f1218;border:1px solid #2a2f3a;color:var(--ink);padding:10px 12px;border-radius:10px}
 
-  /* Calendar: fixed heights to prevent layout jump */
+  /* Calendar */
   .calendar{display:grid;grid-template-rows:48px 20px 1fr;gap:8px;min-height:440px}
   .cal-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;height:48px;min-width:0;flex-wrap:nowrap}
   .cal-month{display:flex;flex-direction:column;justify-content:center;min-width:160px}
@@ -59,16 +74,12 @@
   .item{padding:10px 12px;border:1px solid #212635;border-radius:12px;background:#0f131a;display:flex;justify-content:space-between;align-items:center}
   .item .title{font-weight:600;display:flex;align-items:center;gap:6px}
   .item .time{color:var(--muted);font-variant-numeric:tabular-nums}
-  .initial{display:inline-block;min-width:20px;padding:0 8px;height:22px;line-height:22px;border-radius:999px;border:1px solid currentColor;font-size:12px;text-align:center;cursor:pointer;transition:background .15s, box-shadow .15s}
+  .initial{display:inline-block;min-width:24px;padding:0 10px;height:28px;line-height:28px;border-radius:999px;border:1px solid currentColor;font-size:13px;text-align:center;cursor:pointer;transition:background .15s, box-shadow .15s; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;}
   .initial:hover{background:#0f1a2a;box-shadow:0 0 0 2px rgba(255,255,255,.05) inset}
   .tag{margin-left:8px;padding:2px 6px;border-radius:999px;border:1px solid #2b3240;color:#cbd6ff;min-width:22px;text-align:center;cursor:default}
 
   /* Email */
-  .email{white-space:pre-wrap;background:#0d1016;border:1px solid #1e2431;padding:12px;border-radius:12px;min-height:260px;overflow:auto}
-.center .row:first-of-type{flex-wrap:nowrap;min-width:0}
-.center .row:nth-of-type(2){flex-wrap:nowrap;min-width:0}
-.right .row{flex-wrap:nowrap;min-width:0}
-button{flex:0 0 auto;min-height:36px}
+  .email{white-space:pre-wrap;background:#0d1016;border:1px solid #1e2431;padding:12px;border-radius:12px;min-height:200px;flex:1;min-height:0;overflow:auto}
 </style>
 </head>
 <body>
@@ -77,9 +88,9 @@ button{flex:0 0 auto;min-height:36px}
     <section class="left card">
       <h2>Calendar</h2>
       <div class="calendar">
-        <div class="cal-toolbar">
+        <div class="cal-toolbar nowrap">
           <div class="cal-month"><span class="month" id="calMonth"></span><span class="year" id="calYear"></span></div>
-          <div class="navrow">
+          <div class="navrow nowrap">
             <button id="yPrev" class="iconbtn" title="Prev Year" aria-label="Previous Year">⟪</button>
             <button id="mPrev" class="iconbtn" title="Prev Month" aria-label="Previous Month">◀︎</button>
             <button id="btnToday" title="Today">Today</button>
@@ -102,7 +113,7 @@ button{flex:0 0 auto;min-height:36px}
       </div>
       <div class="section">
         <h2>Guests</h2>
-        <div class="row" style="width:100%">
+        <div class="row nowrap" style="width:100%">
           <input class="input" id="guestName" placeholder="Name?" style="flex:1;min-width:0"/>
           <button id="addGuest">Add</button>
           <button id="toggleAll">Toggle All</button>
@@ -113,27 +124,27 @@ button{flex:0 0 auto;min-height:36px}
 
     <!-- CENTER -->
     <section class="center card">
-      <div class="row" style="justify-content:space-between;align-items:baseline">
+      <div class="row space-between nowrap" style="align-items:baseline">
         <h2>Activities</h2>
-        <div class="row">
+        <div class="row nowrap">
           <button id="prevDay" class="iconbtn" title="Previous Day" aria-label="Previous Day">◀︎</button>
           <div id="dayTitle" class="muted" style="min-width:220px;text-align:center"></div>
           <button id="nextDay" class="iconbtn" title="Next Day" aria-label="Next Day">▶︎</button>
         </div>
       </div>
-      <div class="row" style="margin-bottom:12px">
+      <div class="row nowrap" style="margin-bottom:12px">
         <button id="addDinner">Dinner</button>
         <button id="addCustom">Custom</button>
         <button id="clearAll">Clear</button>
       </div>
-      <div id="activities" class="list"></div>
+      <div id="activities" class="list" style="flex:1;min-height:0;overflow:auto"></div>
     </section>
 
     <!-- RIGHT -->
     <section class="right card">
       <h2>Preview</h2>
       <div id="email" class="email" contenteditable="false" spellcheck="false"></div>
-      <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px">
+      <div class="row stick-right nowrap" style="gap:8px;margin-top:12px">
         <button id="toggleEdit" class="toolicon" title="Edit/Lock" aria-label="Edit or Lock Preview">
           <svg id="editIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19 3 20l1-4 12.5-12.5z"/>
@@ -286,8 +297,10 @@ function renderGuests(){
     el.appendChild(x)
     wrap.appendChild(el)
   })
-}// ------------------------
-// Activities
+}
+
+// ------------------------
+// Activities (chips + Everyone expansion on touch)
 // ------------------------
 const activitiesEl=document.getElementById('activities')
 const dayTitleEl=document.getElementById('dayTitle')
@@ -371,7 +384,7 @@ function renderActivities(){
 }
 
 // collapse expanded Everyone on outside tap
-DocumentClickHandler = (e)=>{ if(expandedEveryoneTag && !expandedEveryoneTag.contains(e.target)) collapseExpandedTag() }
+const DocumentClickHandler = (e)=>{ if(expandedEveryoneTag && !expandedEveryoneTag.contains(e.target)) collapseExpandedTag() }
 document.addEventListener('pointerdown', DocumentClickHandler, {capture:true})
 
 // ------------------------
@@ -502,6 +515,9 @@ function runSelfTests(){
   const firstAdd=document.querySelector('#activities .item button'); if(firstAdd) firstAdd.click();
   const after=(state.itemsByDate.get(fmtDateKey(state.focus))||[]).length;
   assert(after>=before,'adding activity increased or created entry');
+  // test clear wipes everything without confirm
+  clearAll();
+  assert(state.guests.length===0 && state.itemsByDate.size===0 && !state.arrival && !state.departure, 'clearAll should wipe all state')
   console.log('[TEST] passed');
 }
 if(location.hash==="#test"){ try{ runSelfTests() }catch(e){ console.error(e) } }
