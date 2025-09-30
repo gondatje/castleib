@@ -1,0 +1,88 @@
+<!doctype html>
+<div class="row nowrap" style="width:100%">
+<input id="guestName" class="input" placeholder="Name?" style="flex:1;min-width:0">
+<button id="addGuest">Add</button>
+<button id="toggleAll">Toggle All</button>
+</div>
+<div id="guests" class="chips"></div>
+</div>
+</section>
+
+
+<!-- CENTER: Activities -->
+<section class="center card">
+<div class="row space-between nowrap" style="align-items:baseline">
+<h2>Activities</h2>
+<div class="row nowrap center-header">
+<button id="prevDay" class="iconbtn" title="Previous Day" aria-label="Previous Day">
+<svg class="icon"><use href="./assets/icons.svg#icon-chevron-left"/></svg>
+</button>
+<div id="dayTitle" class="muted daytitle"></div>
+<button id="nextDay" class="iconbtn" title="Next Day" aria-label="Next Day">
+<svg class="icon"><use href="./assets/icons.svg#icon-chevron-right"/></svg>
+</button>
+</div>
+</div>
+
+
+<div class="row nowrap" style="margin-bottom:12px">
+<button id="addDinner">Dinner</button>
+<button id="addCustom">Custom</button>
+<button id="clearAll">Clear</button>
+</div>
+
+
+<div id="activities" class="list" style="flex:1;min-height:0;overflow:auto"></div>
+</section>
+
+
+<!-- RIGHT: Preview -->
+<section class="right card">
+<h2>Preview</h2>
+<div id="email" class="email" contenteditable="false" spellcheck="false"></div>
+<div class="row stick-right nowrap" style="gap:8px;margin-top:12px">
+<button id="toggleEdit" class="toolicon" title="Edit/Lock" aria-label="Edit or Lock Preview">
+<svg class="icon" id="editIcon"><use href="./assets/icons.svg#icon-pencil"/></svg>
+</button>
+<button id="copy" class="toolicon" title="Copy" aria-label="Copy">
+<svg class="icon"><use href="./assets/icons.svg#icon-copy"/></svg>
+</button>
+</div>
+</section>
+</div>
+
+
+<script type="module">
+import { initState } from './src/state.js';
+import { mountCalendar } from './src/calendar.js';
+import { mountGuests } from './src/guests.js';
+import { mountActivities } from './src/activities.js';
+import { mountEmail } from './src/email.js';
+import { mountControls } from './src/controls.js';
+import { runSelfTests } from './tests/selftest.js';
+
+
+window.addEventListener('DOMContentLoaded', async () => {
+const ctx = await initState();
+const renderAll = () => {
+ctx.renderCalendar();
+ctx.renderGuests();
+ctx.renderActivities();
+ctx.renderEmail();
+};
+window.__chs = { ctx, renderAll };
+
+
+ctx.renderCalendar = mountCalendar(ctx, renderAll);
+ctx.renderGuests = mountGuests(ctx, renderAll);
+ctx.renderActivities = mountActivities(ctx, renderAll);
+ctx.renderEmail = mountEmail(ctx, renderAll);
+mountControls(ctx, renderAll);
+
+
+renderAll();
+if (location.hash === '#test') runSelfTests(ctx, renderAll);
+});
+</script>
+</body>
+</html>
