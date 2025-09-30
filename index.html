@@ -16,10 +16,16 @@
   /* App grid with named areas and stable widths */
   .app{display:grid;grid-template-columns:minmax(300px,340px) minmax(520px,1fr) minmax(360px,440px);grid-template-areas:'left center right';gap:16px;padding:16px;max-width:1440px;margin:0 auto}
   @media (max-width:1279px){
-    .app{grid-template-columns:minmax(320px,420px) 1fr;grid-template-areas:'left center' 'right right';gap:14px}
+  /* Tablet default (portrait-friendly): calendar + activities; preview below */
+  .app{grid-template-columns:minmax(320px,420px) 1fr;grid-template-areas:'left center' 'right right';gap:14px}
+  .right{grid-column:auto}
+}
   }
   @media (max-width:1023px){
-    .app{grid-template-columns:1fr;grid-template-areas:'left' 'center' 'right';gap:12px}
+  /* Mobile & iPad portrait narrow: single column stacking */
+  .app{grid-template-columns:1fr;grid-template-areas:'left' 'center' 'right';gap:12px}
+  .left,.center,.right{grid-column:auto}
+}
   }
 
   .left{grid-area:left}
@@ -80,6 +86,22 @@
 
   /* Email */
   .email{white-space:pre-wrap;background:#0d1016;border:1px solid #1e2431;padding:12px;border-radius:12px;min-height:200px;flex:1;min-height:0;overflow:auto}
+/* iPad Air landscape (smart 3-column at mid widths) */
+@media (min-width:1024px) and (max-width:1279px){
+  .app{grid-template-columns:minmax(280px,320px) minmax(420px,1fr) minmax(320px,380px);
+       grid-template-areas:'left center right';gap:14px}
+  .left{position:static} /* avoid sticky oddities on mobile Safari */
+  .center,.right{max-height:calc(100vh - 72px); overflow:auto}
+}
+
+/* Compact tablet spacing */
+@media (min-width:768px) and (max-width:1279px){
+  .card{padding:14px}
+  h2{margin-bottom:10px}
+  .calendar{min-height:380px}
+  .days{min-height:300px}
+}
+
 </style>
 </head>
 <body>
