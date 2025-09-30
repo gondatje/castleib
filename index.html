@@ -3,21 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CHS Itinerary Builder — Rescue v5</title>
+<title>CHS Itinerary Builder — Rescue v6</title>
 <style>
 :root{
   --bg:#f7f8fb; --panel:#fff; --ink:#0c1220; --muted:#5b6575; --accent:#2a6bff;
   --chip1:#2a6bff; --chip2:#ff8c3a; --chip3:#0aa06e; --chip4:#e23b6e; --chipOff:#e9edf7;
   --border:#dbe1ef; --shadow:0 1px 2px rgba(12,18,32,.06), 0 6px 24px rgba(12,18,32,.06);
-  --arrfill: rgba(42,107,255,.14);
-  --depfill: rgba(42,107,255,.18);
+  --arrfill: rgba(42,107,255,.14); --depfill: rgba(42,107,255,.18);
 }
 body.theme-dark{
   --bg:#0b0c0f; --panel:#12141a; --ink:#e8ebf0; --muted:#a9b1bd; --accent:#5ea1ff;
   --chip1:#98c1ff; --chip2:#ffd280; --chip3:#b4f0d9; --chip4:#ffb3c1; --chipOff:#1a212e;
   --border:#1d212b; --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 24px rgba(0,0,0,.35);
-  --arrfill: rgba(94,161,255,.20);
-  --depfill: rgba(94,161,255,.26);
+  --arrfill: rgba(94,161,255,.20); --depfill: rgba(94,161,255,.26);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -62,17 +60,22 @@ button{
 body.theme-dark button{background:#141821;border-color:#2a2f3a;color:var(--ink)}
 button:hover{border-color:#c8d2e6} body.theme-dark button:hover{border-color:#3a4150}
 .iconbtn{
-  width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0;
+  /* SQUARE, centered, rounded */
+  aspect-ratio:1/1;
+  inline-size:34px; block-size:34px;
+  padding:0;
+  border-radius:8px;
+  display:grid; place-items:center;
 }
-.icon{width:18px;height:18px}
-.toolicon{width:40px;height:40px;border:1px solid var(--border);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#f1f4fb}
+.icon{width:18px;height:18px;display:block}
+.toolicon{width:40px;height:40px;border:1px solid var(--border);border-radius:10px;display:inline-grid;place-items:center;background:#f1f4fb}
 .toolicon .icon{width:22px;height:22px}
 body.theme-dark .toolicon{background:#141821;border-color:#2a2f3a}
 .input{background:#fff;border:1px solid var(--border);color:var(--ink);padding:10px 12px;border-radius:10px}
 body.theme-dark .input{background:#0f1218;border-color:#2a2f3a}
 .select{appearance:none}
 .card .card-actions{position:absolute;top:10px;right:10px;display:flex;gap:6px}
-.themebtn{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:#f1f4fb}
+.themebtn{width:34px;height:34px;border-radius:10px;display:inline-grid;place-items:center;border:1px solid var(--border);background:#f1f4fb}
 body.theme-dark .themebtn{background:#141821;border-color:#2a2f3a}
 .themebtn .icon{width:18px;height:18px}
 
@@ -103,36 +106,33 @@ body.theme-dark .themebtn{background:#141821;border-color:#2a2f3a}
 body.theme-dark .day{border-color:#222733;background:#0f1218}
 .day.faded{opacity:.55} body.theme-dark .day.faded{opacity:.45}
 .day.faded:hover{opacity:.85;background:rgba(0,0,0,.03)} body.theme-dark .day.faded:hover{opacity:.9;background:#10141d}
-/* Focus = inset ring only (no outer ring -> no clipping) */
 .day.focus{box-shadow:inset 0 0 0 2px var(--accent)}
-/* Arrival/Departure: inner fills (no extra border thickness) */
-.day.arrival::before, .day.departure::before{
-  content:"";position:absolute;inset:3px;border-radius:9px;
-}
-.day.arrival::before{ background:var(--arrfill); }
-.day.departure::before{ background:var(--depfill); }
+.day.arrival::before, .day.departure::before{content:"";position:absolute;inset:3px;border-radius:9px}
+.day.arrival::before{ background:var(--arrfill) } .day.departure::before{ background:var(--depfill) }
 .day.stay{background:rgba(42,107,255,.06)} body.theme-dark .day.stay{background:#0d1a2e}
 .day.today::after{content:"";position:absolute;bottom:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .cal-footer{display:flex;justify-content:flex-start}
-#btnToday{width:34px;height:34px;border-radius:8px}
+#btnToday{inline-size:34px;block-size:34px;border-radius:8px;display:grid;place-items:center}
 
 /* GUESTS */
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;max-height:160px;overflow:auto;padding-right:4px}
 .chip{
-  padding:6px 10px;border-radius:999px;border:2px solid transparent;display:flex;align-items:center;gap:8px;cursor:pointer;
+  padding:6px 10px;border-radius:999px;border:2px solid transparent;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
   transition:background .15s,border-color .15s,box-shadow .15s;position:relative;
 }
 .chip .x{
-  display:inline-grid;place-items:center;
-  font-weight:700;opacity:.95;cursor:pointer;margin-left:4px;border-radius:50%;
-  width:22px;height:22px;background:#eef2fb;border:1px solid var(--border);pointer-events:auto;
+  /* circular button with centered SVG */
+  display:grid;place-items:center;
+  width:22px;height:22px;border-radius:50%;
+  background:#eef2fb;border:1px solid var(--border);pointer-events:auto;
 }
+.chip .x svg{width:12px;height:12px;display:block}
 body.theme-dark .chip .x{background:#0f1420;border-color:#2a3242}
-.chip .x:hover{opacity:1}
 .chip .star{
-  display:inline-grid;place-items:center;
-  width:18px;height:18px;margin-right:6px;color:#6b78ff;font-size:16px;line-height:1;
+  display:grid;place-items:center;
+  width:18px;height:18px;margin-right:6px;
 }
+.chip .star svg{width:16px;height:16px;display:block}
 .chip.off{background:var(--chipOff);color:#7d8aa0;border-color:#cfd6e7}
 .chip.on{box-shadow:0 0 0 2px rgba(42,107,255,.25) inset}
 body.theme-dark .chip.off{border-color:#2b3445}
@@ -146,18 +146,10 @@ body.theme-dark .chip.on{box-shadow:0 0 0 2px rgba(255,255,255,.06) inset}
   height:56px;padding:10px 12px;overflow:hidden;
 }
 body.theme-dark .item{background:#0f131a;border-color:#212635}
-.item .title{
-  display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;overflow:hidden;
-}
-.item .title .ttext{
-  font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.item .title .sub{
-  font-size:12px;color:var(--muted);white-space:nowrap;
-}
-.item .chips-inline{
-  display:flex;align-items:center;gap:6px;max-width:38vw;overflow:hidden;
-}
+.item .title{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;overflow:hidden}
+.item .title .ttext{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .title .sub{font-size:12px;color:var(--muted);white-space:nowrap}
+.item .chips-inline{display:flex;align-items:center;gap:6px;max-width:38vw;overflow:hidden}
 .initial{
   width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
   border-radius:50%;border:1px solid currentColor;font-size:11px;cursor:pointer;
@@ -187,7 +179,7 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
 
 .center-header{gap:10px;width:100%;justify-content:center}
 .daytitle{min-width:220px;text-align:center;font-size:18px;font-weight:700;letter-spacing:.01em}
-#prevDay,#nextDay{width:34px;height:34px;border-radius:8px}
+#prevDay,#nextDay{inline-size:34px;block-size:34px;border-radius:8px;display:grid;place-items:center}
 
 .left h2,.center h2,.right h2{margin-top:0}
 </style>
@@ -205,6 +197,8 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.9 5.88 6.5.94-4.7 4.58 1.1 6.45L12 17.9 6.2 21l1.1-6.45-4.7-4.58 6.5-.94L12 3z" fill="currentColor"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   </svg>
 
   <div id="app" class="app">
@@ -233,9 +227,7 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
         <div id="dow" class="grid"></div>
         <div id="calGrid" class="grid days"></div>
         <div class="cal-footer">
-          <button id="btnToday" class="iconbtn" title="Today">
-            <svg class="icon"><use href="#i-clock"/></svg>
-          </button>
+          <button id="btnToday" class="iconbtn" title="Today"><svg class="icon"><use href="#i-clock"/></svg></button>
         </div>
       </div>
 
@@ -375,7 +367,7 @@ function renderCalendar(){
   el.grid.innerHTML='';
   const first=new Date(ref.getFullYear(),ref.getMonth(),1);
   const startWd=first.getDay(); // Sun=0
-  const totalCells=42; // fixed 6 weeks to prevent layout jumps
+  const totalCells=42; // fixed 6 weeks: no layout jump
   for(let i=0;i<totalCells;i++){
     const dateObj=new Date(ref.getFullYear(),ref.getMonth(),1 - startWd + i);
     const inMonth = dateObj.getMonth()===ref.getMonth();
@@ -411,13 +403,23 @@ function renderGuests(){
   state.guests.forEach((g,i)=>{
     const chip=document.createElement('div'); chip.className='chip'; chip.classList.add(g.active?'on':'off');
     chip.style.borderColor=g.active? g.color : '#cfd6e7'; chip.style.color=g.active? 'var(--ink)' : '#7d8aa0';
-    const star=g.primary? '<span class="star">⋆</span>' : '';
-    chip.innerHTML=`${star}<strong>${g.name}</strong>`;
-    chip.addEventListener('click',(e)=>{ if(e.target.classList.contains('x')) return; g.active=!g.active; renderGuests(); renderActivities(); });
-    const x=document.createElement('span'); x.className='x'; x.textContent='×';
+
+    // star (SVG, centered)
+    const starWrap=document.createElement('span'); starWrap.className='star';
+    if(g.primary){ starWrap.innerHTML='<svg><use href="#i-star"/></svg>'; }
+
+    const nameEl=document.createElement('strong'); nameEl.textContent=g.name;
+
+    // delete X (SVG, centered)
+    const x=document.createElement('span'); x.className='x';
+    x.innerHTML='<svg class="icon-xs"><use href="#i-x"/></svg>';
+
     const onRemove=(e)=>{ e.preventDefault(); e.stopPropagation(); const wasPrimary=state.guests[i].primary; state.guests.splice(i,1); if(wasPrimary && state.guests[0]) state.guests[0].primary=true; renderGuests(); renderActivities(); renderEmail(); };
     x.addEventListener('pointerdown',onRemove); x.addEventListener('click',onRemove);
-    chip.appendChild(x);
+
+    chip.append(starWrap, nameEl, x);
+    chip.addEventListener('click',(e)=>{ if(e.target.closest('.x')) return; g.active=!g.active; renderGuests(); renderActivities(); });
+
     wrap.appendChild(chip);
   });
 }
@@ -567,7 +569,7 @@ document.getElementById('btnArrival').onclick=()=>{ const d=new Date(state.focus
 document.getElementById('btnDeparture').onclick=()=>{ const d=new Date(state.focus); if(state.arrival && d<state.arrival){ alert('Departure cannot be before Arrival.'); return } state.departure=d; state.emailDirty=false; renderAll(); };
 el.eta.onchange=(e)=>{ state.eta=e.target.value; renderAll(); };
 el.etd.onchange=(e)=>{ state.etd=e.target.value; renderAll(); };
-document.getElementById('btnToday').addEventListener('click',()=>{ /* hook for future */ });
+document.getElementById('btnToday').addEventListener('click',()=>{ /* reserved */ });
 
 // shortcuts (require Cmd/Ctrl)
 document.addEventListener('keydown',e=>{
