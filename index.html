@@ -3,17 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CHS Itinerary Builder — Rescue v2</title>
+<title>CHS Itinerary Builder — Rescue v4</title>
 <style>
 :root{
   --bg:#f7f8fb; --panel:#fff; --ink:#0c1220; --muted:#5b6575; --accent:#2a6bff;
   --chip1:#2a6bff; --chip2:#ff8c3a; --chip3:#0aa06e; --chip4:#e23b6e; --chipOff:#e9edf7;
   --border:#dbe1ef; --shadow:0 1px 2px rgba(12,18,32,.06), 0 6px 24px rgba(12,18,32,.06);
+  --arrfill: rgba(42,107,255,.14);
+  --depfill: rgba(42,107,255,.18);
 }
 body.theme-dark{
   --bg:#0b0c0f; --panel:#12141a; --ink:#e8ebf0; --muted:#a9b1bd; --accent:#5ea1ff;
   --chip1:#98c1ff; --chip2:#ffd280; --chip3:#b4f0d9; --chip4:#ffb3c1; --chipOff:#1a212e;
   --border:#1d212b; --shadow:0 1px 2px rgba(0,0,0,.35), 0 6px 24px rgba(0,0,0,.35);
+  --arrfill: rgba(94,161,255,.20);
+  --depfill: rgba(94,161,255,.26);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -26,7 +30,7 @@ body{
   display:grid;
   grid-template-columns:minmax(300px,340px) minmax(520px,1fr) minmax(360px,430px);
   grid-template-areas:"left center right";
-  gap:16px;padding:16px;max-width:1440px;margin:0 auto;
+  gap:16px;padding:16px;max-width:1440px;margin:0 auto;align-items:start;
 }
 .left{grid-area:left}
 .center{grid-area:center}
@@ -58,7 +62,7 @@ button{
 body.theme-dark button{background:#141821;border-color:#2a2f3a;color:var(--ink)}
 button:hover{border-color:#c8d2e6} body.theme-dark button:hover{border-color:#3a4150}
 .iconbtn{
-  width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0
+  width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0; /* perfect square */
 }
 .icon{width:18px;height:18px}
 .toolicon{width:40px;height:40px;border:1px solid var(--border);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#f1f4fb}
@@ -73,7 +77,7 @@ body.theme-dark .themebtn{background:#141821;border-color:#2a2f3a}
 .themebtn .icon{width:18px;height:18px}
 
 /* CALENDAR */
-.calendar{display:grid;grid-template-rows:auto 20px 1fr auto;gap:10px;min-height:480px}
+.calendar{display:grid;grid-template-rows:auto 20px 1fr auto;gap:10px;min-height:520px} /* aligns w/ other cards */
 .cal-toolbar{
   display:grid;
   grid-template-columns:1fr minmax(160px, 260px) 1fr;
@@ -94,16 +98,26 @@ body.theme-dark .themebtn{background:#141821;border-color:#2a2f3a}
 .day{
   aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:12px;
   border:1px solid var(--border);background:#ffffff;cursor:pointer;position:relative;color:var(--ink);
+  overflow:hidden; /* keeps inner fills tidy */
 }
 body.theme-dark .day{border-color:#222733;background:#0f1218}
 .day.faded{opacity:.55} body.theme-dark .day.faded{opacity:.45}
 .day.faded:hover{opacity:.85;background:rgba(0,0,0,.03)} body.theme-dark .day.faded:hover{opacity:.9;background:#10141d}
-.day.focus{box-shadow:0 0 0 2px var(--accent), inset 0 0 0 1px var(--accent)}
+
+/* Focus = inset ring only (no outer ring -> no clipping) */
+.day.focus{box-shadow:inset 0 0 0 2px var(--accent)}
+
+/* Arrival/Departure: inner fills (no extra border thickness) */
+.day.arrival::before,
+.day.departure::before{
+  content:"";position:absolute;inset:3px;border-radius:9px;
+}
+.day.arrival::before{ background:var(--arrfill); }
+.day.departure::before{ background:var(--depfill); }
+
 .day.stay{background:rgba(42,107,255,.06)} body.theme-dark .day.stay{background:#0d1a2e}
-.day.arrival,.day.departure{background:rgba(42,107,255,.12);border-color:#2a6bff}
-body.theme-dark .day.arrival,body.theme-dark .day.departure{background:#12233d;border-color:#2a73ff}
 .day.today::after{content:"";position:absolute;bottom:6px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
-.cal-footer{display:flex;justify-content:flex-start} /* clock aligned left */
+.cal-footer{display:flex;justify-content:flex-start}
 #btnToday{width:34px;height:34px;border-radius:8px}
 
 /* GUESTS */
@@ -113,15 +127,16 @@ body.theme-dark .day.arrival,body.theme-dark .day.departure{background:#12233d;b
   transition:background .15s,border-color .15s,box-shadow .15s;position:relative;
 }
 .chip .x{
-  font-weight:700;opacity:.95;cursor:pointer;padding:2px 10px;margin-left:6px;border-radius:8px;display:inline-flex;
-  align-items:center;justify-content:center;min-width:22px;height:22px;line-height:22px;background:#eef2fb;border:1px solid var(--border);pointer-events:auto;
+  font-weight:700;opacity:.95;cursor:pointer;margin-left:4px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;line-height:22px;
+  background:#eef2fb;border:1px solid var(--border);pointer-events:auto;
 }
 body.theme-dark .chip .x{background:#0f1420;border-color:#2a3242}
 .chip .x:hover{opacity:1}
 .chip .star{
   display:inline-flex;align-items:center;justify-content:center;
   width:18px;height:18px;margin-right:6px;color:#6b78ff;
-  font-size:18px;line-height:1;transform:translateY(1px);
+  font-size:18px;line-height:1;
 }
 .chip.off{background:var(--chipOff);color:#7d8aa0;border-color:#cfd6e7}
 .chip.on{box-shadow:0 0 0 2px rgba(42,107,255,.25) inset}
@@ -131,27 +146,32 @@ body.theme-dark .chip.on{box-shadow:0 0 0 2px rgba(255,255,255,.06) inset}
 /* ACTIVITIES */
 .list{display:flex;flex-direction:column;gap:8px; scrollbar-gutter: stable both-edges;}
 .item{
-  padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;display:flex;
-  justify-content:space-between;align-items:center; height:52px; /* fixed so no jiggle */
-  overflow:hidden;
+  border:1px solid var(--border);border-radius:12px;background:#fff;
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;
+  height:52px;padding:10px 12px;overflow:hidden;
 }
 body.theme-dark .item{background:#0f131a;border-color:#212635}
 .item .title{
   font-weight:600;display:flex;align-items:center;gap:8px;
-  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:52vw;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0;
 }
-.item .time{color:var(--muted);font-variant-numeric:tabular-nums}
+.item .chips-inline{
+  display:flex;align-items:center;gap:6px;max-width:38vw;overflow:hidden;
+}
+.item .time{
+  color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;line-height:1;
+}
 .initial{
-  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
-  border-radius:50%;border:1px solid currentColor;font-size:13px;cursor:pointer;
+  width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid currentColor;font-size:11px;cursor:pointer;
   transition:background .12s, box-shadow .12s, transform .12s; -webkit-tap-highlight-color: transparent; user-select:none;
 }
 .initial:hover{background:rgba(0,0,0,.045);box-shadow:0 0 0 2px rgba(0,0,0,.065) inset}
 body.theme-dark .initial:hover{background:#0f1c2b;box-shadow:0 0 0 2px rgba(255,255,255,.07) inset}
 .initial._hoverKill{background:#ffe9ec;color:#b00020;border-color:#f6b2bb}
 .tag{
-  margin-left:8px;padding:2px 8px;border-radius:999px;border:1px solid #cfd6e7;color:#2f3d64;min-width:72px;
-  display:inline-flex;align-items:center;justify-content:center;position:relative;cursor:default;background:transparent;
+  margin-left:0;padding:0 8px;border-radius:999px;border:1px solid #cfd6e7;color:#2f3d64;
+  display:inline-flex;align-items:center;justify-content:center;background:transparent;white-space:nowrap;font-size:11px;height:20px;
 }
 body.theme-dark .tag{border-color:#2b3240;color:#cbd6ff}
 
@@ -159,7 +179,7 @@ body.theme-dark .tag{border-color:#2b3240;color:#cbd6ff}
 .pop{
   position:fixed;z-index:9999;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:8px;display:flex;gap:6px;flex-wrap:wrap;box-shadow:var(--shadow)
 }
-.pop .initial{width:26px;height:26px;font-size:12px}
+.pop .initial{width:20px;height:20px;font-size:11px}
 
 /* EMAIL */
 .email{
@@ -168,11 +188,13 @@ body.theme-dark .tag{border-color:#2b3240;color:#cbd6ff}
 }
 body.theme-dark .email{background:#0d1016;border-color:#1e2431}
 
-.center-header{gap:10px}
-.daytitle{min-width:220px;text-align:center}
+.center-header{gap:10px; width:100%; justify-content:center}
+.daytitle{
+  min-width:220px;text-align:center;
+  font-size:18px;font-weight:700;letter-spacing:.01em;
+}
 #prevDay,#nextDay{width:34px;height:34px;border-radius:8px}
 
-/* Align card headers visually */
 .left h2,.center h2,.right h2{margin-top:0}
 </style>
 </head>
@@ -184,6 +206,7 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
     <symbol id="i-chevrons-left" viewBox="0 0 24 24"><polyline points="17 3 7 12 17 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="13 3 3 12 13 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-chevrons-right" viewBox="0 0 24 24"><polyline points="7 3 17 12 7 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><polyline points="11 3 21 12 11 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19 3 20l1-4 12.5-12.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -250,16 +273,14 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
 
     <!-- CENTER -->
     <section class="center card">
-      <div class="row space-between nowrap" style="align-items:baseline">
-        <h2>Activities</h2>
-        <div class="row nowrap center-header">
-          <button id="prevDay" class="iconbtn" title="Previous Day"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
-          <div id="dayTitle" class="muted daytitle"></div>
-          <button id="nextDay" class="iconbtn" title="Next Day"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
-        </div>
+      <h2>Activities</h2>
+      <div class="row nowrap center-header" style="margin-top:-2px;margin-bottom:10px">
+        <button id="prevDay" class="iconbtn" title="Previous Day"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+        <div id="dayTitle" class="daytitle"></div>
+        <button id="nextDay" class="iconbtn" title="Next Day"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
       </div>
 
-      <div class="row nowrap tight" style="margin:8px 0 12px">
+      <div class="row nowrap tight" style="margin:2px 0 12px">
         <button id="addDinner">Dinner</button>
         <button id="addCustom">Custom</button>
         <button id="clearAll">Clear</button>
@@ -441,17 +462,22 @@ function renderActivities(){
     const merged = existing ? existing : {...item, type:'activity'};
 
     const row=document.createElement('div'); row.className='item';
-    const left=document.createElement('div');
-    const t=document.createElement('div'); t.className='title'; t.textContent=merged.title;
+
+    // left: title
+    const titleWrap=document.createElement('div'); titleWrap.className='title'; titleWrap.textContent=merged.title;
+
+    // middle: chips area (keeps time fixed on right)
+    const chipWrap=document.createElement('div'); chipWrap.className='chips-inline';
+
+    // right: time
     const time=document.createElement('div'); time.className='time'; time.textContent = merged.end? `${hmToAmPm(merged.start)} - ${hmToAmPm(merged.end)}` : hmToAmPm(merged.start);
 
-    // chips
+    // populate chips / Everyone
     if(merged.guests && merged.guests.size){
       const names=Array.from(merged.guests);
       const everyone = state.guests.length>0 && names.length===state.guests.length;
       if(everyone){
         const tag=document.createElement('span'); tag.className='tag'; tag.textContent='Everyone'; tag.setAttribute('role','button'); tag.tabIndex=0; tag.title='Show guests';
-
         const open=()=>{
           if(popFor===tag) return;
           closePop();
@@ -481,7 +507,7 @@ function renderActivities(){
         tag.addEventListener('mouseenter',()=>{ if('ontouchstart' in window) return; open(); });
         tag.addEventListener('mouseleave',()=>{ if('ontouchstart' in window) return; scheduleHide(); });
 
-        t.appendChild(tag);
+        chipWrap.appendChild(tag);
       } else {
         names.forEach(n=>{
           const chip=document.createElement('span'); chip.className='initial'; chip.textContent=(n[0]||'?').toUpperCase(); chip.title=n;
@@ -491,18 +517,20 @@ function renderActivities(){
           const removeOne=(e)=>{ e.preventDefault(); e.stopPropagation(); const s=new Set(merged.guests); s.delete(n); merged.guests=s; if(s.size===0){ const arr=state.itemsByDate.get(key)||[]; const idx=arr.indexOf(merged); if(idx>-1) arr.splice(idx,1) } renderAll(); };
           chip.addEventListener('mouseenter',over); chip.addEventListener('mouseleave',out);
           chip.addEventListener('pointerdown',removeOne); chip.addEventListener('click',removeOne);
-          t.appendChild(chip);
+          chipWrap.appendChild(chip);
         });
       }
     }
 
-    left.append(t,time);
-    const right=document.createElement('div');
+    // right-side add button
     const add=document.createElement('button'); add.textContent='+'; add.title='Add for toggled guests';
     add.onclick=()=>{ const actives=state.guests.filter(g=>g.active).map(g=>g.name); if(actives.length===0){ alert('Toggle at least one guest first.'); return } ensureDayList(key); const arr=state.itemsByDate.get(key); const target=addedMap.get(keyFor(item))||merged; const s=new Set(target.guests||[]); actives.forEach(n=>s.add(n)); target.guests=s; if(!arr.includes(target)) arr.push(target); state.emailDirty=false; renderAll(); };
-    right.appendChild(add);
 
-    row.append(left,right);
+    // assemble
+    const rightWrap=document.createElement('div'); rightWrap.style.display='flex'; rightWrap.style.alignItems='center'; rightWrap.style.gap='8px';
+    rightWrap.append(time, add);
+
+    row.append(titleWrap, chipWrap, rightWrap);
     list.appendChild(row);
   }
 
@@ -549,7 +577,7 @@ document.getElementById('btnArrival').onclick=()=>{ const d=new Date(state.focus
 document.getElementById('btnDeparture').onclick=()=>{ const d=new Date(state.focus); if(state.arrival && d<state.arrival){ alert('Departure cannot be before Arrival.'); return } state.departure=d; state.emailDirty=false; renderAll(); };
 el.eta.onchange=(e)=>{ state.eta=e.target.value; renderAll(); };
 el.etd.onchange=(e)=>{ state.etd=e.target.value; renderAll(); };
-document.getElementById('btnToday').addEventListener('click',()=>{ closePop(); }); // safety
+document.getElementById('btnToday').addEventListener('click',()=>{ /* hook kept for future */ });
 
 // shortcuts (require Cmd/Ctrl)
 document.addEventListener('keydown',e=>{
