@@ -102,6 +102,26 @@
   .days{min-height:300px}
 }
 
+/* --- Tablet/iPad button refinements to avoid cut-offs and chunky look --- */
+@media (min-width:768px) and (max-width:1279px){
+  .cal-toolbar{gap:6px;overflow:visible}
+  .cal-month{flex:1 1 auto;min-width:0}
+  .navrow{flex:0 1 auto;gap:4px}
+  .cal-toolbar .iconbtn{width:34px;height:34px;border-radius:8px}
+  .cal-toolbar .iconbtn svg{width:18px;height:18px}
+  #btnToday{padding:6px 10px;font-size:13px;border-radius:10px}
+  /* Day prev/next in Activities header */
+  .center .row .iconbtn{width:32px;height:32px;border-radius:8px}
+  .center .row .iconbtn svg{width:18px;height:18px}
+}
+/* Narrow phones: ensure nothing clips */
+@media (max-width:767px){
+  .cal-toolbar{gap:6px}
+  .cal-month{flex:1 1 auto;min-width:0}
+  .navrow{flex:0 1 auto;gap:4px}
+  .cal-toolbar .iconbtn{width:32px;height:32px}
+  #btnToday{padding:6px 8px;font-size:12px}
+}
 </style>
 </head>
 <body>
