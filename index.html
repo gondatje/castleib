@@ -42,7 +42,8 @@
   .section{margin-top:12px}
   button{appearance:none;border:1px solid #2a2f3a;background:#141821;color:var(--ink);padding:8px 12px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-height:36px}
   button:hover{border-color:#3a4150}
-  .iconbtn{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}
+  .iconbtn{width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.iconbtn svg{width:20px;height:20px}
   .iconbtn svg{width:24px;height:24px}
   .toolicon{width:44px;height:44px;border:1px solid #2a2f3a;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#141821}
   .toolicon svg{width:24px;height:24px}
@@ -51,10 +52,10 @@
   /* Calendar */
   .calendar{display:grid;grid-template-rows:48px 20px 1fr;gap:8px;min-height:440px}
   .cal-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;height:48px;min-width:0;flex-wrap:nowrap}
-  .cal-month{display:flex;flex-direction:column;justify-content:center;min-width:160px}
+  .cal-month{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1 1 auto}
   .cal-month .month{font-size:20px;font-weight:600}
   .cal-month .year{font-size:12px;color:var(--muted)}
-  .navrow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;min-width:0}
+  .navrow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;min-width:0;flex:0 0 auto}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
   .dow{font-size:11px;color:var(--muted);text-align:center}
   .days{grid-auto-rows:1fr;min-height:352px;contain:layout paint}
@@ -122,6 +123,20 @@
   .cal-toolbar .iconbtn{width:32px;height:32px}
   #btnToday{padding:6px 8px;font-size:12px}
 }
+/* spacing + proportion tweaks so headers breathe */
+.center .row.space-between{margin-bottom:10px}
+.center .row.nowrap{gap:10px}
+/* prevent overlap of nav and month label at tablet widths */
+@media (min-width:768px) and (max-width:1279px){
+  .cal-toolbar{gap:8px}
+  .navrow{gap:4px}
+  .iconbtn{width:32px;height:32px;border-radius:8px}
+  .iconbtn svg{width:18px;height:18px}
+  #btnToday.iconbtn{width:32px;height:32px}
+  .center .row.nowrap{gap:8px}
+}
+/* give a little extra room beneath the calendar toolbar so content below doesn't feel cramped */
+.calendar{grid-template-rows:56px 20px 1fr}
 </style>
 </head>
 <body>
@@ -135,7 +150,7 @@
           <div class="navrow nowrap">
             <button id="yPrev" class="iconbtn" title="Prev Year" aria-label="Previous Year">⟪</button>
             <button id="mPrev" class="iconbtn" title="Prev Month" aria-label="Previous Month">◀︎</button>
-            <button id="btnToday" title="Today">Today</button>
+            <button id="btnToday" class="iconbtn" title="Today" aria-label="Today (Jump to current day)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></button>
             <button id="mNext" class="iconbtn" title="Next Month" aria-label="Next Month">▶︎</button>
             <button id="yNext" class="iconbtn" title="Next Year" aria-label="Next Year">⟫</button>
           </div>
