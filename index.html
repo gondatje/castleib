@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>CHS Itinerary Builder — Rescue v9 (icon centering)</title>
+<title>CHS Itinerary Builder — Rescue v9.1 (icon centering fix)</title>
 <style>
 :root{
   --bg:#f7f8fb; --panel:#fff; --ink:#0c1220; --muted:#5b6575; --accent:#2a6bff;
@@ -53,6 +53,7 @@ h2{margin:2px 0 12px;font-size:14px;letter-spacing:.02em;text-transform:uppercas
 .spacer-xs{height:6px}
 .section{margin-top:12px}
 
+/* Buttons */
 button{
   appearance:none;border:1px solid var(--border);background:#f1f4fb;color:var(--ink);
   padding:8px 12px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:36px;
@@ -60,11 +61,17 @@ button{
 body.theme-dark button{background:#141821;border-color:#2a2f3a;color:var(--ink)}
 button:hover{border-color:#c8d2e6} body.theme-dark button:hover{border-color:#3a4150}
 
-/* Unified icon treatment */
+/* Icon base */
 .icon{width:20px;height:20px;display:block;overflow:visible}
 .icon *{vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
 
-/* Circular icon buttons (day/month/year + today + add '+') */
+/* Optical centering nudge for right-heavy glyphs */
+.icon.fix-center{transform:translateX(-0.8px)}
+@media (min-resolution: 2dppx){
+  .icon.fix-center{transform:translateX(-0.7px)}
+}
+
+/* Circular icon buttons */
 .iconbtn{
   width:36px;height:36px;border-radius:999px;padding:0;
   display:grid;place-items:center;border:1px solid var(--border);background:#f1f4fb;
@@ -188,7 +195,7 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
 </style>
 </head>
 <body>
-<!-- Inline symbols: all 24×24 viewBox -->
+<!-- Inline symbols -->
 <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
   <symbol id="i-arrow-left" viewBox="0 0 24 24"><polyline points="15 19 8 12 15 5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   <symbol id="i-arrow-right" viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
@@ -209,7 +216,8 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
   <section class="left card">
     <div class="card-actions">
       <button id="themeToggle" class="themebtn" title="Toggle theme">
-        <svg class="icon"><use id="themeUse" href="#i-moon"/></svg>
+        <!-- FIX: optical center class + preserveAspectRatio -->
+        <svg class="icon fix-center" preserveAspectRatio="xMidYMid meet"><use id="themeUse" href="#i-moon"/></svg>
       </button>
     </div>
     <h2>Calendar</h2>
@@ -285,8 +293,14 @@ body.theme-dark .email{background:#0d1016;border-color:#1e2431}
     <h2>Preview</h2>
     <div id="email" class="email" contenteditable="false" spellcheck="false"></div>
     <div class="row stick-right nowrap" style="gap:8px;margin-top:12px">
-      <button id="toggleEdit" class="toolicon" title="Edit/Lock"><svg class="icon" id="editIcon"><use href="#i-pencil"/></svg></button>
-      <button id="copy" class="toolicon" title="Copy"><svg class="icon"><use href="#i-copy"/></svg></button>
+      <!-- FIX: optical center class + preserveAspectRatio -->
+      <button id="toggleEdit" class="toolicon" title="Edit/Lock">
+        <svg class="icon fix-center" preserveAspectRatio="xMidYMid meet" id="editIcon"><use href="#i-pencil"/></svg>
+      </button>
+      <!-- FIX: optical center class + preserveAspectRatio -->
+      <button id="copy" class="toolicon" title="Copy">
+        <svg class="icon fix-center" preserveAspectRatio="xMidYMid meet"><use href="#i-copy"/></svg>
+      </button>
     </div>
   </section>
 </div>
@@ -630,3 +644,4 @@ document.addEventListener('DOMContentLoaded', renderAll);
 </script>
 </body>
 </html>
+
