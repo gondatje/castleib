@@ -1,0 +1,6 @@
+{
+"services": [
+{ "title": "CHS Custom Massage", "durations": [60, 90], "window": {"start": "08:00", "end": "19:00"} },
+{ "title": "Sonoran Desert Transformation", "durations": [120], "window": {"start": "08:00", "end": "19:00"} }
+]
+}

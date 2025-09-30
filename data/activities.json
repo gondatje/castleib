@@ -1,0 +1,33 @@
+{
+"Sunday": [
+{ "start": "09:30", "end": "10:15", "title": "Nature Walk" }
+],
+"Monday": [
+{ "start": "06:45", "end": "08:15", "title": "Overlook Hike" },
+{ "start": "07:00", "end": "09:15", "title": "Scenic Desert E-Bike Ride" },
+{ "start": "07:00", "end": "10:00", "title": "Castle Peak Via Ferrata Climb" },
+{ "start": "07:00", "end": "10:00", "title": "Crater Canyon Exploration" },
+{ "start": "08:30", "end": "09:25", "title": "Rise & Shine Flow Yoga" },
+{ "start": "09:00", "end": "10:15", "title": "E-Biking 101: Intro to E-Bike Tour" },
+{ "start": "09:30", "end": "10:15", "title": "Landscape Restoration and Development Tour" },
+{ "start": "09:40", "end": "10:00", "title": "Meditation" },
+{ "start": "10:00", "end": "10:45", "title": "Guided Archery" },
+{ "start": "10:15", "end": "11:00", "title": "Intro to Tai Chi" },
+{ "start": "10:30", "end": "11:30", "title": "Farm Tour" },
+{ "start": "11:00", "end": "11:45", "title": "Axe Throwing" },
+{ "start": "11:00", "end": "12:00", "title": "Paddle Board Yoga" },
+{ "start": "12:30", "end": "13:30", "title": "Sound Bath" },
+{ "start": "14:00", "end": "14:45", "title": "Mindfulness Activity - Rock Mandalas" },
+{ "start": "14:00", "end": "15:00", "title": "Cooling Aroma Restorative Yoga" },
+{ "start": "15:00", "end": "16:00", "title": "Wine Tasting" },
+{ "start": "15:15", "end": "16:10", "title": "Yoga" },
+{ "start": "16:00", "end": "16:45", "title": "Castle Hot Springs Documentary Viewing" },
+{ "start": "16:00", "end": "17:00", "title": "Connecting With Water" },
+{ "start": "16:30", "end": "17:00", "title": "Yoga Nidra" }
+],
+"Tuesday": [ { "start": "09:00", "end": "12:00", "title": "UTV Razor Tour" }, { "start": "16:00", "end": "17:00", "title": "Farm Tour" } ],
+"Wednesday": [ { "start": "10:15", "end": "11:00", "title": "Intro to Tai Chi" } ],
+"Thursday": [ { "start": "11:30", "end": "12:15", "title": "Guided Archery" } ],
+"Friday": [ { "start": "12:30", "end": "13:30", "title": "Sound Bath" } ],
+"Saturday": [ { "start": "09:00", "end": "10:00", "title": "Morning Stretch" } ]
+}
