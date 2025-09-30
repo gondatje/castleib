@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CHS Itinerary Builder — Rescue v6</title>
+<title>CHS Itinerary Builder — Rescue v7</title>
 <style>
 :root{
   --bg:#f7f8fb; --panel:#fff; --ink:#0c1220; --muted:#5b6575; --accent:#2a6bff;
@@ -60,12 +60,8 @@ button{
 body.theme-dark button{background:#141821;border-color:#2a2f3a;color:var(--ink)}
 button:hover{border-color:#c8d2e6} body.theme-dark button:hover{border-color:#3a4150}
 .iconbtn{
-  /* SQUARE, centered, rounded */
-  aspect-ratio:1/1;
-  inline-size:34px; block-size:34px;
-  padding:0;
-  border-radius:8px;
-  display:grid; place-items:center;
+  aspect-ratio:1/1; inline-size:34px; block-size:34px;
+  padding:0; border-radius:8px; display:grid; place-items:center;
 }
 .icon{width:18px;height:18px;display:block}
 .toolicon{width:40px;height:40px;border:1px solid var(--border);border-radius:10px;display:inline-grid;place-items:center;background:#f1f4fb}
@@ -74,19 +70,25 @@ body.theme-dark .toolicon{background:#141821;border-color:#2a2f3a}
 .input{background:#fff;border:1px solid var(--border);color:var(--ink);padding:10px 12px;border-radius:10px}
 body.theme-dark .input{background:#0f1218;border-color:#2a2f3a}
 .select{appearance:none}
+
+/* top-right control in cards */
 .card .card-actions{position:absolute;top:10px;right:10px;display:flex;gap:6px}
-.themebtn{width:34px;height:34px;border-radius:10px;display:inline-grid;place-items:center;border:1px solid var(--border);background:#f1f4fb}
+.themebtn{
+  inline-size:34px; block-size:34px; padding:0;
+  border-radius:10px; display:grid; place-items:center;
+  border:1px solid var(--border); background:#f1f4fb;
+}
+.themebtn .icon{width:18px;height:18px;display:block; /* optical nudge to center perfectly */ transform:translateX(-1px)}
 body.theme-dark .themebtn{background:#141821;border-color:#2a2f3a}
-.themebtn .icon{width:18px;height:18px}
 
 /* CALENDAR */
 .calendar{display:grid;grid-template-rows:auto 20px 1fr auto;gap:10px;min-height:520px}
+/* remove stray gap so left column top lines up perfectly */
+.calendar > .spacer-xs{height:0}
 .cal-toolbar{
   display:grid;
   grid-template-columns:1fr minmax(160px, 260px) 1fr;
-  align-items:center;
-  gap:12px;
-  padding:6px 6px 8px;
+  align-items:center; gap:12px; padding:6px 6px 8px;
   border-bottom:1px solid var(--border);
 }
 .cal-nav{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:nowrap}
@@ -121,16 +123,13 @@ body.theme-dark .day{border-color:#222733;background:#0f1218}
   transition:background .15s,border-color .15s,box-shadow .15s;position:relative;
 }
 .chip .x{
-  /* circular button with centered SVG */
-  display:grid;place-items:center;
-  width:22px;height:22px;border-radius:50%;
+  display:grid;place-items:center;width:22px;height:22px;border-radius:50%;
   background:#eef2fb;border:1px solid var(--border);pointer-events:auto;
 }
 .chip .x svg{width:12px;height:12px;display:block}
 body.theme-dark .chip .x{background:#0f1420;border-color:#2a3242}
 .chip .star{
-  display:grid;place-items:center;
-  width:18px;height:18px;margin-right:6px;
+  display:grid;place-items:center;width:18px;height:18px;margin-right:4px;
 }
 .chip .star svg{width:16px;height:16px;display:block}
 .chip.off{background:var(--chipOff);color:#7d8aa0;border-color:#cfd6e7}
@@ -404,20 +403,22 @@ function renderGuests(){
     const chip=document.createElement('div'); chip.className='chip'; chip.classList.add(g.active?'on':'off');
     chip.style.borderColor=g.active? g.color : '#cfd6e7'; chip.style.color=g.active? 'var(--ink)' : '#7d8aa0';
 
-    // star (SVG, centered)
-    const starWrap=document.createElement('span'); starWrap.className='star';
-    if(g.primary){ starWrap.innerHTML='<svg><use href="#i-star"/></svg>'; }
+    // Only render star when primary (no phantom space for others)
+    if(g.primary){
+      const starWrap=document.createElement('span'); starWrap.className='star';
+      starWrap.innerHTML='<svg><use href="#i-star"/></svg>';
+      chip.appendChild(starWrap);
+    }
 
     const nameEl=document.createElement('strong'); nameEl.textContent=g.name;
 
-    // delete X (SVG, centered)
     const x=document.createElement('span'); x.className='x';
     x.innerHTML='<svg class="icon-xs"><use href="#i-x"/></svg>';
 
     const onRemove=(e)=>{ e.preventDefault(); e.stopPropagation(); const wasPrimary=state.guests[i].primary; state.guests.splice(i,1); if(wasPrimary && state.guests[0]) state.guests[0].primary=true; renderGuests(); renderActivities(); renderEmail(); };
     x.addEventListener('pointerdown',onRemove); x.addEventListener('click',onRemove);
 
-    chip.append(starWrap, nameEl, x);
+    chip.append(nameEl, x);
     chip.addEventListener('click',(e)=>{ if(e.target.closest('.x')) return; g.active=!g.active; renderGuests(); renderActivities(); });
 
     wrap.appendChild(chip);
@@ -459,20 +460,16 @@ function renderActivities(){
 
     const row=document.createElement('div'); row.className='item';
 
-    // left: title + time (time under title)
     const titleWrap=document.createElement('div'); titleWrap.className='title';
     const titleTxt=document.createElement('div'); titleTxt.className='ttext'; titleTxt.textContent=merged.title;
     const sub=document.createElement('div'); sub.className='sub'; sub.textContent = merged.end? `${hmToAmPm(merged.start)} - ${hmToAmPm(merged.end)}` : hmToAmPm(merged.start);
     titleWrap.append(titleTxt, sub);
 
-    // middle: chips inline
     const chipWrap=document.createElement('div'); chipWrap.className='chips-inline';
 
-    // right: only "+" button
     const add=document.createElement('button'); add.textContent='+'; add.title='Add for toggled guests';
     add.onclick=()=>{ const actives=state.guests.filter(g=>g.active).map(g=>g.name); if(actives.length===0){ alert('Toggle at least one guest first.'); return } ensureDayList(key); const arr=state.itemsByDate.get(key); const target=addedMap.get(keyFor(item))||merged; const s=new Set(target.guests||[]); actives.forEach(n=>s.add(n)); target.guests=s; if(!arr.includes(target)) arr.push(target); state.emailDirty=false; renderAll(); };
 
-    // chips content
     if(merged.guests && merged.guests.size){
       const names=Array.from(merged.guests);
       const everyone = state.guests.length>0 && names.length===state.guests.length;
