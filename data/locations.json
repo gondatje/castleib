@@ -1,0 +1,13 @@
+{
+  "overlook":   { "name": "Overlook Trailhead" },
+  "bike":       { "name": "Bike Barn" },
+  "viaferrata": { "name": "Via Ferrata Base" },
+  "crater":     { "name": "Crater Canyon" },
+  "studio":     { "name": "Movement Studio" },
+  "farm":       { "name": "Farm" },
+  "archery":    { "name": "Archery Range" },
+  "axe":        { "name": "Axe Range" },
+  "water":      { "name": "Pools" },
+  "lodge":      { "name": "Lodge Theater" },
+  "harvest":    { "name": "Harvest" }
+}
