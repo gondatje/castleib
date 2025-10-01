@@ -30,6 +30,12 @@
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
   const guestsEl=$('#guests'), guestName=$('#guestName');
+  calGrid.addEventListener('keydown',e=>{
+    if(e.target.tagName==='BUTTON' && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
+      e.preventDefault();
+      e.target.click();
+    }
+  });
 
   // DOW header
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(t=>{
@@ -68,10 +74,19 @@
       const d=new Date(y,m,1 - startOffset + i);
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
+      btn.setAttribute('role','gridcell');
+      btn.setAttribute('tabindex','0');
+      btn.setAttribute('aria-selected','false');
       btn.setAttribute('aria-label', d.toDateString());
       if(d.getMonth()!==m) btn.classList.add('other');
-      if(d.getTime()===state.today.getTime()) btn.classList.add('today');
-      if(d.getTime()===state.focus.getTime()) btn.classList.add('focus');
+      if(d.getTime()===state.today.getTime()){
+        btn.classList.add('today');
+        btn.setAttribute('aria-current','date');
+      }
+      if(d.getTime()===state.focus.getTime()){
+        btn.classList.add('focus');
+        btn.setAttribute('aria-selected','true');
+      }
 
       if(state.arrival && state.departure){
         const t=d.getTime();

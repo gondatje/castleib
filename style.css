@@ -1,6 +1,6 @@
 :root{
   --bg:#f6f7fb; --panel:#fff; --ink:#0c1220; --muted:#6b7280; --border:#e2e8f0;
-  --brand:#2a6bff; --stay:#e7f0ff; --arrival:#dcfce7; --departure:#fee2e2;
+  --brand:#2a6bff; --stayBand:#e9efff; --stayEdge:#d7e3ff;
   --chip:#eef2ff; --chipBorder:#c7d2fe; --chipText:#1e1b4b;
 }
 *{box-sizing:border-box}
@@ -20,10 +20,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.other{opacity:.45}
 .days button.focus{outline:2px solid var(--brand)}
 .days button.today::after{content:'';position:absolute;bottom:6px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--brand);transform:translateX(-50%)}
-.days button.arrival{background:var(--arrival)}
-.days button.departure{background:var(--departure)}
-.days button.stay{background:var(--stay)}
-.monthyear{display:flex;gap:6px;font-weight:600}
+.days button.today.focus::after{bottom:8px}
+.days button.arrival,.days button.departure{background:var(--stayEdge);box-shadow:inset 0 0 0 2px var(--brand)}
+.days button.stay{background:var(--stayBand)}
 #dayTitle{font-weight:600}
 .email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;white-space:pre-wrap}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
@@ -39,5 +38,12 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .tag-row{display:flex;gap:6px;flex-wrap:wrap}
 .stick-right{justify-content:flex-end}
 .section{margin-top:16px}
-.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+#calMonth{font-weight:700;font-size:16px}
+#calYear{color:var(--muted);font-size:12px}
+.toolbar{margin-bottom:8px}
+.toolbar .nav-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.toolbar .monthyear-col{display:flex;flex-direction:column;line-height:1.05;align-items:center;text-align:center}
+.toolbar .nav-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0}
+.calendar-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.calendar-actions button{height:32px;padding:0 10px;border-radius:10px}
 #actions{margin:8px 0 12px}
