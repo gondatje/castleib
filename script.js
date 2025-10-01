@@ -122,7 +122,7 @@
     state.guests.forEach((g,ix)=>{
       const b=document.createElement('button');
       b.className='guest-pill'+(g.active?' active':'');
-      b.style.borderColor=g.color;
+
       b.style.setProperty('--pillColor', g.color);
       const star = g.primary ? '<span class="star">★</span>' : '';
       b.innerHTML = `${star}${g.name} <span class="x" aria-hidden="true" title="Remove">×</span>`;
