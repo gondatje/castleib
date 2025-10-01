@@ -377,7 +377,10 @@
 
   function renderPreview(){
     if(state.editing) return;
-    if(state.previewFrozen && !state.previewDirty) return;
+    if(state.previewFrozen && !state.previewDirty){
+      if(state.userEdited!==undefined) email.textContent = state.userEdited;
+      return;
+    }
     const lines = [];
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
     lines.push(`Hello ${primary},`,'','Current Itinerary:','');
@@ -417,6 +420,7 @@
     });
 
     email.textContent = lines.join('\n');
+    state.userEdited = email.textContent;
     state.previewFrozen = false;
     state.previewDirty = false;
   }
@@ -431,14 +435,20 @@
   $('#nextDay').onclick=()=>{ const d=new Date(state.focus); d.setDate(d.getDate()+1); state.focus=zero(d); renderAll(); };
 
   function setArrival(){
-    if(state.departure && state.focus.getTime()>state.departure.getTime()){ alert('Arrival cannot be after Departure.'); return; }
-    state.arrival = new Date(state.focus);
+    const nextArrival = zero(state.focus);
+    if(state.departure && nextArrival.getTime()>state.departure.getTime()){
+      state.departure = null;
+    }
+    state.arrival = nextArrival;
     markPreviewDirty();
     renderAll();
   }
   function setDeparture(){
-    if(state.arrival && state.focus.getTime()<state.arrival.getTime()){ alert('Departure cannot be before Arrival.'); return; }
-    state.departure = new Date(state.focus);
+    const nextDeparture = zero(state.focus);
+    if(state.arrival && nextDeparture.getTime()<state.arrival.getTime()){
+      state.arrival = null;
+    }
+    state.departure = nextDeparture;
     markPreviewDirty();
     renderAll();
   }
