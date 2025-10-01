@@ -26,11 +26,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #dayTitle{font-weight:600}
 .email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;white-space:pre-wrap}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;border:1px solid var(--chipBorder);background:#fff;user-select:none;position:relative;transition:color .15s ease}
-.chip::after{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:0}
-.chip .initial{position:relative;z-index:1;font-size:12px;line-height:1;color:var(--chipText);transition:opacity .12s ease,transform .12s ease}
-.chip .x{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;display:none;align-items:center;justify-content:center;font-weight:800;background:#fff;border:1px solid var(--border);cursor:pointer;padding:0;font-size:12px;line-height:1;z-index:2;box-shadow:0 1px 2px rgba(15,23,42,.08)}
-.chip:hover .initial{opacity:0;transform:scale(.7)}
+
 .chip:hover .x{display:flex}
 .guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
@@ -46,7 +42,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .item-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .item .add{min-width:40px}
 .tag-everyone{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:3px 10px;border-radius:999px;border:1px solid var(--chipBorder);background:#fff;font-weight:600;cursor:default}
-.tag-everyone .popover{position:absolute;transform:translate(-50%,4px);bottom:100%;left:50%;display:none;gap:6px;padding:6px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);z-index:10}
+
 .tag-everyone:hover .popover{display:flex}
 .tag-row{display:flex;gap:6px;flex-wrap:wrap}
 .stick-right{justify-content:flex-end}
