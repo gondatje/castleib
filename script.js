@@ -34,6 +34,7 @@
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
   const guestsEl=$('#guests'), guestName=$('#guestName');
+  const toggleAllBtn=$('#toggleAll');
   const toggleEditBtn=$('#toggleEdit');
   const copyBtn=$('#copy');
   toggleEditBtn.textContent='✎';
@@ -164,14 +165,45 @@
       };
       guestsEl.appendChild(b);
     });
+    updateToggleAllButton();
   }
-  $('#addGuest').onclick=()=>addGuest(guestName.value.trim());
-  guestName.addEventListener('keydown',e=>{ if(e.key==='Enter') addGuest(guestName.value.trim()); });
-  $('#toggleAll').onclick=()=>{
-    const anyInactive = state.guests.some(g=>!g.active);
-    state.guests.forEach(g=>g.active = anyInactive ? true : false);
-    renderGuests();
+  const toggleIcons = {
+    allOn: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`,
+    someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
   };
+
+  guestName.addEventListener('keydown',e=>{ if(e.key==='Enter') addGuest(guestName.value.trim()); });
+  if(toggleAllBtn){
+    toggleAllBtn.addEventListener('click',()=>{
+      const anyInactive = state.guests.some(g=>!g.active);
+      state.guests.forEach(g=>g.active = anyInactive ? true : false);
+      renderGuests();
+    });
+  }
+
+  function updateToggleAllButton(){
+    if(!toggleAllBtn) return;
+    const total = state.guests.length;
+    const allActive = total>0 && state.guests.every(g=>g.active);
+    const anyInactive = state.guests.some(g=>!g.active);
+    toggleAllBtn.disabled = total===0;
+    toggleAllBtn.setAttribute('aria-pressed', total>0 && allActive ? 'true' : 'false');
+    if(total===0){
+      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      toggleAllBtn.setAttribute('aria-label','Toggle all guests');
+      toggleAllBtn.title = 'Toggle all guests';
+      return;
+    }
+    if(anyInactive){
+      toggleAllBtn.innerHTML = toggleIcons.someOff;
+      toggleAllBtn.setAttribute('aria-label','Turn all guests on');
+      toggleAllBtn.title = 'Turn all guests on';
+    }else{
+      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      toggleAllBtn.setAttribute('aria-label','Turn all guests off');
+      toggleAllBtn.title = 'Turn all guests off';
+    }
+  }
 
   // ---------- Activities ----------
   function renderActivities(){
