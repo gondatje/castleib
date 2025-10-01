@@ -434,31 +434,43 @@
   function renderPreview(){
     if(state.editing) return;
     if(state.previewFrozen && !state.previewDirty){
-      if(state.userEdited!==undefined) email.textContent = state.userEdited;
+      if(state.userEdited!==undefined) email.innerHTML = state.userEdited;
       return;
     }
-    const lines = [];
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
-    lines.push(`Hello ${primary},`,'','Current Itinerary:','');
+
+    const makeEl = (tag, className, text)=>{
+      const el=document.createElement(tag);
+      if(className) el.className=className;
+      if(text!==undefined) el.textContent=text;
+      return el;
+    };
+
+    email.innerHTML='';
+
+    email.appendChild(makeEl('p','email-body',`Hello ${primary},`));
+    email.appendChild(makeEl('p','email-body','Thank you for choosing Castle Hot Springs.'));
+    email.appendChild(makeEl('h3','email-section-title','Current Itinerary:'));
 
     const stayKeys = getStayKeys();
 
     if(stayKeys.length===0){
-      lines.push('Set Arrival and Departure to build your preview.');
-      email.textContent = lines.join('\n');
+      email.appendChild(makeEl('p','email-empty','Set Arrival and Departure to build your preview.'));
+      state.userEdited = email.innerHTML;
       state.previewFrozen = false;
       state.previewDirty = false;
       return;
     }
 
-    stayKeys.forEach((k,ix)=>{
+    stayKeys.forEach((k)=>{
       const [y,m,d] = k.split('-').map(Number);
       const date = new Date(y, m-1, d);
       const w = weekdayName(date);
-      lines.push(`${w}, ${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}`);
+      const daySection = makeEl('section','email-day');
+      daySection.appendChild(makeEl('h4','email-day-title',`${w}, ${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}`));
 
       if(state.arrival && keyDate(state.arrival)===k)
-        lines.push('4:00pm Guaranteed Check-In | Welcome to arrive as early as 12:00pm');
+        daySection.appendChild(makeEl('div','email-activity','4:00pm Guaranteed Check-In | Welcome to arrive as early as 12:00pm'));
 
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       items.forEach(it=>{
@@ -467,16 +479,16 @@
         const everyone = (ids.length===state.guests.length);
         const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
         const tag = everyone ? '' : names.map(n=>` | ${n}`).join('');
-        lines.push(`${fmt12(it.start)} - ${fmt12(it.end)} | ${it.title}${tag}`);
+        daySection.appendChild(makeEl('div','email-activity',`${fmt12(it.start)} - ${fmt12(it.end)} | ${it.title}${tag}`));
       });
 
       if(state.departure && keyDate(state.departure)===k)
-        lines.push('11:00am Check-Out | Welcome to stay on property until 1:00pm');
-      if(ix<stayKeys.length-1) lines.push('');
+        daySection.appendChild(makeEl('div','email-activity','11:00am Check-Out | Welcome to stay on property until 1:00pm'));
+
+      email.appendChild(daySection);
     });
 
-    email.textContent = lines.join('\n');
-    state.userEdited = email.textContent;
+    state.userEdited = email.innerHTML;
     state.previewFrozen = false;
     state.previewDirty = false;
   }
@@ -526,7 +538,7 @@
   }
 
   function enterEditMode(){
-    state.userEdited = email.textContent;
+    state.userEdited = email.innerHTML;
     state.editing = true;
     email.contentEditable = 'true';
     email.style.outline = '2px dashed #bbb';
@@ -535,7 +547,7 @@
 
   function exitEditMode(){
     state.editing = false;
-    state.userEdited = email.textContent;
+    state.userEdited = email.innerHTML;
     state.previewFrozen = true;
     state.previewDirty = false;
     email.contentEditable = 'false';
@@ -556,7 +568,21 @@
 
   let copyTitleTimer = null;
   copyBtn.onclick=async ()=>{
-    try{ await navigator.clipboard.writeText(email.textContent); }
+    const html=email.innerHTML;
+    const text=email.textContent;
+    try{
+      if(window.ClipboardItem && navigator.clipboard?.write){
+        const item=new ClipboardItem({
+          'text/html': new Blob([html], {type:'text/html'}),
+          'text/plain': new Blob([text], {type:'text/plain'})
+        });
+        await navigator.clipboard.write([item]);
+      }else if(navigator.clipboard?.writeText){
+        await navigator.clipboard.writeText(text);
+      }else{
+        throw new Error('Clipboard API unavailable');
+      }
+    }
     catch(e){
       const range=document.createRange(); range.selectNodeContents(email);
       const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);

@@ -27,7 +27,15 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.arrival,.days button.departure{background:var(--stayEdge);box-shadow:inset 0 0 0 2px var(--brand)}
 .days button.stay{background:var(--stayBand)}
 #dayTitle{font-weight:600}
-.email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;white-space:pre-wrap}
+.email{background:#fff;border:1px solid var(--border);padding:20px;border-radius:12px;min-height:260px;font-size:15px;line-height:1.6;color:var(--ink)}
+.email:focus{outline:none}
+.email .email-body{margin:0 0 12px;font-size:15px;line-height:1.6}
+.email .email-section-title{margin:16px 0 12px;font-size:18px;font-weight:700;text-decoration:underline}
+.email .email-day{margin-bottom:20px}
+.email .email-day:last-of-type{margin-bottom:0}
+.email .email-day-title{margin:0 0 10px;font-size:17px;font-weight:700}
+.email .email-activity{margin:6px 0;font-size:16px}
+.email .email-empty{margin:12px 0 0;font-size:15px;color:var(--muted)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 
 .chip{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font-weight:500;border:1px solid currentColor;background:#fff;user-select:none;position:relative;}
