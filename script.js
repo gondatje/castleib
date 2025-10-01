@@ -23,7 +23,10 @@
     schedule: {}, // dateKey -> [{type:'activity',title,start,end,guestIds:Set}]
     data: null,
     dataStatus: 'loading',
-    editing: false
+    editing: false,
+    userEdited: '',
+    previewDirty: true,
+    previewFrozen: false
   };
 
   // ---------- DOM ----------
@@ -31,6 +34,11 @@
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
   const guestsEl=$('#guests'), guestName=$('#guestName');
+  const toggleEditBtn=$('#toggleEdit');
+  const copyBtn=$('#copy');
+  toggleEditBtn.textContent='✎';
+  toggleEditBtn.title='Edit';
+  toggleEditBtn.setAttribute('aria-pressed','false');
   calGrid.addEventListener('keydown',e=>{
     if(e.target.tagName==='BUTTON' && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
       e.preventDefault();
@@ -115,7 +123,7 @@
     const g = {id,name, color, active:true, primary: state.guests.length===0};
     state.guests.push(g);
     guestName.value='';
-    renderGuests(); renderActivities(); renderPreview();
+    renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
   }
   function renderGuests(){
     guestsEl.innerHTML='';
@@ -149,7 +157,7 @@
           const wasPrimary = g.primary;
           state.guests.splice(ix,1);
           if(wasPrimary && state.guests.length){ state.guests[0].primary=true; }
-          renderGuests(); renderActivities(); renderPreview();
+          renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
         }else{
           g.active=!g.active; renderGuests();
         }
@@ -216,7 +224,7 @@
         if(!target){ target = {type:'activity', title:row.title, start:row.start, end:row.end, guestIds:new Set()}; d.push(target); }
         actives.forEach(g=> target.guestIds.add(g.id));
         sortDayEntries(dateK);
-        renderActivities(); renderPreview();
+        renderActivities(); markPreviewDirty(); renderPreview();
       };
 
       div.appendChild(left); div.appendChild(add);
@@ -319,6 +327,7 @@
         }
         sortDayEntries(dateK);
         renderActivities();
+        markPreviewDirty();
         renderPreview();
       };
       c.appendChild(x);
@@ -350,24 +359,40 @@
   }
 
   // ---------- Preview ----------
+  function getStayKeys(){
+    const keys=[];
+    const { arrival, departure } = state;
+    if(!arrival && !departure) return keys;
+    let start = arrival ? zero(arrival) : (departure ? zero(departure) : null);
+    let end = departure ? zero(departure) : (arrival ? zero(arrival) : null);
+    if(!start || !end) return keys;
+    if(start.getTime()>end.getTime()){
+      const tmp=start; start=end; end=tmp;
+    }
+    for(const d=new Date(start); d.getTime()<=end.getTime(); d.setDate(d.getDate()+1)){
+      keys.push(keyDate(d));
+    }
+    return keys;
+  }
+
   function renderPreview(){
     if(state.editing) return;
+    if(state.previewFrozen && !state.previewDirty) return;
     const lines = [];
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
     lines.push(`Hello ${primary},`,'','Current Itinerary:','');
 
-    const keys = new Set(Object.keys(state.schedule));
-    if(state.arrival) keys.add(keyDate(state.arrival));
-    if(state.departure) keys.add(keyDate(state.departure));
-    const sorted = Array.from(keys).sort();
+    const stayKeys = getStayKeys();
 
-    if(sorted.length===0){
-      lines.push(`${weekdayName(state.focus)}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${ordinal(state.focus.getDate())}`);
-      lines.push('(Assign an activity with + to start building the itinerary.)');
-      email.textContent = lines.join('\n'); return;
+    if(stayKeys.length===0){
+      lines.push('Set Arrival and Departure to build your preview.');
+      email.textContent = lines.join('\n');
+      state.previewFrozen = false;
+      state.previewDirty = false;
+      return;
     }
 
-    sorted.forEach(k=>{
+    stayKeys.forEach((k,ix)=>{
       const [y,m,d] = k.split('-').map(Number);
       const date = new Date(y, m-1, d);
       const w = weekdayName(date);
@@ -376,7 +401,7 @@
       if(state.arrival && keyDate(state.arrival)===k)
         lines.push('4:00pm Guaranteed Check-In | Welcome to arrive as early as 12:00pm');
 
-      const items = (state.schedule[k]||[]).slice().sort((a,b)=> a.start.localeCompare(b.start));
+      const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       items.forEach(it=>{
         const ids = Array.from(it.guestIds||[]);
         if(ids.length===0) return;
@@ -388,11 +413,12 @@
 
       if(state.departure && keyDate(state.departure)===k)
         lines.push('11:00am Check-Out | Welcome to stay on property until 1:00pm');
-
-      lines.push('');
+      if(ix<stayKeys.length-1) lines.push('');
     });
 
     email.textContent = lines.join('\n');
+    state.previewFrozen = false;
+    state.previewDirty = false;
   }
 
   // ---------- Nav + Stay ----------
@@ -406,36 +432,79 @@
 
   function setArrival(){
     if(state.departure && state.focus.getTime()>state.departure.getTime()){ alert('Arrival cannot be after Departure.'); return; }
-    state.arrival = new Date(state.focus); renderAll();
+    state.arrival = new Date(state.focus);
+    markPreviewDirty();
+    renderAll();
   }
   function setDeparture(){
     if(state.arrival && state.focus.getTime()<state.arrival.getTime()){ alert('Departure cannot be before Arrival.'); return; }
-    state.departure = new Date(state.focus); renderAll();
+    state.departure = new Date(state.focus);
+    markPreviewDirty();
+    renderAll();
   }
   $('#btnArrival').onclick=setArrival; $('#btnDeparture').onclick=setDeparture;
 
   // ---------- Edit / Copy / Clear ----------
-  $('#toggleEdit').onclick=()=>{
-    state.editing = !state.editing;
-    email.contentEditable = state.editing ? 'true' : 'false';
-    email.style.outline = state.editing ? '2px dashed #bbb' : 'none';
+  const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="5.75" y="11" width="12.5" height="9" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+  function setEditButton(editing){
+    if(editing){
+      toggleEditBtn.innerHTML = lockSvg;
+      toggleEditBtn.title = 'Lock';
+      toggleEditBtn.setAttribute('aria-pressed','true');
+    }else{
+      toggleEditBtn.textContent = '✎';
+      toggleEditBtn.title = 'Edit';
+      toggleEditBtn.setAttribute('aria-pressed','false');
+    }
+  }
+
+  function enterEditMode(){
+    state.userEdited = email.textContent;
+    state.editing = true;
+    email.contentEditable = 'true';
+    email.style.outline = '2px dashed #bbb';
+    setEditButton(true);
+  }
+
+  function exitEditMode(){
+    state.editing = false;
+    state.userEdited = email.textContent;
+    state.previewFrozen = true;
+    state.previewDirty = false;
+    email.contentEditable = 'false';
+    email.style.outline = 'none';
+    setEditButton(false);
+  }
+
+  toggleEditBtn.onclick=()=>{
+    if(state.editing){
+      exitEditMode();
+    }else{
+      enterEditMode();
+    }
   };
   email.addEventListener('dblclick', (e)=>{
-    if(e.metaKey || e.ctrlKey) $('#toggleEdit').click();
+    if(e.metaKey || e.ctrlKey) toggleEditBtn.click();
   });
 
-  $('#copy').onclick=async ()=>{
+  let copyTitleTimer = null;
+  copyBtn.onclick=async ()=>{
     try{ await navigator.clipboard.writeText(email.textContent); }
     catch(e){
       const range=document.createRange(); range.selectNodeContents(email);
       const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
       document.execCommand('copy'); sel.removeAllRanges();
     }
+    copyBtn.title='Copied';
+    if(copyTitleTimer) clearTimeout(copyTitleTimer);
+    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy'; },1200);
   };
 
   $('#clearAll').onclick=()=>{
     if(!confirm('Clear all itinerary data?')) return;
     state.arrival=null; state.departure=null; state.guests.length=0; state.schedule={};
+    markPreviewDirty();
     renderAll();
   };
 
@@ -460,4 +529,6 @@
     renderActivities();
     renderPreview();
   }
+
+  function markPreviewDirty(){ state.previewDirty = true; }
 })();
