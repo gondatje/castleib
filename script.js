@@ -35,6 +35,11 @@
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const toggleIconTemplates = {
+    allOn: createToggleSwitchSvg(true),
+    someOff: createToggleSwitchSvg(false)
+  };
   const toggleEditBtn=$('#toggleEdit');
   const copyBtn=$('#copy');
   toggleEditBtn.textContent='✎';
@@ -167,10 +172,55 @@
     });
     updateToggleAllButton();
   }
-  const toggleIcons = {
-    allOn: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`,
-    someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
-  };
+  function createToggleSwitchSvg(pressedTop){
+    const svg=document.createElementNS(SVG_NS,'svg');
+    svg.setAttribute('width','24');
+    svg.setAttribute('height','24');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('aria-hidden','true');
+    svg.setAttribute('focusable','false');
+
+    const outline=document.createElementNS(SVG_NS,'rect');
+    outline.setAttribute('x','7');
+    outline.setAttribute('y','3.5');
+    outline.setAttribute('width','10');
+    outline.setAttribute('height','17');
+    outline.setAttribute('rx','2.5');
+    outline.setAttribute('fill','none');
+    outline.setAttribute('stroke','currentColor');
+    outline.setAttribute('stroke-width','1.5');
+    svg.appendChild(outline);
+
+    const divider=document.createElementNS(SVG_NS,'line');
+    divider.setAttribute('x1','7');
+    divider.setAttribute('y1','12');
+    divider.setAttribute('x2','17');
+    divider.setAttribute('y2','12');
+    divider.setAttribute('stroke','currentColor');
+    divider.setAttribute('stroke-width','1.25');
+    divider.setAttribute('stroke-linecap','round');
+    divider.setAttribute('opacity','0.6');
+    svg.appendChild(divider);
+
+    const pressed=document.createElementNS(SVG_NS,'rect');
+    pressed.setAttribute('x','8.2');
+    pressed.setAttribute('width','7.6');
+    pressed.setAttribute('height','6');
+    pressed.setAttribute('rx','1.4');
+    pressed.setAttribute('fill','currentColor');
+    pressed.setAttribute('opacity','0.18');
+    pressed.setAttribute('y', pressedTop ? '5' : '12.9');
+    svg.appendChild(pressed);
+
+    return svg;
+  }
+
+  function setToggleIcon(state){
+    if(!toggleAllBtn) return;
+    const tpl = toggleIconTemplates[state];
+    if(!tpl) return;
+    toggleAllBtn.replaceChildren(tpl.cloneNode(true));
+  }
 
   guestName.addEventListener('keydown',e=>{
     if(e.key==='Enter' || e.key==='NumpadEnter'){
@@ -194,17 +244,17 @@
     toggleAllBtn.disabled = total===0;
     toggleAllBtn.setAttribute('aria-pressed', total>0 && allActive ? 'true' : 'false');
     if(total===0){
-      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      setToggleIcon('allOn');
       toggleAllBtn.setAttribute('aria-label','Toggle all guests');
       toggleAllBtn.title = 'Toggle all guests';
       return;
     }
     if(anyInactive){
-      toggleAllBtn.innerHTML = toggleIcons.someOff;
+      setToggleIcon('someOff');
       toggleAllBtn.setAttribute('aria-label','Turn all guests on');
       toggleAllBtn.title = 'Turn all guests on';
     }else{
-      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      setToggleIcon('allOn');
       toggleAllBtn.setAttribute('aria-label','Turn all guests off');
       toggleAllBtn.title = 'Turn all guests off';
     }
