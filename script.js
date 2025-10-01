@@ -124,8 +124,26 @@
       b.className='guest-pill'+(g.active?' active':'');
 
       b.style.setProperty('--pillColor', g.color);
-      const star = g.primary ? '<span class="star">★</span>' : '';
-      b.innerHTML = `${star}${g.name} <span class="x" aria-hidden="true" title="Remove">×</span>`;
+      b.textContent='';
+      if(g.primary){
+        const star=document.createElement('span');
+        star.className='star';
+        star.textContent='★';
+        star.setAttribute('aria-hidden','true');
+        b.appendChild(star);
+      }
+
+      const nameSpan=document.createElement('span');
+      nameSpan.className='label';
+      nameSpan.textContent=g.name;
+      b.appendChild(nameSpan);
+
+      const remove=document.createElement('span');
+      remove.className='x';
+      remove.setAttribute('aria-hidden','true');
+      remove.title='Remove';
+      remove.textContent='×';
+      b.appendChild(remove);
       b.onclick=(e)=>{
         if(e.target.classList.contains('x')){
           const wasPrimary = g.primary;
@@ -213,20 +231,51 @@
       const orderedIds = state.guests.map(g=>g.id).filter(id=>idSet.has(id));
 
       if(orderedIds.length===state.guests.length){
-        const pill=document.createElement('span');
+        const pill=document.createElement('button');
+        pill.type='button';
         pill.className='tag-everyone';
+        pill.setAttribute('aria-label','Show everyone assigned to this activity');
+        pill.setAttribute('aria-haspopup','true');
+        pill.setAttribute('aria-expanded','false');
+
         const label=document.createElement('span');
         label.textContent='Everyone';
         pill.appendChild(label);
 
         const pop=document.createElement('div');
         pop.className='popover';
+        pop.setAttribute('role','group');
+        pop.setAttribute('aria-label','Guests assigned');
         orderedIds.forEach(id=>{
           const guest = state.guests.find(g=>g.id===id);
           if(!guest) return;
           pop.appendChild(createChip(guest, entry, dateK));
         });
         pill.appendChild(pop);
+
+        pill.addEventListener('click',()=>{
+          const expanded = pill.getAttribute('aria-expanded')==='true';
+          pill.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          if(expanded) pill.blur();
+        });
+        pill.addEventListener('focusin',()=>{
+          pill.setAttribute('aria-expanded','true');
+        });
+        pill.addEventListener('focusout',()=>{
+          setTimeout(()=>{
+            if(!pill.contains(document.activeElement)){
+              pill.setAttribute('aria-expanded','false');
+            }
+          },0);
+        });
+        pill.addEventListener('keydown',(e)=>{
+          if(e.key==='Escape'){
+            e.preventDefault();
+            pill.setAttribute('aria-expanded','false');
+            pill.blur();
+          }
+        });
+
         container.appendChild(pill);
         return;
       }
