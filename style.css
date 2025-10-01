@@ -80,7 +80,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #actions{margin:8px 0 12px}
 .dinner-item{border:1px dashed rgba(42,107,255,.4);background:linear-gradient(135deg,rgba(240,244,255,.9),#fff);}
 .dinner-chip{width:26px;height:26px;border-radius:50%;border:1px solid currentColor;background:#fff;display:inline-grid;place-items:center;color:var(--ink);position:relative;padding:0;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;}
-.dinner-chip:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 6px 16px rgba(42,107,255,.18);transform:translateY(-1px);}
+.dinner-chip:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 6px 16px rgba(12,18,32,.18);transform:translateY(-1px);}
 .dinner-chip .chip-icon,.dinner-chip .chip-pencil{display:flex;align-items:center;justify-content:center;}
 .dinner-chip .chip-icon svg{width:16px;height:16px;}
 .dinner-chip .chip-pencil{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .16s ease;}
