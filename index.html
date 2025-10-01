@@ -38,14 +38,13 @@
         <h2>Guests</h2>
         <div class="row">
           <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
-          <button id="addGuest" class="icon-btn" aria-label="Add guest" title="Add">
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-              <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
+              <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
             </svg>
           </button>
-        </div>
-        <div class="row">
-          <button id="toggleAll" title="Toggle all guests">Toggle All</button>
         </div>
         <div id="guests" class="chips" aria-label="Guests"></div>
       </div>
