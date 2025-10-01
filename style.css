@@ -33,7 +33,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .email .email-section-title{margin:16px 0 12px;font-size:18px;font-weight:700;text-decoration:underline}
 .email .email-day{margin-bottom:20px}
 .email .email-day:last-of-type{margin-bottom:0}
-.email .email-day-title{margin:0 0 10px;font-size:17px;font-weight:700}
+.email .email-day-title{margin:0 0 10px;font-size:17px;font-weight:700;text-decoration:none}
+.email sup{font-size:0.65em;vertical-align:super;line-height:0}
+#dayTitle sup{font-size:0.65em;vertical-align:super;line-height:0}
 .email .email-activity{margin:6px 0;font-size:16px}
 .email .email-empty{margin:12px 0 0;font-size:15px;color:var(--muted)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}

@@ -5,7 +5,15 @@
   const zero = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
   const monthName = (y,m) => new Date(y,m,1).toLocaleString(undefined,{month:'long'});
   const weekdayName = d => d.toLocaleDateString(undefined,{weekday:'long'});
-  const ordinal = n => { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+  const ordinalSuffix = n => { const s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0]; };
+  const ordinal = n => `${n}${ordinalSuffix(n)}`;
+  const ordinalHtml = n => `${n}<sup>${ordinalSuffix(n)}</sup>`;
+  const escapeHtml = str => String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
   const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
@@ -220,7 +228,7 @@
   // ---------- Activities ----------
   function renderActivities(){
     const wname=weekdayName(state.focus);
-    dayTitle.textContent = `${wname}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${ordinal(state.focus.getDate())}`;
+    dayTitle.innerHTML = `${escapeHtml(wname)}, ${escapeHtml(state.focus.toLocaleString(undefined,{month:'long'}))} ${ordinalHtml(state.focus.getDate())}`;
 
     if(state.dataStatus==='loading'){
       renderStatusMessage('Loading activities…');
@@ -456,10 +464,14 @@
     }
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
 
-    const makeEl = (tag, className, text)=>{
+    const makeEl = (tag, className, text, options)=>{
       const el=document.createElement(tag);
       if(className) el.className=className;
-      if(text!==undefined) el.textContent=text;
+      if(options?.html){
+        el.innerHTML = text ?? '';
+      }else if(text!==undefined){
+        el.textContent=text;
+      }
       return el;
     };
 
@@ -484,10 +496,36 @@
       const date = new Date(y, m-1, d);
       const w = weekdayName(date);
       const daySection = makeEl('section','email-day');
-      daySection.appendChild(makeEl('h4','email-day-title',`${w}, ${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}`));
+      const monthLabel = date.toLocaleString(undefined,{month:'long'});
+      daySection.appendChild(
+        makeEl(
+          'h4',
+          'email-day-title',
+          `${escapeHtml(w)}, ${escapeHtml(monthLabel)} ${ordinalHtml(date.getDate())}`,
+          {html:true}
+        )
+      );
+
+      const checkoutLine = () =>
+        makeEl(
+          'div',
+          'email-activity',
+          `<strong>${escapeHtml(fmt12('11:00'))}</strong> Check-Out | Welcome to stay on property until <strong>${escapeHtml(fmt12('13:00'))}</strong>`,
+          {html:true}
+        );
+      const checkinLine = () =>
+        makeEl(
+          'div',
+          'email-activity',
+          `<strong>${escapeHtml(fmt12('16:00'))}</strong> Guaranteed Check-In | Welcome to arrive as early as <strong>${escapeHtml(fmt12('12:00'))}</strong>`,
+          {html:true}
+        );
+
+      if(state.departure && keyDate(state.departure)===k)
+        daySection.appendChild(checkoutLine());
 
       if(state.arrival && keyDate(state.arrival)===k)
-        daySection.appendChild(makeEl('div','email-activity','4:00pm Guaranteed Check-In | Welcome to arrive as early as 12:00pm'));
+        daySection.appendChild(checkinLine());
 
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       items.forEach(it=>{
@@ -495,12 +533,27 @@
         if(ids.length===0) return;
         const everyone = (ids.length===state.guests.length);
         const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
-        const tag = everyone ? '' : names.map(n=>` | ${n}`).join('');
-        daySection.appendChild(makeEl('div','email-activity',`${fmt12(it.start)} - ${fmt12(it.end)} | ${it.title}${tag}`));
+        const tag = everyone ? '' : names.map(n=>` | ${escapeHtml(n)}`).join('');
+        const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
+        const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
+        let timeSegment = '';
+        if(startTime && endTime){
+          timeSegment = `${startTime} - ${endTime}`;
+        }else if(startTime){
+          timeSegment = startTime;
+        }else if(endTime){
+          timeSegment = endTime;
+        }
+        const title = escapeHtml(it.title||'');
+        daySection.appendChild(
+          makeEl(
+            'div',
+            'email-activity',
+            `${timeSegment}${timeSegment && title ? ' | ' : ''}${title}${tag}`,
+            {html:true}
+          )
+        );
       });
-
-      if(state.departure && keyDate(state.departure)===k)
-        daySection.appendChild(makeEl('div','email-activity','11:00am Check-Out | Welcome to stay on property until 1:00pm'));
 
       email.appendChild(daySection);
     });
