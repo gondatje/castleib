@@ -5,9 +5,33 @@
   const zero = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
   const monthName = (y,m) => new Date(y,m,1).toLocaleString(undefined,{month:'long'});
   const weekdayName = d => d.toLocaleDateString(undefined,{weekday:'long'});
-  const ordinal = n => { const s=['th','st','nd','rd'],v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+  const ordinalSuffix = n => { const s=['th','st','nd','rd'],v=n%100; return (s[(v-20)%10]||s[v]||s[0]); };
+  const ordinalSup = n => {
+    const sup=document.createElement('sup');
+    sup.textContent = ordinalSuffix(n);
+    sup.style.fontSize = '0.6em';
+    sup.style.verticalAlign = 'super';
+    return sup;
+  };
   const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  const applyStyles = (el, styles={})=>{ Object.assign(el.style, styles); return el; };
+  const createEl = (tag, opts={}, ...children)=>{
+    const el=document.createElement(tag);
+    if(opts.className) el.className = opts.className;
+    if(opts.text!=null) el.textContent = opts.text;
+    if(opts.html!=null) el.innerHTML = opts.html;
+    if(opts.attrs){ for(const [k,v] of Object.entries(opts.attrs)) el.setAttribute(k,v); }
+    if(opts.style) applyStyles(el, opts.style);
+    const kids = opts.children || children;
+    kids.forEach(child=>{
+      if(child==null) return;
+      if(typeof child === 'string' || typeof child === 'number') el.appendChild(document.createTextNode(String(child)));
+      else el.appendChild(child);
+    });
+    return el;
+  };
 
   // Exported API stub for Codex (time wheel later)
   window.createTimeWheelController = (el, initial="12:00") => ({ get:()=>initial, set:()=>{}, mount:()=>{}, destroy:()=>{} });
@@ -127,7 +151,10 @@
   // ---------- Activities ----------
   function renderActivities(){
     const wname=weekdayName(state.focus);
-    dayTitle.textContent = `${wname}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${ordinal(state.focus.getDate())}`;
+    dayTitle.innerHTML = '';
+    const dayNum = state.focus.getDate();
+    dayTitle.append(`${wname}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${dayNum}`);
+    dayTitle.appendChild(ordinalSup(dayNum));
 
     const season = activeSeason(state.focus);
     const weekKey = weekdayKey(state.focus);
@@ -202,9 +229,57 @@
   // ---------- Preview ----------
   function renderPreview(){
     if(state.editing) return;
-    const lines = [];
+
+    email.innerHTML='';
+    applyStyles(email, {
+      fontFamily: '"Helvetica Neue", Arial, sans-serif',
+      fontSize: '15px',
+      lineHeight: '1.6',
+      color: '#111827'
+    });
+
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
-    lines.push(`Hello ${primary},`,'','Current Itinerary:','');
+    const greeting = createEl('div',{style:{marginBottom:'18px'}},
+      createEl('p',{text:`Hello ${primary},`, style:{margin:'0 0 8px', fontSize:'16px'}}),
+      createEl('p',{text:'Current Itinerary:', style:{margin:'0', fontSize:'16px', fontWeight:'600', textDecoration:'underline'}})
+    );
+    email.appendChild(greeting);
+
+    const buildDayHeading = (date)=>{
+      const heading = createEl('div',{style:{fontSize:'18px', fontWeight:'700', margin:'0 0 10px'}});
+      heading.append(`${weekdayName(date)}, ${date.toLocaleString(undefined,{month:'long'})} ${date.getDate()}`);
+      heading.appendChild(ordinalSup(date.getDate()));
+      return heading;
+    };
+
+    const lineEntry = ()=> createEl('div',{style:{margin:'0 0 8px', fontSize:'15px'}});
+
+    const infoEntry = (timeLabel, label, subtitle)=>{
+      const row = lineEntry();
+      row.appendChild(createEl('strong',{text:timeLabel, style:{fontSize:'15px', fontWeight:'700'}}));
+      if(label){
+        row.append(' ');
+        row.append(label);
+      }
+      if(subtitle){
+        row.append(' | ');
+        row.append(subtitle);
+      }
+      return row;
+    };
+
+    const activityEntry = (it, names, everyone)=>{
+      const row = lineEntry();
+      const label = it.end ? `${fmt12(it.start)} - ${fmt12(it.end)}` : fmt12(it.start);
+      row.appendChild(createEl('strong',{text:label, style:{fontSize:'15px', fontWeight:'700'}}));
+      row.append(' | ');
+      row.append(it.title);
+      if(!everyone && names.length){
+        row.append(' | ');
+        row.append(names.join(' | '));
+      }
+      return row;
+    };
 
     const keys = new Set(Object.keys(state.schedule));
     if(state.arrival) keys.add(keyDate(state.arrival));
@@ -212,37 +287,44 @@
     const sorted = Array.from(keys).sort();
 
     if(sorted.length===0){
-      lines.push(`${weekdayName(state.focus)}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${ordinal(state.focus.getDate())}`);
-      lines.push('(Assign an activity with + to start building the itinerary.)');
-      email.textContent = lines.join('\n'); return;
+      const fallback = createEl('div',{},
+        buildDayHeading(state.focus),
+        createEl('p',{text:'Assign an activity with + to start building the itinerary.', style:{margin:'4px 0 0', color:'#4b5563', fontStyle:'italic'}})
+      );
+      email.appendChild(fallback);
+      return;
     }
 
     sorted.forEach(k=>{
       const [y,m,d] = k.split('-').map(Number);
       const date = new Date(y, m-1, d);
-      const w = weekdayName(date);
-      lines.push(`${w}, ${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}`);
+      const daySection = createEl('section',{style:{margin:'0 0 20px'}});
+      daySection.appendChild(buildDayHeading(date));
 
-      if(state.arrival && keyDate(state.arrival)===k)
-        lines.push('4:00pm Guaranteed Check-In | Welcome to arrive as early as 12:00pm');
+      const entriesWrap = createEl('div',{style:{display:'flex', flexDirection:'column'}});
+      const isArrival = state.arrival && keyDate(state.arrival)===k;
+      const isDeparture = state.departure && keyDate(state.departure)===k;
+
+      if(isDeparture){
+        entriesWrap.appendChild(infoEntry('11:00am','Check-Out','Welcome to stay on property until 1:00pm'));
+      }
+
+      if(isArrival){
+        entriesWrap.appendChild(infoEntry('4:00pm','Guaranteed Check-In','Welcome to arrive as early as 12:00pm'));
+      }
 
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> a.start.localeCompare(b.start));
       items.forEach(it=>{
-        const ids = Array.from(it.guestIds||[]);
-        if(ids.length===0) return;
-        const everyone = (ids.length===state.guests.length);
-        const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
-        const tag = everyone ? '' : names.map(n=>` | ${n}`).join('');
-        lines.push(`${fmt12(it.start)} - ${fmt12(it.end)} | ${it.title}${tag}`);
+        const rawIds = Array.from(it.guestIds||[]);
+        const names = rawIds.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
+        if(names.length===0) return;
+        const everyone = rawIds.length===state.guests.length;
+        entriesWrap.appendChild(activityEntry(it, names, everyone));
       });
 
-      if(state.departure && keyDate(state.departure)===k)
-        lines.push('11:00am Check-Out | Welcome to stay on property until 1:00pm');
-
-      lines.push('');
+      daySection.appendChild(entriesWrap);
+      email.appendChild(daySection);
     });
-
-    email.textContent = lines.join('\n');
   }
 
   // ---------- Nav + Stay ----------
@@ -275,7 +357,21 @@
   });
 
   $('#copy').onclick=async ()=>{
-    try{ await navigator.clipboard.writeText(email.textContent); }
+    const html=email.innerHTML;
+    const text=email.textContent;
+    try{
+      if(navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined'){
+        const item = new ClipboardItem({
+          'text/html': new Blob([html], {type:'text/html'}),
+          'text/plain': new Blob([text], {type:'text/plain'})
+        });
+        await navigator.clipboard.write([item]);
+      }else if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+        await navigator.clipboard.writeText(text);
+      }else{
+        throw new Error('Clipboard API unavailable');
+      }
+    }
     catch(e){
       const range=document.createRange(); range.selectNodeContents(email);
       const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);

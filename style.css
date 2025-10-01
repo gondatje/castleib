@@ -25,7 +25,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.stay{background:var(--stay)}
 .monthyear{display:flex;gap:6px;font-weight:600}
 #dayTitle{font-weight:600}
-.email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;white-space:pre-wrap}
+#dayTitle sup{font-size:.65em;vertical-align:super}
+.email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;display:flex;flex-direction:column}
+.email sup{font-size:.6em;vertical-align:super}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--chipBorder);color:var(--chipText);font-weight:600}
 .chip .x{border:none;background:transparent;cursor:pointer;font-weight:700}
