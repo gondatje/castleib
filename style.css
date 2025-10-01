@@ -28,14 +28,16 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--chipBorder);color:var(--chipText);font-weight:600}
 .chip .x{border:none;background:transparent;cursor:pointer;font-weight:700}
-.guest-input{height:32px;padding:0 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
+.guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
+.icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
+.icon-btn svg{display:block}
 .section .row{margin-bottom:8px}
 #guests{padding-top:4px}
 .guest-pill{padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;user-select:none}
-.guest-pill.active{background:color-mix(in srgb,var(--pillColor) 12%,#fff);border-color:var(--pillColor);outline:none}
+.guest-pill.active{outline:none;background:color-mix(in srgb, var(--pillColor) 12%, #fff);border-color:var(--pillColor)}
 .guest-pill .star{opacity:.6;margin-right:4px}
-.guest-pill .x{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;margin-left:6px;border-radius:50%;opacity:0;transition:opacity .2s;cursor:pointer}
-.guest-pill:hover .x{opacity:1}
+.guest-pill .x{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;margin-left:6px;opacity:0;transition:opacity .12s ease;cursor:pointer}
+.guest-pill:hover .x{opacity:.9}
 .item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .item-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .item .add{min-width:40px}

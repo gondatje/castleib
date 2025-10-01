@@ -37,7 +37,14 @@
       <div class="section">
         <h2>Guests</h2>
         <div class="row">
-
+          <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
+          <button id="addGuest" class="icon-btn" aria-label="Add guest" title="Add">
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="row">
           <button id="toggleAll" title="Toggle all guests">Toggle All</button>
         </div>
         <div id="guests" class="chips" aria-label="Guests"></div>
