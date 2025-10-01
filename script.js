@@ -242,7 +242,7 @@
       const c=document.createElement('span');
       c.className='chip';
       c.style.borderColor = guest.color;
-
+      c.style.color = guest.color;
       c.title = guest.name;
 
       const initial=document.createElement('span');
@@ -253,7 +253,7 @@
       const x=document.createElement('button');
       x.className='x';
       x.type='button';
-
+      x.setAttribute('aria-label', `Remove ${guest.name}`);
       x.title=`Remove ${guest.name}`;
       x.textContent='×';
       x.onclick=(e)=>{
