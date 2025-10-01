@@ -253,6 +253,7 @@
       const x=document.createElement('button');
       x.className='x';
       x.type='button';
+
       x.title=`Remove ${guest.name}`;
       x.textContent='×';
       x.onclick=(e)=>{

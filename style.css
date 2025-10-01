@@ -26,6 +26,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #dayTitle{font-weight:600}
 .email{background:#fff;border:1px solid var(--border);padding:12px;border-radius:12px;min-height:260px;white-space:pre-wrap}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
+
 .chip:hover .x{display:flex}
 .guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
