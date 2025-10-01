@@ -179,18 +179,11 @@
 
       const dateK = keyDate(state.focus);
       const day = getOrCreateDay(dateK);
-      const ent = day.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
-      const assignedIds = ent ? Array.from(ent.guestIds) : [];
+      const entry = day.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
+      const assignedIds = entry ? Array.from(entry.guestIds) : [];
 
       if(state.guests.length>0){
-        if(assignedIds.length===state.guests.length){
-          const ev=document.createElement('span');
-          ev.className='tag-everyone'; ev.textContent='Everyone'; ev.title='Click to show guests';
-          ev.onclick=()=>{ ev.remove(); renderGuestChips(tagWrap, assignedIds); };
-          tagWrap.appendChild(ev);
-        }else{
-          renderGuestChips(tagWrap, assignedIds);
-        }
+        renderAssignments(tagWrap, entry, assignedIds, dateK);
       }
 
       left.appendChild(tagWrap);
@@ -201,9 +194,10 @@
         const actives = state.guests.filter(g=>g.active);
         if(actives.length===0){ alert('Toggle at least one guest pill before assigning.'); return; }
         const d = getOrCreateDay(dateK);
-        let entry = d.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
-        if(!entry){ entry = {type:'activity', title:row.title, start:row.start, end:row.end, guestIds:new Set()}; d.push(entry); }
-        actives.forEach(g=> entry.guestIds.add(g.id));
+        let target = d.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
+        if(!target){ target = {type:'activity', title:row.title, start:row.start, end:row.end, guestIds:new Set()}; d.push(target); }
+        actives.forEach(g=> target.guestIds.add(g.id));
+        sortDayEntries(dateK);
         renderActivities(); renderPreview();
       };
 
@@ -211,23 +205,74 @@
       activitiesEl.appendChild(div);
     });
 
-    function renderGuestChips(container, ids){
+    function renderAssignments(container, entry, ids, dateK){
       container.innerHTML='';
-      ids.forEach(id=>{
-        const g = state.guests.find(x=>x.id===id); if(!g) return;
-        const c=document.createElement('span'); c.className='chip';
-        c.style.borderColor=g.color; c.style.background='#fff';
-        c.textContent = g.name.charAt(0).toUpperCase();
-        const x=document.createElement('button'); x.className='x'; x.title=`Remove ${g.name}`; x.textContent='×';
-        x.onclick=()=>{
-          const dk = keyDate(state.focus);
-          const day = state.schedule[dk]||[];
-          day.forEach(e=>{ if(e.guestIds) e.guestIds.delete(g.id); });
-          renderActivities(); renderPreview();
-        };
-        c.appendChild(x);
-        container.appendChild(c);
+      if(ids.length===0) return;
+
+      const idSet = new Set(ids);
+      const orderedIds = state.guests.map(g=>g.id).filter(id=>idSet.has(id));
+
+      if(orderedIds.length===state.guests.length){
+        const pill=document.createElement('span');
+        pill.className='tag-everyone';
+        const label=document.createElement('span');
+        label.textContent='Everyone';
+        pill.appendChild(label);
+
+        const pop=document.createElement('div');
+        pop.className='popover';
+        orderedIds.forEach(id=>{
+          const guest = state.guests.find(g=>g.id===id);
+          if(!guest) return;
+          pop.appendChild(createChip(guest, entry, dateK));
+        });
+        pill.appendChild(pop);
+        container.appendChild(pill);
+        return;
+      }
+
+      orderedIds.forEach(id=>{
+        const guest = state.guests.find(g=>g.id===id);
+        if(!guest) return;
+        container.appendChild(createChip(guest, entry, dateK));
       });
+    }
+
+    function createChip(guest, entry, dateK){
+      const c=document.createElement('span');
+      c.className='chip';
+      c.style.borderColor = guest.color;
+      c.style.color = guest.color;
+      c.title = guest.name;
+
+      const initial=document.createElement('span');
+      initial.className='initial';
+      initial.textContent = guest.name.charAt(0).toUpperCase();
+      c.appendChild(initial);
+
+      const x=document.createElement('button');
+      x.className='x';
+      x.type='button';
+      x.title=`Remove ${guest.name}`;
+      x.textContent='×';
+      x.onclick=(e)=>{
+        e.stopPropagation();
+        if(!entry) return;
+        entry.guestIds.delete(guest.id);
+        if(entry.guestIds.size===0){
+          const day = state.schedule[dateK];
+          if(day){
+            const idx = day.indexOf(entry);
+            if(idx>-1) day.splice(idx,1);
+            if(day.length===0) delete state.schedule[dateK];
+          }
+        }
+        sortDayEntries(dateK);
+        renderActivities();
+        renderPreview();
+      };
+      c.appendChild(x);
+      return c;
     }
     function renderStatusMessage(text){
       activitiesEl.innerHTML='';
@@ -244,6 +289,15 @@
     }
   }
   function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
+  function sortDayEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    day.sort((a,b)=>{
+      const sa = a.start || '';
+      const sb = b.start || '';
+      return sa.localeCompare(sb);
+    });
+  }
 
   // ---------- Preview ----------
   function renderPreview(){
