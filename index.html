@@ -13,23 +13,25 @@
       <h2>Calendar</h2>
       <div id="calendar">
         <div class="toolbar">
-          <button id="yPrev" title="Previous Year" aria-label="Previous Year">«</button>
-          <button id="mPrev" title="Previous Month" aria-label="Previous Month">‹</button>
-          <div class="monthyear">
-            <span id="calMonth"></span><span id="calYear"></span>
+          <div class="nav-row">
+            <button id="yPrev" class="nav-btn" title="Previous Year" aria-label="Previous Year">«</button>
+            <button id="mPrev" class="nav-btn" title="Previous Month" aria-label="Previous Month">‹</button>
+            <div class="monthyear-col">
+              <span id="calMonth"></span>
+              <span id="calYear"></span>
+            </div>
+            <button id="mNext" class="nav-btn" title="Next Month" aria-label="Next Month">›</button>
+            <button id="yNext" class="nav-btn" title="Next Year" aria-label="Next Year">»</button>
           </div>
-          <button id="mNext" title="Next Month" aria-label="Next Month">›</button>
-          <button id="yNext" title="Next Year" aria-label="Next Year">»</button>
-          <button id="btnToday" title="Today" aria-label="Today">Today</button>
-        </div>
-
-        <div class="row" id="stayControls">
-          <button id="btnArrival" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
-          <button id="btnDeparture" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
         </div>
 
         <div id="dow" class="grid dow" aria-hidden="true"></div>
         <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
+        <div class="calendar-actions">
+          <button id="btnToday" title="Today" aria-label="Today">Today</button>
+          <button id="btnArrival" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
+          <button id="btnDeparture" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
+        </div>
       </div>
 
       <div class="section">
