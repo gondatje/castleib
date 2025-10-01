@@ -118,10 +118,11 @@
 
   // ---------- Guests ----------
   function addGuest(name){
-    if(!name) return;
+    const trimmed = name.trim();
+    if(!trimmed) return;
     const id = (crypto.randomUUID ? crypto.randomUUID() : `g_${Date.now()}_${Math.random().toString(16).slice(2)}`);
     const color = state.colors[state.guests.length % state.colors.length];
-    const g = {id,name, color, active:true, primary: state.guests.length===0};
+    const g = {id,name: trimmed, color, active:true, primary: state.guests.length===0};
     state.guests.push(g);
     guestName.value='';
     renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
@@ -172,7 +173,14 @@
     someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
   };
 
-  guestName.addEventListener('keydown',e=>{ if(e.key==='Enter') addGuest(guestName.value.trim()); });
+  const tryAddGuestFromInput = ()=> addGuest(guestName.value);
+  guestName.addEventListener('keydown',e=>{
+    if(e.key==='Enter' || e.key==='NumpadEnter' || e.key==='Return'){
+      e.preventDefault();
+      tryAddGuestFromInput();
+    }
+  });
+  guestName.addEventListener('blur', tryAddGuestFromInput);
   if(toggleAllBtn){
     toggleAllBtn.addEventListener('click',()=>{
       const anyInactive = state.guests.some(g=>!g.active);
