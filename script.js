@@ -33,6 +33,18 @@
     8: new Set([15,30,45])
   };
 
+  const allowedDinnerTimes = new Set();
+  dinnerHours.forEach(hour=>{
+    const disabled = minuteRules[hour];
+    dinnerMinutes.forEach(minute=>{
+      if(disabled && disabled.has(minute)) return;
+      const hour24Value = hour + 12;
+      allowedDinnerTimes.add(`${pad(hour24Value)}:${pad(minute)}`);
+    });
+  });
+
+  const isAllowedDinnerTime = time => allowedDinnerTimes.has(time);
+
   const dinnerTitle = 'Dinner at Harvest';
   const defaultDinnerTime = '19:00';
 
@@ -802,6 +814,7 @@
       if(disabledSet.has(minute)) return;
       const hour24Value = hour + 12;
       const time = `${pad(hour24Value)}:${pad(minute)}`;
+      if(!isAllowedDinnerTime(time)) return;
       upsertDinner(targetDateKey, time);
       markPreviewDirty();
       renderActivities();
@@ -896,6 +909,7 @@
   }
 
   function upsertDinner(dateK, time){
+    if(!isAllowedDinnerTime(time)) return;
     const day = getOrCreateDay(dateK);
     let entry = getDinnerEntry(dateK);
     if(!entry){
