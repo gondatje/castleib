@@ -29,10 +29,11 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 
 .chip{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;font-weight:700;border:1px solid currentColor;background:#fff;user-select:none;position:relative;}
 .chip::after{content:'';position:absolute;top:50%;left:50%;width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85;transform:translate(-50%,-50%);}
-.chip .initial{position:relative;z-index:1;font-size:12px;line-height:1;}
-.chip .x{position:absolute;right:-6px;top:-6px;width:18px;height:18px;border-radius:50%;display:none;align-items:center;justify-content:center;font-weight:800;background:#fff;border:1px solid var(--border);padding:0;cursor:pointer;color:var(--ink);}
+.chip .initial{position:relative;z-index:1;font-size:12px;line-height:1;color:currentColor;transition:opacity .16s ease;}
+.chip:hover .initial,.chip:focus-within .initial{opacity:0;}
+.chip .x{position:absolute;top:50%;left:50%;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:#fff;border:1px solid var(--border);padding:0;cursor:pointer;color:var(--ink);z-index:2;transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity .16s ease;}
+.chip:hover .x,.chip:focus-within .x{opacity:1;pointer-events:auto;}
 .chip .x:focus{outline:2px solid var(--brand);outline-offset:1px;}
-.chip:hover .x{display:flex}
 .guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
 .icon-btn svg{display:block}
