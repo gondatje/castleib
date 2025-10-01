@@ -17,8 +17,178 @@
   const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
-  // Exported API stub for Codex (time wheel later)
-  window.createTimeWheelController = (el, initial="12:00") => ({ get:()=>initial, set:()=>{}, mount:()=>{}, destroy:()=>{} });
+  const dinnerIconSvg = `<svg fill="currentColor" viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon">
+  <path d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"/>
+  </svg>`;
+  const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
+  const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
+
+  const dinnerMinutes = [0,15,30,45];
+  const dinnerHours = [5,6,7,8];
+
+  const minuteRules = {
+    5: new Set([0,15]),
+    6: new Set([45]),
+    7: new Set(),
+    8: new Set([15,30,45])
+  };
+
+  const dinnerTitle = 'Dinner at Harvest';
+  const defaultDinnerTime = '19:00';
+
+  function createWheel(values, options={}){
+    const ITEM_HEIGHT = 44;
+    const REPEAT = 9;
+    const block = values.length;
+    const totalItems = block * REPEAT;
+    const baseBlock = Math.floor(REPEAT/2);
+    let optionIndex = baseBlock * block;
+    let disabledChecker = options.disabledChecker || (()=>false);
+    const formatValue = options.formatValue || (v=>v);
+    const onChange = options.onChange || (()=>{});
+
+    const viewport=document.createElement('div');
+    viewport.className='wheel-viewport';
+    viewport.setAttribute('tabindex','0');
+
+    const list=document.createElement('div');
+    list.className='wheel-list';
+    viewport.appendChild(list);
+
+    for(let i=0;i<totalItems;i++){
+      const value = values[i % block];
+      const item=document.createElement('div');
+      item.className='wheel-option';
+      item.dataset.value=value;
+      item.textContent=formatValue(value);
+      list.appendChild(item);
+    }
+
+    let programmatic=false;
+
+    const modIndex = idx => ((idx % block)+block)%block;
+
+    const applySelection = ()=>{
+      const children=list.children;
+      for(let i=0;i<children.length;i++){
+        const child=children[i];
+        const value=Number(child.dataset.value);
+        child.classList.toggle('selected', i===optionIndex);
+        child.classList.toggle('disabled', !!disabledChecker(value));
+      }
+    };
+
+    const getCenterOffset = ()=> Math.max(0,(viewport.clientHeight/2)-(ITEM_HEIGHT/2));
+
+    const scrollToIndex=(idx,{behavior='auto'}={})=>{
+      programmatic=true;
+      optionIndex=idx;
+      const top = optionIndex*ITEM_HEIGHT - getCenterOffset();
+      viewport.scrollTo({top, behavior});
+      const value = values[modIndex(optionIndex)];
+      applySelection();
+      onChange(value);
+      setTimeout(()=>{ programmatic=false; },0);
+    };
+
+    const normalizeIndex = idx => {
+      if(idx < block){
+        return idx + block * (REPEAT-2);
+      }
+      if(idx >= block * (REPEAT-1)){
+        return idx - block * (REPEAT-2);
+      }
+      return idx;
+    };
+
+    const step = delta => {
+      let idx = optionIndex + delta;
+      let loops=0;
+      const direction = delta>=0 ? 1 : -1;
+      while(loops<=block){
+        idx = normalizeIndex(idx);
+        const value = values[modIndex(idx)];
+        if(!disabledChecker(value)){
+          scrollToIndex(idx,{behavior:'smooth'});
+          return;
+        }
+        idx += direction;
+        loops++;
+      }
+    };
+
+    viewport.addEventListener('wheel',e=>{
+      if(Math.abs(e.deltaY)<=Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      step(e.deltaY>0?1:-1);
+    },{passive:false});
+
+    viewport.addEventListener('keydown',e=>{
+      if(e.key==='ArrowUp'){ e.preventDefault(); step(-1); }
+      if(e.key==='ArrowDown'){ e.preventDefault(); step(1); }
+    });
+
+    viewport.addEventListener('scroll',()=>{
+      if(programmatic) return;
+      const centerOffset = getCenterOffset();
+      const raw = Math.round((viewport.scrollTop + centerOffset) / ITEM_HEIGHT);
+      let idx = normalizeIndex(raw);
+      if(idx!==raw){
+        scrollToIndex(idx);
+        return;
+      }
+      const direction = raw > optionIndex ? 1 : (raw < optionIndex ? -1 : 0);
+      const value = values[modIndex(raw)];
+      if(disabledChecker(value)){
+        let search = raw;
+        let loops=0;
+        const dir = direction>=0 ? 1 : -1;
+        do{
+          search += dir;
+          search = normalizeIndex(search);
+          const candidate = values[modIndex(search)];
+          if(!disabledChecker(candidate)){
+            scrollToIndex(search);
+            return;
+          }
+          loops++;
+        }while(loops<=block);
+      }
+      optionIndex = raw;
+      applySelection();
+      onChange(value);
+    });
+
+    const setValue = val => {
+      const valueIndex = values.indexOf(val);
+      if(valueIndex===-1) return;
+      const idx = baseBlock*block + valueIndex;
+      scrollToIndex(idx);
+      const rerun = ()=> scrollToIndex(optionIndex);
+      if(typeof window!=='undefined' && typeof window.requestAnimationFrame==='function'){
+        window.requestAnimationFrame(rerun);
+      }else{
+        setTimeout(rerun,0);
+      }
+    };
+
+    setTimeout(()=>{ setValue(options.initial ?? values[0]); },0);
+
+    applySelection();
+
+    return {
+      element: viewport,
+      get value(){ return values[modIndex(optionIndex)]; },
+      setValue,
+      step,
+      setDisabledChecker(fn){
+        disabledChecker = fn || (()=>false);
+        applySelection();
+      },
+      refresh(){ scrollToIndex(optionIndex); }
+    };
+  }
+
 
   // ---------- State ----------
   const state = {
@@ -45,6 +215,7 @@
   const toggleAllBtn=$('#toggleAll');
   const toggleEditBtn=$('#toggleEdit');
   const copyBtn=$('#copy');
+  const addDinnerBtn=$('#addDinner');
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
@@ -141,6 +312,7 @@
     renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
   }
   function renderGuests(){
+    syncDinnerGuests();
     guestsEl.innerHTML='';
     state.guests.forEach((g,ix)=>{
       const b=document.createElement('button');
@@ -199,6 +371,12 @@
     });
   }
 
+  if(addDinnerBtn){
+    addDinnerBtn.addEventListener('click',()=>{
+      openDinnerPicker({ mode:'add', dateKey: keyDate(state.focus) });
+    });
+  }
+
   renderAll();
 
   function updateToggleAllButton(){
@@ -230,6 +408,8 @@
     const wname=weekdayName(state.focus);
     dayTitle.innerHTML = `${escapeHtml(wname)}, ${escapeHtml(state.focus.toLocaleString(undefined,{month:'long'}))} ${ordinalHtml(state.focus.getDate())}`;
 
+    updateAddDinnerButton();
+
     if(state.dataStatus==='loading'){
       renderStatusMessage('Loading activities…');
       return;
@@ -247,10 +427,24 @@
     }
 
     const weekKey = weekdayKey(state.focus);
-    const list = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
+    const baseList = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
+    const dateK = keyDate(state.focus);
+    const dinnerEntry = getDinnerEntry(dateK);
+    const combined = baseList.map(row=>({kind:'activity', data: row}));
+    if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
+    combined.sort((a,b)=>{
+      const aStart = a.kind==='activity' ? a.data.start : (a.data.start || '');
+      const bStart = b.kind==='activity' ? b.data.start : (b.data.start || '');
+      return aStart.localeCompare(bStart);
+    });
 
     activitiesEl.innerHTML='';
-    list.forEach(row=>{
+    combined.forEach(item=>{
+      if(item.kind==='dinner'){
+        renderDinner(item.data);
+        return;
+      }
+      const row = item.data;
       const div=document.createElement('div'); div.className='item';
       const left=document.createElement('div'); left.className='item-left';
 
@@ -427,6 +621,249 @@
       msg.style.textAlign='center';
       activitiesEl.appendChild(msg);
     }
+
+    function renderDinner(entry){
+      const div=document.createElement('div');
+      div.className='item dinner-item';
+      const left=document.createElement('div');
+      left.className='item-left';
+      const text=document.createElement('div');
+      text.textContent = `${fmt12(entry.start)} | ${entry.title}`;
+      left.appendChild(text);
+
+      const tagWrap=document.createElement('div');
+      tagWrap.className='tag-row';
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='dinner-chip';
+      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${pencilSvg}</span><span class="sr-only">Edit dinner time</span>`;
+      chip.setAttribute('aria-label','Edit dinner time');
+      chip.title='Edit dinner time';
+      chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
+      tagWrap.appendChild(chip);
+
+      left.appendChild(tagWrap);
+      div.appendChild(left);
+      activitiesEl.appendChild(div);
+    }
+  }
+
+  let dinnerDialog = null;
+
+  function updateAddDinnerButton(){
+    if(!addDinnerBtn) return;
+    const enabled = state.dataStatus==='ready';
+    addDinnerBtn.disabled = !enabled;
+    const entry = enabled ? getDinnerEntry(keyDate(state.focus)) : null;
+    addDinnerBtn.setAttribute('aria-pressed', entry ? 'true' : 'false');
+  }
+
+  function closeDinnerPicker({returnFocus=false}={}){
+    if(!dinnerDialog) return;
+    const { overlay, previousFocus } = dinnerDialog;
+    overlay.remove();
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    dinnerDialog = null;
+    document.body.classList.remove('dinner-lock');
+  }
+
+  function openDinnerPicker({mode='add', dateKey}={}){
+    if(state.dataStatus!=='ready') return;
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = getDinnerEntry(targetDateKey);
+    const initialTime = existing?.start || defaultDinnerTime;
+    const [hour24Str, minuteStr] = initialTime.split(':');
+    const hour24 = Number(hour24Str);
+    const minuteNum = Number(minuteStr);
+    const hour12 = hour24>12 ? hour24-12 : hour24;
+    const initialHour = dinnerHours.includes(hour12) ? hour12 : 7;
+    const initialMinute = dinnerMinutes.includes(minuteNum) ? minuteNum : 0;
+
+    closeDinnerPicker();
+
+    const overlay=document.createElement('div');
+    overlay.className='dinner-overlay';
+
+    const dialog=document.createElement('div');
+    dialog.className='dinner-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+
+    const header=document.createElement('div');
+    header.className='dinner-header';
+    const title=document.createElement('div');
+    title.className='dinner-title';
+    title.textContent='Dinner time';
+    title.id='dinner-dialog-title';
+    dialog.setAttribute('aria-labelledby','dinner-dialog-title');
+    header.appendChild(title);
+
+    const closeBtn=document.createElement('button');
+    closeBtn.type='button';
+    closeBtn.className='dinner-close';
+    closeBtn.setAttribute('aria-label','Cancel dinner selection');
+    closeBtn.textContent='×';
+    closeBtn.addEventListener('click',()=> closeDinnerPicker({returnFocus:true}));
+    header.appendChild(closeBtn);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    body.className='dinner-body';
+
+    const wheels=document.createElement('div');
+    wheels.className='dinner-wheels';
+
+    let hourWheel;
+    let minuteWheel;
+
+    function updateMinuteDisabled(){
+      if(!minuteWheel) return;
+      const hour = hourWheel.value;
+      const disabledSet = minuteRules[hour] || new Set();
+      minuteWheel.setDisabledChecker(val=>disabledSet.has(val));
+      if(disabledSet.has(minuteWheel.value)){
+        const fallback = dinnerMinutes.find(v=>!disabledSet.has(v));
+        if(fallback!==undefined){
+          minuteWheel.setValue(fallback);
+        }
+      }else{
+        minuteWheel.refresh();
+      }
+    }
+
+    hourWheel = createWheel(dinnerHours, {
+      initial: initialHour,
+      formatValue: v=>v,
+      onChange:()=> updateMinuteDisabled()
+    });
+
+    minuteWheel = createWheel(dinnerMinutes, {
+      initial: initialMinute,
+      formatValue: v=>pad(v)
+    });
+
+    updateMinuteDisabled();
+
+    const hourCol=document.createElement('div');
+    hourCol.className='dinner-wheel-col';
+    hourCol.appendChild(hourWheel.element);
+
+    const minuteCol=document.createElement('div');
+    minuteCol.className='dinner-wheel-col';
+    minuteCol.appendChild(minuteWheel.element);
+
+    const meridiemCol=document.createElement('div');
+    meridiemCol.className='dinner-meridiem';
+    meridiemCol.textContent='pm';
+
+    wheels.appendChild(hourCol);
+    wheels.appendChild(minuteCol);
+    wheels.appendChild(meridiemCol);
+
+    body.appendChild(wheels);
+    dialog.appendChild(body);
+
+    const actions=document.createElement('div');
+    actions.className='dinner-actions';
+
+    const confirmBtn=document.createElement('button');
+    confirmBtn.type='button';
+    confirmBtn.className='dinner-confirm';
+    const confirmLabel = (mode==='edit' || existing) ? 'Update dinner time' : 'Add dinner time';
+    confirmBtn.innerHTML=`<span aria-hidden="true">+</span><span class="sr-only">${confirmLabel}</span>`;
+    confirmBtn.setAttribute('aria-label', confirmLabel);
+    actions.appendChild(confirmBtn);
+
+    let removeBtn=null;
+    if(mode==='edit' && existing){
+      removeBtn=document.createElement('button');
+      removeBtn.type='button';
+      removeBtn.className='dinner-remove';
+      removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove dinner</span>`;
+      actions.appendChild(removeBtn);
+    }
+
+    dialog.appendChild(actions);
+
+    const previousFocus = document.activeElement;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('dinner-lock');
+
+    function confirmSelection(){
+      const hour = hourWheel.value;
+      const minute = minuteWheel.value;
+      const disabledSet = minuteRules[hour] || new Set();
+      if(disabledSet.has(minute)) return;
+      const hour24Value = hour + 12;
+      const time = `${pad(hour24Value)}:${pad(minute)}`;
+      upsertDinner(targetDateKey, time);
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeDinnerPicker({returnFocus:true});
+    }
+
+    confirmBtn.addEventListener('click', confirmSelection);
+
+    if(removeBtn){
+      removeBtn.addEventListener('click',()=>{
+        removeDinner(targetDateKey);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeDinnerPicker({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click',e=>{
+      if(e.target===overlay){
+        closeDinnerPicker({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown = e => {
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeDinnerPicker({returnFocus:true});
+        return;
+      }
+      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
+        e.preventDefault();
+        confirmSelection();
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length-1];
+        if(e.shiftKey){
+          if(document.activeElement===first){
+            e.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    dinnerDialog = { overlay, dialog, previousFocus };
+
+    setTimeout(()=>{
+      hourWheel.element.focus();
+    },0);
   }
   function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
   function sortDayEntries(dateK){
@@ -437,6 +874,48 @@
       const sb = b.start || '';
       return sa.localeCompare(sb);
     });
+  }
+
+  function getDinnerEntry(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry=>entry.type==='dinner') || null;
+  }
+
+  function syncDinnerGuests(){
+    const allIds = state.guests.map(g=>g.id);
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      day.forEach(entry=>{
+        if(entry.type==='dinner'){
+          entry.guestIds = new Set(allIds);
+        }
+      });
+    }
+  }
+
+  function upsertDinner(dateK, time){
+    const day = getOrCreateDay(dateK);
+    let entry = getDinnerEntry(dateK);
+    if(!entry){
+      entry = { type:'dinner', title: dinnerTitle, start: time, guestIds: new Set(state.guests.map(g=>g.id)) };
+      day.push(entry);
+    }else{
+      entry.start = time;
+      entry.guestIds = new Set(state.guests.map(g=>g.id));
+    }
+    sortDayEntries(dateK);
+  }
+
+  function removeDinner(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry=>entry.type==='dinner');
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
   }
 
   // ---------- Preview ----------
@@ -529,9 +1008,10 @@
 
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       items.forEach(it=>{
-        const ids = Array.from(it.guestIds||[]);
-        if(ids.length===0) return;
-        const everyone = (ids.length===state.guests.length);
+        const isDinner = it.type==='dinner';
+        const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
+        if(!isDinner && ids.length===0) return;
+        const everyone = isDinner || (ids.length===state.guests.length);
         const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
         const tag = everyone ? '' : names.map(n=>` | ${escapeHtml(n)}`).join('');
         const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
