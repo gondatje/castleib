@@ -22,6 +22,7 @@
     colors: ['#6366f1','#06b6d4','#22c55e','#f59e0b','#ef4444','#a855f7','#10b981','#f43f5e','#0ea5e9'],
     schedule: {}, // dateKey -> [{type:'activity',title,start,end,guestIds:Set}]
     data: null,
+    dataStatus: 'loading',
     editing: false
   };
 
@@ -43,15 +44,21 @@
   });
 
   // ---------- Data load ----------
+  renderAll();
+
   Promise.all([
     fetch('data/activities.json').then(r=>r.json()),
     fetch('data/spa.json').then(r=>r.json()),
     fetch('data/locations.json').then(r=>r.json())
   ]).then(([acts,spa,locs])=>{
     state.data = { activities: acts, spa, locations: locs };
+    state.dataStatus = 'ready';
     renderAll();
   }).catch(e=>{
     console.error(e);
+    state.data = null;
+    state.dataStatus = 'error';
+    renderAll();
     email.textContent = 'Data load failed. Serve via http:// and verify /data files exist.';
   });
 
@@ -144,6 +151,16 @@
     const wname=weekdayName(state.focus);
     dayTitle.textContent = `${wname}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${ordinal(state.focus.getDate())}`;
 
+    if(state.dataStatus==='loading'){
+      renderStatusMessage('Loading activities…');
+      return;
+    }
+
+    if(state.dataStatus==='error'){
+      renderStatusMessage('Activities unavailable — data failed to load.');
+      return;
+    }
+
     const season = activeSeason(state.focus);
     const weekKey = weekdayKey(state.focus);
     const list = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
@@ -210,6 +227,19 @@
         c.appendChild(x);
         container.appendChild(c);
       });
+    }
+    function renderStatusMessage(text){
+      activitiesEl.innerHTML='';
+      const msg=document.createElement('div');
+      msg.className='data-status';
+      msg.textContent=text;
+      msg.style.padding='1rem';
+      msg.style.background='#fef3c7';
+      msg.style.border='1px solid #f59e0b';
+      msg.style.borderRadius='0.75rem';
+      msg.style.color='#92400e';
+      msg.style.textAlign='center';
+      activitiesEl.appendChild(msg);
     }
   }
   function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
@@ -319,5 +349,10 @@
   });
 
   // ---------- Render root ----------
-  function renderAll(){ renderCalendar(); renderGuests(); renderActivities(); renderPreview(); }
+  function renderAll(){
+    renderCalendar();
+    renderGuests();
+    renderActivities();
+    renderPreview();
+  }
 })();
