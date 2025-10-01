@@ -53,7 +53,6 @@
   });
 
   // ---------- Data load ----------
-  renderAll();
 
   Promise.all([
     fetch('data/activities.json').then(r=>r.json()),
@@ -62,6 +61,7 @@
   ]).then(([acts,spa,locs])=>{
     state.data = { activities: acts, spa, locations: locs };
     state.dataStatus = 'ready';
+    ensureFocusInSeason();
     renderAll();
   }).catch(e=>{
     console.error(e);
@@ -117,6 +117,11 @@
   }
 
   // ---------- Guests ----------
+  const toggleIcons = {
+    allOn: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`,
+    someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
+  };
+
   function addGuest(name){
     const trimmed = name.trim();
     if(!trimmed) return;
@@ -168,15 +173,12 @@
     });
     updateToggleAllButton();
   }
-  const toggleIcons = {
-    allOn: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`,
-    someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
-  };
-
   const tryAddGuestFromInput = ()=> addGuest(guestName.value);
   guestName.addEventListener('keydown',e=>{
-    if(e.key==='Enter' || e.key==='NumpadEnter' || e.key==='Return'){
+    const key=(e.key||'').toLowerCase();
+    if(key==='enter' || key==='numpadenter' || key==='return'){
       e.preventDefault();
+      if(e.repeat) return;
       tryAddGuestFromInput();
     }
   });
@@ -188,6 +190,8 @@
       renderGuests();
     });
   }
+
+  renderAll();
 
   function updateToggleAllButton(){
     if(!toggleAllBtn) return;
@@ -229,6 +233,11 @@
     }
 
     const season = activeSeason(state.focus);
+    if(!season){
+      renderStatusMessage(buildOutOfSeasonMessage());
+      return;
+    }
+
     const weekKey = weekdayKey(state.focus);
     const list = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
 
@@ -631,4 +640,55 @@
   }
 
   function markPreviewDirty(){ state.previewDirty = true; }
+
+  function ensureFocusInSeason(){
+    if(state.dataStatus!=='ready') return;
+    const seasons = state.data?.activities?.seasons || [];
+    if(seasons.length===0) return;
+    const focusKey = keyDate(state.focus);
+    const inSeason = seasons.some(season=> focusKey>=season.start && focusKey<=season.end);
+    if(inSeason) return;
+
+    const todayKey = keyDate(state.today);
+    let target = seasons.find(season=> todayKey>=season.start && todayKey<=season.end);
+    if(!target){
+      target = seasons.find(season=> todayKey < season.start) || seasons[seasons.length-1];
+    }
+    if(target?.start){
+      const [y,m,d] = target.start.split('-').map(Number);
+      state.focus = zero(new Date(y, m-1, d));
+    }
+  }
+
+  function buildOutOfSeasonMessage(){
+    const seasons = state.data?.activities?.seasons || [];
+    if(seasons.length===0) return 'No activities scheduled for the selected date.';
+
+    const focusDate = state.focus;
+    const focusKey = keyDate(focusDate);
+    const focusLabel = formatStayDate(focusDate, true);
+
+    const next = seasons.find(season=> focusKey < season.start);
+    if(next){
+      const [ny,nm,nd] = next.start.split('-').map(Number);
+      const startDate = new Date(ny, nm-1, nd);
+      const startLabel = formatStayDate(startDate);
+      return `No activities are scheduled for ${focusLabel}. Upcoming activities begin ${startLabel}.`;
+    }
+
+    const prev = [...seasons].reverse().find(season=> focusKey > season.end);
+    if(prev){
+      const [py,pm,pd] = prev.end.split('-').map(Number);
+      const endDate = new Date(py, pm-1, pd);
+      const endLabel = formatStayDate(endDate);
+      return `No activities are scheduled for ${focusLabel}. The most recent season ended on ${endLabel}.`;
+    }
+
+    return 'No activities scheduled for the selected date.';
+  }
+
+  function formatStayDate(date, includeWeekday=false){
+    const base = `${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}, ${date.getFullYear()}`;
+    return includeWeekday ? `${weekdayName(date)}, ${base}` : base;
+  }
 })();
