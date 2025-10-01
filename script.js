@@ -242,7 +242,7 @@
       const c=document.createElement('span');
       c.className='chip';
       c.style.borderColor = guest.color;
-      c.style.setProperty('--chipAccent', guest.color);
+
       c.title = guest.name;
 
       const initial=document.createElement('span');
