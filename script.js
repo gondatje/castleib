@@ -226,22 +226,31 @@
 
   // ---------- Data load ----------
 
-  Promise.all([
-    fetch('data/activities.json').then(r=>r.json()),
-    fetch('data/spa.json').then(r=>r.json()),
-    fetch('data/locations.json').then(r=>r.json())
-  ]).then(([acts,spa,locs])=>{
-    state.data = { activities: acts, spa, locations: locs };
-    state.dataStatus = 'ready';
-    ensureFocusInSeason();
-    renderAll();
-  }).catch(e=>{
-    console.error(e);
+  // Activities + spa data now flow from the global CHSDataLayer helpers defined in data/data-layer.js.
+  // This replaces the old fetch('data/*.json') wiring while keeping the UI render path intact.
+  if(typeof window.CHSDataLayer === 'undefined'){
+    const err = new Error('CHSDataLayer missing. Ensure data/data-layer.js is loaded.');
+    console.error(err);
     state.data = null;
     state.dataStatus = 'error';
     renderAll();
-    email.textContent = 'Data load failed. Serve via http:// and verify /data files exist.';
-  });
+    email.textContent = 'Data layer missing. Load data/data-layer.js before script.js.';
+  }else{
+    try{
+      const activitiesDataset = window.CHSDataLayer.getActivitiesDataset();
+      const spaDataset = window.CHSDataLayer.getSpaDataset();
+      state.data = { activities: activitiesDataset, spa: spaDataset };
+      state.dataStatus = 'ready';
+      ensureFocusInSeason();
+      renderAll();
+    }catch(e){
+      console.error(e);
+      state.data = null;
+      state.dataStatus = 'error';
+      renderAll();
+      email.textContent = 'Data layer failed to initialize. See console for details.';
+    }
+  }
 
   // ---------- Season + weekday ----------
   function activeSeason(date){
@@ -420,7 +429,7 @@
     }
 
     const weekKey = weekdayKey(state.focus);
-    const baseList = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
+    const baseList = season ? window.CHSDataLayer.getActivitiesForSeasonDay(season.name, weekKey).slice().sort((a,b)=> a.start.localeCompare(b.start)) : [];
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
     const combined = baseList.map(row=>({kind:'activity', data: row}));

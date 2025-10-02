@@ -1,8 +1,0 @@
-{
-  "services": [
-    { "code": "SDT", "title": "Sonoran Desert Transformation", "durations_min": [120], "tags": ["massage"] },
-    { "code": "CHS_CUSTOM_MASSAGE", "title": "Castle Hot Springs Custom Massage", "durations_min": [60, 90], "tags": ["massage"] },
-    { "code": "CHS_CUSTOM_FACIAL", "title": "Castle Custom Facial", "durations_min": [60], "tags": ["facial"] }
-  ],
-  "hours": { "start": "08:00", "end": "19:00" }
-}
