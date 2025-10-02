@@ -27,11 +27,10 @@
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
-  /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
-  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  /* Responsive layout tokens keep columns balanced and gutters subtle across breakpoints. */
+  --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,28vw,22rem);
-  --layout-center-max:clamp(32rem,45vw,48rem);
+  --layout-column-min:clamp(16rem,25vw,22rem);
   /* Legacy aliases maintained for untouched UI pieces */
   --bg:var(--color-bg);
   --panel:var(--surface);
@@ -59,10 +58,9 @@
     --activity-focus-ring:rgba(148,163,255,0.7);
     --activity-focus-glow:rgba(148,163,255,0.35);
     --border:rgba(148,163,184,0.28);
-    --layout-gutter:clamp(0.75rem,3vw,2rem);
+    --space-edge:clamp(1rem,3vw,2.5rem);
     --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-    --layout-rail-min:clamp(18rem,28vw,22rem);
-    --layout-center-max:clamp(32rem,45vw,48rem);
+    --layout-column-min:clamp(16rem,25vw,22rem);
   }
 }
 body[data-theme='dark']{
@@ -84,10 +82,9 @@ body[data-theme='dark']{
   --activity-focus-ring:rgba(148,163,255,0.7);
   --activity-focus-glow:rgba(148,163,255,0.35);
   --border:rgba(148,163,184,0.28);
-  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,28vw,22rem);
-  --layout-center-max:clamp(32rem,45vw,48rem);
+  --layout-column-min:clamp(16rem,25vw,22rem);
 }
 body[data-theme='light']{
   color-scheme:light;
@@ -109,10 +106,9 @@ body[data-theme='light']{
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
   /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
-  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,28vw,22rem);
-  --layout-center-max:clamp(32rem,45vw,48rem);
+  --layout-column-min:clamp(16rem,25vw,22rem);
 }
 @media (prefers-color-scheme: dark){
   body[data-theme='light']{
@@ -150,47 +146,44 @@ body[data-theme='dark'] .dinner-item{
 body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto}
 .app{
   /*
-   * Clamp-based gutters add safe-area padding so the rails can stretch to the
-   * viewport edge without causing x-scroll, even on devices with notches.
+   * Desktop columns use an even 1fr grid so every rail shares the width.
+   * Safe-area aware gutters keep the layout full-bleed without risking x-scroll.
    */
   display:grid;
   grid-template-columns:minmax(0,1fr);
   gap:var(--layout-gap);
-  padding-block:var(--layout-gutter);
-  padding-inline:var(--layout-gutter);
-  padding-inline-start:calc(var(--layout-gutter) + env(safe-area-inset-left));
-  padding-inline-end:calc(var(--layout-gutter) + env(safe-area-inset-right));
+  align-items:start;
+  padding-block:var(--layout-gap);
+  padding-inline:var(--space-edge);
+  padding-inline-start:calc(var(--space-edge) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--space-edge) + env(safe-area-inset-right));
   margin:0;
 }
 
-/*
- * The rails no longer inherit global width clamps; each column stretches to
- * fill its grid track so the outer cards can reach the viewport edge.
- */
-.left,.center,.right{width:100%;}
-
-.center{
-  /* Center content remains readable by capping only this column, not the rails. */
-  max-inline-size:var(--layout-center-max);
-  justify-self:center;
+.left,.center,.right{
+  /* Allow cards to shrink within their tracks so content wraps instead of overflowing. */
+  min-inline-size:0;
 }
 
-@media(min-width:820px){
+/*
+ * Medium breakpoints present two equal columns while the third spans the full row.
+ * This keeps visible tracks balanced and avoids awkward stacking during the transition.
+ */
+@media(min-width:960px){
   .app{
-    /* Two-column stage keeps the right rail below while left rail hugs the edge. */
-    grid-template-columns:minmax(0,1fr) minmax(0,var(--layout-center-max));
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
-  .left,.right{min-inline-size:var(--layout-rail-min);} /* Rails can grow beyond their preferred size. */
   .right{grid-column:1/-1;}
 }
+
+/* Desktop/full-screen: enforce three equal columns that fill the viewport width. */
 @media(min-width:1280px){
   .app{
-    /* Full desktop spread: both rails reach outward while the center stays readable. */
-    grid-template-columns:minmax(0,1fr) minmax(0,var(--layout-center-max)) minmax(0,1fr);
+    grid-template-columns:repeat(3,minmax(var(--layout-column-min),1fr));
   }
   .right{grid-column:auto;}
 }
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;min-inline-size:0}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
