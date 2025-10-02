@@ -32,21 +32,21 @@
           <button id="btnArrival" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
           <button id="btnDeparture" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
         </div>
-      </div>
-
-      <div class="section">
-        <h2>Guests</h2>
-        <div class="row">
-          <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
-          <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
-            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
-              <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
-            </svg>
-          </button>
+        <!-- Guest tools sit in the calendar flow so iPad can stack header → nav → grid → controls → guests without JS shuffles. -->
+        <div class="section guest-section">
+          <h2>Guests</h2>
+          <div class="row">
+            <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
+            <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
+                <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
+              </svg>
+            </button>
+          </div>
+          <div id="guests" class="chips" aria-label="Guests"></div>
         </div>
-        <div id="guests" class="chips" aria-label="Guests"></div>
       </div>
     </section>
 
