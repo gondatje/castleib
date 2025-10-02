@@ -500,6 +500,14 @@
 
     const onResize = () => { syncPosition(); };
     window.addEventListener('resize', onResize);
+    // Centering fix: observe the viewport size so the very first paint (once the
+    // element is measured) snaps the wheel to the exact middle instead of
+    // rendering between options while waiting for a manual refresh.
+    let resizeObserver = null;
+    if(typeof ResizeObserver !== 'undefined'){
+      resizeObserver = new ResizeObserver(() => { syncPosition(); });
+      resizeObserver.observe(viewport);
+    }
 
     const initial = options.initial;
     if(initial !== undefined && values.includes(initial)){
@@ -539,6 +547,10 @@
         cancelAnimation();
         stopFreeScroll();
         window.removeEventListener('resize', onResize);
+        if(resizeObserver){
+          resizeObserver.disconnect();
+          resizeObserver = null;
+        }
         clearTimeout(snapTimer);
         if(lockController && lockController.forceRelease){
           lockController.forceRelease(lockId);
