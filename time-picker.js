@@ -245,6 +245,7 @@
     let pendingRowDelta = 0;
     let microRowDelta = 0;
     let rowAccumulator = 0;
+    let lineModeScale = ITEM_HEIGHT;
     let wheelFrame = null;
     let snapTimer = null;
     let activeGestureId = 0;
@@ -382,7 +383,15 @@
 
     const normalizeDelta = e => {
       if(e.deltaMode === DOM_DELTA_LINE){
-        return e.deltaY * ITEM_HEIGHT;
+        const lines = Math.max(1, Math.round(Math.abs(e.deltaY)));
+        const candidate = ITEM_HEIGHT / lines;
+        if(lineModeScale === ITEM_HEIGHT){
+          lineModeScale = candidate;
+        }else{
+          const maxDelta = lineModeScale * 0.25;
+          lineModeScale = Math.max(lineModeScale - maxDelta, Math.min(lineModeScale + maxDelta, candidate));
+        }
+        return Math.sign(e.deltaY) * lineModeScale * lines;
       }
       if(e.deltaMode === DOM_DELTA_PAGE){
         return e.deltaY * ITEM_HEIGHT * 3;
