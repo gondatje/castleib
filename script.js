@@ -1081,7 +1081,9 @@
         const row = makeEl('div', 'email-activity');
         row.appendChild(makeEl('strong', undefined, fmt12('11:00')));
         row.appendChild(document.createTextNode(' Check-Out | Welcome to stay on property until '));
-        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', `(${fmt12('13:00')})`);
+        // Parentheses previously came from the template literal around fmt12(); removing them here keeps the
+        // scoped font-weight styling while limiting the change to this specific time string.
+        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('13:00'));
         row.appendChild(stayWindow);
         return row;
       };
@@ -1089,8 +1091,8 @@
         const row = makeEl('div', 'email-activity');
         row.appendChild(makeEl('strong', undefined, fmt12('16:00')));
         row.appendChild(document.createTextNode(' Guaranteed Check-In | Welcome to arrive as early as '));
-        // Apply the same scoped span so the early-arrival window stays regular weight.
-        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', `(${fmt12('12:00')})`);
+        // Apply the same scoped span so the early-arrival window stays regular weight without reinstating parentheses.
+        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('12:00'));
         row.appendChild(arrivalWindow);
         return row;
       };
