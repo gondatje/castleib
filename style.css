@@ -270,7 +270,16 @@ body{
   .right.card{
     block-size:auto;
     min-block-size:0;
-    overflow:visible;
+  }
+  .right.card.preview-card{
+    overflow:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable both-edges;
+    -webkit-overflow-scrolling:touch;
+    block-size:calc(100vh - var(--app-block-padding));
+    block-size:calc(100svh - var(--app-block-padding));
+    block-size:calc(100dvh - var(--app-block-padding));
+    min-block-size:260px;
   }
 }
 
