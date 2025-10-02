@@ -162,6 +162,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .email sup{font-size:0.65em;vertical-align:super;line-height:0}
 #dayTitle sup{font-size:0.65em;vertical-align:super;line-height:0}
 .email .email-activity{margin:6px 0;font-size:16px}
+.email .email-activity .email-activity-parenthetical-time{
+  /* Reset the parenthetical arrival/stay window to normal weight without affecting other bold text. */
+  font-weight:400;
+}
 .email .email-empty{margin:12px 0 0;font-size:15px;color:var(--muted)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 

@@ -1078,14 +1078,16 @@
         makeEl(
           'div',
           'email-activity',
-          `<strong>${escapeHtml(fmt12('11:00'))}</strong> Check-Out | Welcome to stay on property until <strong>${escapeHtml(fmt12('13:00'))}</strong>`,
+          // Wrap the parenthetical stay window in a neutral span so only that time drops out of the bold styling.
+          `<strong>${escapeHtml(fmt12('11:00'))}</strong> Check-Out | Welcome to stay on property until <span class="email-activity-parenthetical-time">${escapeHtml(fmt12('13:00'))}</span>`,
           {html:true}
         );
       const checkinLine = () =>
         makeEl(
           'div',
           'email-activity',
-          `<strong>${escapeHtml(fmt12('16:00'))}</strong> Guaranteed Check-In | Welcome to arrive as early as <strong>${escapeHtml(fmt12('12:00'))}</strong>`,
+          // Same wrapper keeps the early arrival window unbolded while preserving surrounding emphasis.
+          `<strong>${escapeHtml(fmt12('16:00'))}</strong> Guaranteed Check-In | Welcome to arrive as early as <span class="email-activity-parenthetical-time">${escapeHtml(fmt12('12:00'))}</span>`,
           {html:true}
         );
 
