@@ -143,19 +143,25 @@ body[data-theme='dark'] .dinner-item{
   box-shadow:inset 0 0 0 1px rgba(148,163,255,0.32);
 }
 *{box-sizing:border-box}
+html{
+  /* Ensure the root context participates in full-height calculations so flex/grid
+   * descendants can rely on percentage-based sizing. */
+  block-size:100%;
+}
+
 body{
   margin:0;
   background:var(--color-bg);
   color:var(--text-primary);
   font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto;
   /*
-   * Lock the document to the viewport: 100vh offers a broad fallback while
-   * 100dvh keeps the shell stable across browser UI shifts (URL bars, etc.).
-   * Safe-area insets are handled on the grid container so touch hardware and
-   * notched displays keep their native padding.
+   * Lock the document shell to the viewport. 100vh provides a universal fallback,
+   * while 100dvh absorbs dynamic browser UI. Padding for safe areas is deferred
+   * to the grid container so gutters remain consistent on notched hardware.
    */
+  block-size:100vh;
+  block-size:100dvh;
   min-block-size:100vh;
-  min-block-size:100dvh;
   display:flex;
   flex-direction:column;
   overflow:auto;
@@ -176,6 +182,7 @@ body{
   padding-inline-end:calc(var(--space-edge) + env(safe-area-inset-right));
   margin:0;
   flex:1;
+  block-size:100%;
   min-block-size:0;
 }
 
@@ -205,6 +212,11 @@ body{
     grid-template-columns:repeat(3,minmax(var(--layout-column-min),1fr));
   }
   .right{grid-column:auto;}
+}
+
+@media(max-width:1279px){
+  /* Below desktop, allow the shell to grow naturally so mobile/tablet stacks can scroll. */
+  .app{block-size:auto;}
 }
 .card{
   background:var(--surface);
