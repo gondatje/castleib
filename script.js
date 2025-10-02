@@ -233,7 +233,8 @@
     console.error(err);
     state.data = null;
     state.dataStatus = 'error';
-    renderAll();
+    // Defer the render until after script evaluation so const bindings below are initialized.
+    setTimeout(renderAll, 0);
     email.textContent = 'Data layer missing. Load data/data-layer.js before script.js.';
   }else{
     try{
@@ -242,12 +243,14 @@
       state.data = { activities: activitiesDataset, spa: spaDataset };
       state.dataStatus = 'ready';
       ensureFocusInSeason();
-      renderAll();
+      // Wait for the rest of this module to register helpers (e.g. toggleIcons) before rendering.
+      setTimeout(renderAll, 0);
     }catch(e){
       console.error(e);
       state.data = null;
       state.dataStatus = 'error';
-      renderAll();
+      // Keep the render async so we don't hit TDZ checks while the script continues parsing.
+      setTimeout(renderAll, 0);
       email.textContent = 'Data layer failed to initialize. See console for details.';
     }
   }
