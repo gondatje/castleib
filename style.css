@@ -230,9 +230,13 @@ body{
   .left{grid-area:cal;}
   .center{grid-area:act;}
   .right{
-    /* Preview spans both columns in the second row so it reads as a full-width summary. */
+    /*
+     * Preview spans the named preview track so it stretches from the calendar gutter
+     * through the activities gutter. Explicitly setting 1/-1 overrides the desktop
+     * breakpoint rule that pinned it to column 1.
+     */
     grid-area:preview;
-    grid-column:auto;
+    grid-column:1 / -1;
   }
   /*
    * Containment: allow the cards to own the row height while clipping overflow so the
