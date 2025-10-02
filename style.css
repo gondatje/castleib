@@ -27,6 +27,16 @@
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  /*
+   * Rails clamp to a comfortable minimum but grow fluidly because grid uses
+   * minmax(var(--layout-rail-min), 1fr).
+   */
+  --layout-rail-min:clamp(18rem,24vw,24rem);
+  /* Center column stays readable while still adapting with viewport width. */
+  --layout-center:clamp(32rem,46vw,48rem);
   /* Legacy aliases maintained for untouched UI pieces */
   --bg:var(--color-bg);
   --panel:var(--surface);
@@ -54,6 +64,10 @@
     --activity-focus-ring:rgba(148,163,255,0.7);
     --activity-focus-glow:rgba(148,163,255,0.35);
     --border:rgba(148,163,184,0.28);
+    --layout-gutter:clamp(0.75rem,3vw,2rem);
+    --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+    --layout-rail-min:clamp(18rem,24vw,24rem);
+    --layout-center:clamp(32rem,46vw,48rem);
   }
 }
 body[data-theme='dark']{
@@ -75,6 +89,10 @@ body[data-theme='dark']{
   --activity-focus-ring:rgba(148,163,255,0.7);
   --activity-focus-glow:rgba(148,163,255,0.35);
   --border:rgba(148,163,184,0.28);
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  --layout-rail-min:clamp(18rem,24vw,24rem);
+  --layout-center:clamp(32rem,46vw,48rem);
 }
 body[data-theme='light']{
   color-scheme:light;
@@ -95,6 +113,11 @@ body[data-theme='light']{
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  --layout-rail-min:clamp(18rem,24vw,24rem);
+  --layout-center:clamp(32rem,46vw,48rem);
 }
 @media (prefers-color-scheme: dark){
   body[data-theme='light']{
@@ -130,9 +153,43 @@ body[data-theme='dark'] .dinner-item{
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto}
-.app{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;max-width:1440px;margin:0 auto}
-@media(min-width:820px){.app{grid-template-columns:minmax(0,360px) minmax(0,1fr);}.right{grid-column:1/-1;}}
-@media(min-width:1200px){.app{grid-template-columns:340px minmax(0,1fr) 420px;}.right{grid-column:auto;}}
+.app{
+  /*
+   * Clamp-based gutters add safe-area padding so the rails can stretch to the
+   * viewport edge without causing x-scroll, even on devices with notches.
+   */
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:var(--layout-gap);
+  padding-block:var(--layout-gutter);
+  padding-inline:var(--layout-gutter);
+  padding-inline-start:calc(var(--layout-gutter) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--layout-gutter) + env(safe-area-inset-right));
+  width:100%;
+  margin:0;
+}
+/* Allow grid children to shrink so rails can expand without triggering overflow. */
+.left,.center,.right{min-width:0;}
+@media(min-width:820px){
+  .app{
+    /*
+     * Two-column stage keeps the right rail below while left rail hugs the
+     * edge and can expand with the viewport.
+     */
+    grid-template-columns:minmax(var(--layout-rail-min),1fr) minmax(0,1fr);
+  }
+  .right{grid-column:1/-1;}
+}
+@media(min-width:1280px){
+  .app{
+    /*
+     * Full desktop spread: both rails fill the remaining width while the
+     * center column stays clamped to its readable max.
+     */
+    grid-template-columns:minmax(var(--layout-rail-min),1fr) minmax(0,var(--layout-center)) minmax(var(--layout-rail-min),1fr);
+  }
+  .right{grid-column:auto;}
+}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .space-between{justify-content:space-between}
