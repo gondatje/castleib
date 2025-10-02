@@ -30,9 +30,8 @@
   /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
   --layout-gutter:clamp(0.75rem,3vw,2rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,26vw,21.5rem);
-  --layout-rail-max:clamp(18rem,26vw,26rem);
-  --layout-center:clamp(32rem,45vw,48rem);
+  --layout-rail-min:clamp(18rem,28vw,22rem);
+  --layout-center-max:clamp(32rem,45vw,48rem);
   /* Legacy aliases maintained for untouched UI pieces */
   --bg:var(--color-bg);
   --panel:var(--surface);
@@ -62,9 +61,8 @@
     --border:rgba(148,163,184,0.28);
     --layout-gutter:clamp(0.75rem,3vw,2rem);
     --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-    --layout-rail-min:clamp(18rem,26vw,21.5rem);
-    --layout-rail-max:clamp(18rem,26vw,26rem);
-    --layout-center:clamp(32rem,45vw,48rem);
+    --layout-rail-min:clamp(18rem,28vw,22rem);
+    --layout-center-max:clamp(32rem,45vw,48rem);
   }
 }
 body[data-theme='dark']{
@@ -88,9 +86,8 @@ body[data-theme='dark']{
   --border:rgba(148,163,184,0.28);
   --layout-gutter:clamp(0.75rem,3vw,2rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,26vw,21.5rem);
-  --layout-rail-max:clamp(18rem,26vw,26rem);
-  --layout-center:clamp(32rem,45vw,48rem);
+  --layout-rail-min:clamp(18rem,28vw,22rem);
+  --layout-center-max:clamp(32rem,45vw,48rem);
 }
 body[data-theme='light']{
   color-scheme:light;
@@ -114,9 +111,8 @@ body[data-theme='light']{
   /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
   --layout-gutter:clamp(0.75rem,3vw,2rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
-  --layout-rail-min:clamp(18rem,26vw,21.5rem);
-  --layout-rail-max:clamp(18rem,26vw,26rem);
-  --layout-center:clamp(32rem,45vw,48rem);
+  --layout-rail-min:clamp(18rem,28vw,22rem);
+  --layout-center-max:clamp(32rem,45vw,48rem);
 }
 @media (prefers-color-scheme: dark){
   body[data-theme='light']{
@@ -166,17 +162,31 @@ body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.4
   padding-inline-end:calc(var(--layout-gutter) + env(safe-area-inset-right));
   margin:0;
 }
+
+/*
+ * The rails no longer inherit global width clamps; each column stretches to
+ * fill its grid track so the outer cards can reach the viewport edge.
+ */
+.left,.center,.right{width:100%;}
+
+.center{
+  /* Center content remains readable by capping only this column, not the rails. */
+  max-inline-size:var(--layout-center-max);
+  justify-self:center;
+}
+
 @media(min-width:820px){
   .app{
     /* Two-column stage keeps the right rail below while left rail hugs the edge. */
-    grid-template-columns:minmax(0,var(--layout-rail-min)) minmax(0,1fr);
+    grid-template-columns:minmax(0,1fr) minmax(0,var(--layout-center-max));
   }
+  .left,.right{min-inline-size:var(--layout-rail-min);} /* Rails can grow beyond their preferred size. */
   .right{grid-column:1/-1;}
 }
 @media(min-width:1280px){
   .app{
     /* Full desktop spread: both rails reach outward while the center stays readable. */
-    grid-template-columns:minmax(0,var(--layout-rail-min)) minmax(0,var(--layout-center)) minmax(0,var(--layout-rail-max));
+    grid-template-columns:minmax(0,1fr) minmax(0,var(--layout-center-max)) minmax(0,1fr);
   }
   .right{grid-column:auto;}
 }
