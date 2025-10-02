@@ -75,12 +75,14 @@
     const minIndex = block;
     const maxIndex = block * (REPEAT-1) - 1;
     const wrapSpan = block * (REPEAT-2);
-    const DETENT_THRESHOLD = ITEM_HEIGHT * 0.72; // Pixel budget for a single wheel detent after normalization.
-    const MAX_SLIP = 0.45; // Limit the visual preload while we wait for a full detent.
-    const MAX_STEPS_PER_FRAME = 3; // Upper bound so even aggressive wheels advance in digestible bursts.
-    const MAX_STEPS_PER_GESTURE = 18; // Prevent runaway acceleration on long flicks while still allowing fast travel.
-    const SNAP_IDLE_MS = 110; // Idle window that defines the end of a gesture before snapping.
-    const SNAP_DURATION_MS = 150; // Final ease duration so wheels glide into place instead of teleporting.
+    const SNAP_IDLE_MS = 140; // Idle window that defines the end of a gesture before snapping.
+    const SNAP_DURATION_MS = 160; // Final ease duration so wheels glide into place instead of teleporting.
+    const NUDGE_DURATION_MS = 90; // Short preload before settling when a blocked value is attempted.
+    const MAX_VELOCITY = ITEM_HEIGHT * 1.35; // Clamp free-scroll momentum so fast flicks stay controlled.
+    const VELOCITY_FRICTION = 0.76; // Frame-to-frame damping applied while the wheel is freely scrolling.
+    const VELOCITY_EPSILON = 0.015; // Cut-off that stops the free-scroll integrator once motion is imperceptible.
+    const MICRO_DELTA_THRESHOLD = 0.4; // Ignore extremely tiny alternating deltas to avoid visible jitter.
+    const DELTA_GAIN = 0.22; // Scales pixel deltas into velocity so one hardware detent roughly equals one slot.
 
     let optionIndex = baseBlock * block;
     let position = optionIndex;
@@ -159,6 +161,13 @@
     const startAnimation = (target,{duration=140,ease=easeOutCubic,onFinish}={})=>{
       const animDuration = motionDuration(duration);
       cancelAnimation();
+      if(wheelFrame){
+        cancelAnimationFrame(wheelFrame);
+        wheelFrame = null;
+      }
+      pendingPixelDelta = 0;
+      microPixelDelta = 0;
+      velocityPx = 0;
       if(animDuration === 0){
         position = target;
         syncPosition();
@@ -206,7 +215,7 @@
       onChange(value);
     };
 
-    const commitIndex = (idx, normalizedInfo) => {
+    const applyIndexCore = (idx, normalizedInfo) => {
       const info = normalizedInfo || normalizeIndex(idx);
       optionIndex = info.index;
       if(info.shift){
@@ -215,7 +224,13 @@
       const value = values[modIndex(optionIndex)];
       applySelection();
       emitChangeIfNeeded(value);
-      startAnimation(optionIndex);
+      return info;
+    };
+
+    const commitIndex = (idx, normalizedInfo, animationOptions={}) => {
+      const info = applyIndexCore(idx, normalizedInfo);
+      startAnimation(optionIndex, { duration: SNAP_DURATION_MS, ease: easeInOutCubic, ...animationOptions });
+      return info;
     };
 
     // Tiny resist/bounce when a blocked option is hit so we never rest on invalid values.
@@ -227,8 +242,8 @@
       }
       const overshoot = optionIndex + direction * 0.3;
       const settleId = ++pendingSettleId;
-      startAnimation(overshoot,{duration:90,ease:easeOutCubic,onFinish:()=>{
-        startAnimation(optionIndex,{duration:SNAP_DURATION_MS,ease:easeInOutCubic,onFinish:()=>{
+      startAnimation(overshoot,{duration:NUDGE_DURATION_MS,ease:easeOutCubic,onFinish:()=>{
+        commitIndex(optionIndex,null,{onFinish:()=>{
           if(settleId===pendingSettleId){
             finishGesture();
           }
@@ -264,16 +279,17 @@
       }
     };
 
-    // Accumulate wheel/trackpad deltas so one hardware detent maps to one logical step.
-    // The accumulator plus MAX_SLIP implements a tiny hysteresis band that absorbs jitter
-    // while still providing a hint of directional preload.
-    let wheelAccumulator = 0;
+    // Accumulate wheel/trackpad deltas and run them through a lightweight integrator so
+    // the column stays free while input is active and only detents once the idle timer fires.
+    let pendingPixelDelta = 0;
+    let microPixelDelta = 0;
+    let velocityPx = 0;
     let wheelFrame = null;
     let snapTimer = null;
     let activeGestureId = 0;
     let gestureSerial = 0;
-    let gestureStepBudget = 0;
     let lastGestureTs = 0;
+    let lastScrollDirection = 0;
 
     // Exclusive gestures and speed limiting live here: we request the shared lock, reset the
     // per-gesture step budget, and only allow a bounded number of detents to convert each frame.
@@ -286,16 +302,14 @@
       lastGestureTs = now;
       if(shouldReset){
         activeGestureId = ++gestureSerial;
-        gestureStepBudget = MAX_STEPS_PER_GESTURE;
-      }else if(gestureStepBudget<=0){
-        gestureStepBudget = MAX_STEPS_PER_GESTURE;
+        lastScrollDirection = 0;
       }
       return true;
     };
 
     const finishGesture = ()=>{
       activeGestureId = 0;
-      gestureStepBudget = 0;
+      stopFreeScroll();
       if(snapTimer){
         clearTimeout(snapTimer);
         snapTimer = null;
@@ -305,50 +319,81 @@
       }
     };
 
-    // After input settles, snap back to the nearest valid slot within ~120ms.
-    const scheduleSnap = ()=>{
-      if(!activeGestureId) return;
-      clearTimeout(snapTimer);
-      const settleId = ++pendingSettleId;
-      const gestureId = activeGestureId;
-      snapTimer = setTimeout(()=>{
-        wheelAccumulator = 0;
-        if(animationState && animationState.to === optionIndex){
-          if(settleId===pendingSettleId){
-            const priorFinish = animationState.onFinish;
-            animationState.onFinish = ()=>{
-              if(priorFinish) priorFinish();
-              if(pendingSettleId===settleId && activeGestureId===gestureId){
-                finishGesture();
-              }
-            };
-          }
-          return;
-        }
-        startAnimation(optionIndex,{duration:SNAP_DURATION_MS,ease: easeInOutCubic,onFinish:()=>{
-          if(pendingSettleId===settleId && activeGestureId===gestureId){
-            finishGesture();
-          }
-        }});
-      }, SNAP_IDLE_MS);
+    // Wheel physics state: these helpers keep the column free while the wheel/trackpad
+    // is active and only snap once an idle window expires.
+    const stopFreeScroll = ()=>{
+      if(wheelFrame){
+        cancelAnimationFrame(wheelFrame);
+        wheelFrame = null;
+      }
+      pendingPixelDelta = 0;
+      microPixelDelta = 0;
+      velocityPx = 0;
     };
 
-    const applySlip = ()=>{
-      if(animationState) return;
-      if(Math.abs(wheelAccumulator) < 0.5){
-        position = optionIndex;
-        syncPosition();
+    const wrapPosition = ()=>{
+      if(position < minIndex){
+        const wraps = Math.ceil((minIndex - position) / wrapSpan);
+        position += wrapSpan * wraps;
+      }else if(position > maxIndex){
+        const wraps = Math.ceil((position - maxIndex) / wrapSpan);
+        position -= wrapSpan * wraps;
+      }
+    };
+
+    const syncActiveIndexFromPosition = ()=>{
+      const nearest = Math.round(position);
+      if(nearest === optionIndex) return;
+      applyIndexCore(nearest);
+    };
+
+    // Integrate wheel deltas once per frame so micro-jitters get damped and fast flicks
+    // stay capped. The transform tracks position continuously until input idles.
+    const runFreeScroll = timestamp => {
+      if(!activeGestureId){
+        stopFreeScroll();
         return;
       }
-      const slip = Math.max(-MAX_SLIP, Math.min(MAX_SLIP, wheelAccumulator / DETENT_THRESHOLD));
-      position = optionIndex + slip;
+      const delta = pendingPixelDelta;
+      pendingPixelDelta = 0;
+      if(delta !== 0){
+        velocityPx += delta * DELTA_GAIN;
+        lastScrollDirection = delta > 0 ? 1 : -1;
+      }
+
+      if(Math.abs(velocityPx) > MAX_VELOCITY){
+        velocityPx = velocityPx > 0 ? MAX_VELOCITY : -MAX_VELOCITY;
+      }
+
+      if(Math.abs(velocityPx) > VELOCITY_EPSILON){
+        position += (velocityPx / ITEM_HEIGHT);
+      }
+
+      wrapPosition();
+      syncActiveIndexFromPosition();
       syncPosition();
+
+      velocityPx *= VELOCITY_FRICTION;
+      if(Math.abs(velocityPx) <= VELOCITY_EPSILON){
+        velocityPx = 0;
+      }
+
+      if(pendingPixelDelta !== 0 || Math.abs(velocityPx) > VELOCITY_EPSILON){
+        wheelFrame = requestAnimationFrame(runFreeScroll);
+      }else{
+        wheelFrame = null;
+      }
+    };
+
+    const queueFreeScroll = ()=>{
+      if(!wheelFrame){
+        wheelFrame = requestAnimationFrame(runFreeScroll);
+      }
     };
 
     const DOM_DELTA_LINE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_LINE : 1;
     const DOM_DELTA_PAGE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_PAGE : 2;
 
-    // Normalize wheel delta units (pixel/line/page) into pixels so the detent budget is consistent.
     const normalizeDelta = e => {
       if(e.deltaMode === DOM_DELTA_LINE){
         return e.deltaY * ITEM_HEIGHT;
@@ -359,42 +404,94 @@
       return e.deltaY;
     };
 
-    // Coalesce wheel work inside rAF so we only compute once per frame and respect the step cap.
-    const processWheel = ()=>{
-      wheelFrame = null;
-      if(!activeGestureId){
-        applySlip();
+    // Quantize extremely small alternating deltas so jittery trackpads do not cause a
+    // visible wobble while still letting deliberate micro-scrolls through.
+    const pushWheelDelta = delta => {
+      if(delta === 0) return;
+      const magnitude = Math.abs(delta);
+      if(magnitude < MICRO_DELTA_THRESHOLD){
+        microPixelDelta += delta;
+        if(Math.abs(microPixelDelta) < MICRO_DELTA_THRESHOLD){
+          return;
+        }
+        delta = microPixelDelta;
+        microPixelDelta = 0;
+      }else{
+        microPixelDelta = 0;
+      }
+      pendingPixelDelta += delta;
+      queueFreeScroll();
+    };
+
+    const findNearestValid = (startIndex, preferredDirection)=>{
+      const directions = preferredDirection ? [preferredDirection, -preferredDirection] : [1,-1];
+      for(const dir of directions){
+        for(let step=1; step<=block; step++){
+          const candidate = normalizeIndex(startIndex + dir * step);
+          const value = values[modIndex(candidate.index)];
+          if(!disabledChecker(value)){
+            return { info: candidate, direction: dir };
+          }
+        }
+      }
+      return null;
+    };
+
+    // When the user finishes on a blocked value, play a short nudge in their attempted
+    // direction before settling on the nearest valid detent.
+    const nudgeAndSettle = (targetInfo, direction, settleId, gestureId)=>{
+      const finishSnap = ()=>{
+        commitIndex(targetInfo.index, targetInfo,{onFinish:()=>{
+          if(pendingSettleId===settleId && activeGestureId===gestureId){
+            finishGesture();
+          }
+        }});
+      };
+      if(prefersReducedMotion){
+        finishSnap();
         return;
       }
-      while(Math.abs(wheelAccumulator) >= DETENT_THRESHOLD){
-        if(gestureStepBudget<=0){
-          wheelAccumulator = 0;
-          break;
-        }
-        const direction = wheelAccumulator >= 0 ? 1 : -1;
-        const stepsThisFrame = Math.min(
-          Math.floor(Math.abs(wheelAccumulator) / DETENT_THRESHOLD),
-          MAX_STEPS_PER_FRAME,
-          gestureStepBudget
-        );
-        if(stepsThisFrame<=0){
-          break;
-        }
-        for(let i=0;i<stepsThisFrame;i++){
-          wheelAccumulator -= DETENT_THRESHOLD * direction;
-          if(!tryStep(direction)){
-            wheelAccumulator = 0;
-            break;
+      const overshoot = position + direction * 0.25;
+      startAnimation(overshoot,{duration:NUDGE_DURATION_MS,ease:easeOutCubic,onFinish:finishSnap});
+    };
+
+    const settleAfterIdle = (gestureId, settleId)=>{
+      if(activeGestureId !== gestureId) return;
+      snapTimer = null;
+      stopFreeScroll();
+      const rawIndex = Math.round(position);
+      const rawInfo = normalizeIndex(rawIndex);
+      const rawValue = values[modIndex(rawInfo.index)];
+      if(!disabledChecker(rawValue)){
+        commitIndex(rawInfo.index, rawInfo,{onFinish:()=>{
+          if(pendingSettleId===settleId && activeGestureId===gestureId){
+            finishGesture();
           }
-          gestureStepBudget = Math.max(0, gestureStepBudget - 1);
-        }
-        break;
+        }});
+        return;
       }
-      applySlip();
-      scheduleSnap();
-      if(Math.abs(wheelAccumulator) >= DETENT_THRESHOLD && !wheelFrame){
-        wheelFrame = requestAnimationFrame(processWheel);
+      const fallbackDirection = lastScrollDirection || (rawIndex >= optionIndex ? 1 : -1) || 1;
+      const nearest = findNearestValid(rawInfo.index, fallbackDirection);
+      if(!nearest){
+        commitIndex(optionIndex,null,{onFinish:()=>{
+          if(pendingSettleId===settleId && activeGestureId===gestureId){
+            finishGesture();
+          }
+        }});
+        return;
       }
+      const nudgeDirection = fallbackDirection || nearest.direction || 1;
+      nudgeAndSettle(nearest.info, nudgeDirection, settleId, gestureId);
+    };
+
+    // Idle-based snap: restart the timer on every new delta so the wheel remains loose
+    // while input is flowing, then snap after ~140ms of calm.
+    const scheduleSnap = ()=>{
+      if(!activeGestureId) return;
+      clearTimeout(snapTimer);
+      const settleId = ++pendingSettleId;
+      const gestureId = activeGestureId;
+      snapTimer = setTimeout(()=>{ settleAfterIdle(gestureId, settleId); }, SNAP_IDLE_MS);
     };
 
     viewport.addEventListener('wheel',e=>{
@@ -404,9 +501,11 @@
         return;
       }
       e.preventDefault();
-      wheelAccumulator += normalizeDelta(e);
-      if(!wheelFrame){
-        wheelFrame = requestAnimationFrame(processWheel);
+      cancelAnimation();
+      const delta = normalizeDelta(e);
+      if(delta !== 0){
+        pushWheelDelta(delta);
+        scheduleSnap();
       }
     },{passive:false});
 
@@ -414,13 +513,15 @@
       if(e.key==='ArrowUp'){
         e.preventDefault();
         if(!requestGesture()) return;
-        wheelAccumulator = 0;
+        cancelAnimation();
+        stopFreeScroll();
         step(-1);
       }
       if(e.key==='ArrowDown'){
         e.preventDefault();
         if(!requestGesture()) return;
-        wheelAccumulator = 0;
+        cancelAnimation();
+        stopFreeScroll();
         step(1);
       }
     });
@@ -468,6 +569,7 @@
       refresh,
       dispose(){
         cancelAnimation();
+        stopFreeScroll();
         window.removeEventListener('resize', onResize);
         clearTimeout(snapTimer);
         if(lockController && lockController.forceRelease){
