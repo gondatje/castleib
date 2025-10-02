@@ -299,9 +299,23 @@
     };
 
     const syncActiveIndexFromPosition = () => {
-      const nearest = Math.round(position);
-      if(nearest === optionIndex) return;
-      applyIndexCore(nearest);
+      // Wheel deltas now integrate smoothly into `position`, but we walk the
+      // active option index a single row at a time so a tiny trackpad nudge
+      // cannot hop past the immediately-adjacent value. This preserves the
+      // existing idle-then-snap timer (see `scheduleSnap`) while ensuring each
+      // intermediate value emits onChange before resist/bounce logic decides
+      // whether it can settle there.
+      let diff = position - optionIndex;
+      while(diff >= 0.5){
+        const info = normalizeIndex(optionIndex + 1);
+        applyIndexCore(info.index, info);
+        diff = position - optionIndex;
+      }
+      while(diff <= -0.5){
+        const info = normalizeIndex(optionIndex - 1);
+        applyIndexCore(info.index, info);
+        diff = position - optionIndex;
+      }
     };
 
     const runFreeScroll = () => {
@@ -410,6 +424,10 @@
       });
     };
 
+    // Idle-then-snap: we wait ~140ms after the last gesture delta before
+    // animating back to center. Disabled targets trigger the resist path via
+    // `findNearestValid`/`nudgeAndSettle`, so a blocked minute gently bounces
+    // without teleporting.
     const scheduleSnap = () => {
       const settleId = ++pendingSettleId;
       if(snapTimer){
