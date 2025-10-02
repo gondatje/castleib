@@ -27,6 +27,12 @@
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  --layout-rail-min:clamp(18rem,26vw,21.5rem);
+  --layout-rail-max:clamp(18rem,26vw,26rem);
+  --layout-center:clamp(32rem,45vw,48rem);
   /* Legacy aliases maintained for untouched UI pieces */
   --bg:var(--color-bg);
   --panel:var(--surface);
@@ -54,6 +60,11 @@
     --activity-focus-ring:rgba(148,163,255,0.7);
     --activity-focus-glow:rgba(148,163,255,0.35);
     --border:rgba(148,163,184,0.28);
+    --layout-gutter:clamp(0.75rem,3vw,2rem);
+    --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+    --layout-rail-min:clamp(18rem,26vw,21.5rem);
+    --layout-rail-max:clamp(18rem,26vw,26rem);
+    --layout-center:clamp(32rem,45vw,48rem);
   }
 }
 body[data-theme='dark']{
@@ -75,6 +86,11 @@ body[data-theme='dark']{
   --activity-focus-ring:rgba(148,163,255,0.7);
   --activity-focus-glow:rgba(148,163,255,0.35);
   --border:rgba(148,163,184,0.28);
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  --layout-rail-min:clamp(18rem,26vw,21.5rem);
+  --layout-rail-max:clamp(18rem,26vw,26rem);
+  --layout-center:clamp(32rem,45vw,48rem);
 }
 body[data-theme='light']{
   color-scheme:light;
@@ -95,6 +111,12 @@ body[data-theme='light']{
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
+  --layout-gutter:clamp(0.75rem,3vw,2rem);
+  --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
+  --layout-rail-min:clamp(18rem,26vw,21.5rem);
+  --layout-rail-max:clamp(18rem,26vw,26rem);
+  --layout-center:clamp(32rem,45vw,48rem);
 }
 @media (prefers-color-scheme: dark){
   body[data-theme='light']{
@@ -130,9 +152,34 @@ body[data-theme='dark'] .dinner-item{
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto}
-.app{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:16px;max-width:1440px;margin:0 auto}
-@media(min-width:820px){.app{grid-template-columns:minmax(0,360px) minmax(0,1fr);}.right{grid-column:1/-1;}}
-@media(min-width:1200px){.app{grid-template-columns:340px minmax(0,1fr) 420px;}.right{grid-column:auto;}}
+.app{
+  /*
+   * Clamp-based gutters add safe-area padding so the rails can stretch to the
+   * viewport edge without causing x-scroll, even on devices with notches.
+   */
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:var(--layout-gap);
+  padding-block:var(--layout-gutter);
+  padding-inline:var(--layout-gutter);
+  padding-inline-start:calc(var(--layout-gutter) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--layout-gutter) + env(safe-area-inset-right));
+  margin:0;
+}
+@media(min-width:820px){
+  .app{
+    /* Two-column stage keeps the right rail below while left rail hugs the edge. */
+    grid-template-columns:minmax(0,var(--layout-rail-min)) minmax(0,1fr);
+  }
+  .right{grid-column:1/-1;}
+}
+@media(min-width:1280px){
+  .app{
+    /* Full desktop spread: both rails reach outward while the center stays readable. */
+    grid-template-columns:minmax(0,var(--layout-rail-min)) minmax(0,var(--layout-center)) minmax(0,var(--layout-rail-max));
+  }
+  .right{grid-column:auto;}
+}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .space-between{justify-content:space-between}
