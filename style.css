@@ -213,19 +213,22 @@ body{
     grid-template-areas:
       "cal act"
       "preview preview";
-    grid-template-rows:minmax(0,1fr) auto;
+    /*
+     * Row 1 locks to the viewport height (minus gutters) so only Calendar + Activities
+     * appear on first paint. Row 2 (Preview) auto-sizes below and starts off-screen.
+     */
+    --app-block-padding:calc((var(--layout-gap) * 2) + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+    grid-template-rows:minmax(calc(100vh - var(--app-block-padding)), calc(100vh - var(--app-block-padding))) auto;
+    grid-template-rows:minmax(calc(100svh - var(--app-block-padding)), calc(100svh - var(--app-block-padding))) auto;
+    grid-template-rows:minmax(calc(100dvh - var(--app-block-padding)), calc(100dvh - var(--app-block-padding))) auto;
     row-gap:var(--layout-gap);
     column-gap:var(--layout-gap);
-    /*
-     * Viewport fill: subtract the padded gutters (including safe areas) so the first
-     * grid row stretches to the visible edge without forcing the preview on-screen.
-     */
-    --app-grid-block-offset:calc((var(--layout-gap) * 2) + env(safe-area-inset-top) + env(safe-area-inset-bottom));
-    min-block-size:calc(100vh - var(--app-grid-block-offset));
-    min-block-size:calc(100svh - var(--app-grid-block-offset));
-    min-block-size:calc(100dvh - var(--app-grid-block-offset));
     padding-block-start:calc(var(--layout-gap) + env(safe-area-inset-top));
     padding-block-end:calc(var(--layout-gap) + env(safe-area-inset-bottom));
+    /* Allow the page itself to scroll while the first grid row remains pinned in place. */
+    min-block-size:100vh;
+    min-block-size:100svh;
+    min-block-size:100dvh;
   }
   .left{grid-area:cal;}
   .center{grid-area:act;}
@@ -259,6 +262,10 @@ body{
     overscroll-behavior:contain;
     scrollbar-gutter:stable both-edges;
     -webkit-overflow-scrolling:touch;
+  }
+  .center.card > #activities{
+    /* Activities column scrolls internally so the shared row never grows beyond the viewport. */
+    block-size:100%;
   }
   .right.card{
     block-size:auto;
