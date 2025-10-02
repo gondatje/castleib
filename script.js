@@ -72,10 +72,25 @@
     const block = values.length;
     const totalItems = block * REPEAT;
     const baseBlock = Math.floor(REPEAT/2);
+    const minIndex = block;
+    const maxIndex = block * (REPEAT-1) - 1;
+    const wrapSpan = block * (REPEAT-2);
+    const DETENT_THRESHOLD = ITEM_HEIGHT * 0.72; // Pixel budget for a single wheel detent after normalization.
+    const MAX_SLIP = 0.45; // Limit the visual preload while we wait for a full detent.
+
     let optionIndex = baseBlock * block;
+    let position = optionIndex;
     let disabledChecker = options.disabledChecker || (()=>false);
     const formatValue = options.formatValue || (v=>v);
     const onChange = options.onChange || (()=>{});
+
+    const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let prefersReducedMotion = !!reduceMotionQuery.matches;
+    if(reduceMotionQuery.addEventListener){
+      reduceMotionQuery.addEventListener('change', e => { prefersReducedMotion = !!e.matches; });
+    }else if(reduceMotionQuery.addListener){
+      reduceMotionQuery.addListener(e => { prefersReducedMotion = !!e.matches; });
+    }
 
     const viewport=document.createElement('div');
     viewport.className='wheel-viewport';
@@ -83,6 +98,7 @@
 
     const list=document.createElement('div');
     list.className='wheel-list';
+    list.style.willChange='transform';
     viewport.appendChild(list);
 
     for(let i=0;i<totalItems;i++){
@@ -94,9 +110,77 @@
       list.appendChild(item);
     }
 
-    let programmatic=false;
-
     const modIndex = idx => ((idx % block)+block)%block;
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+    const easeInOutCubic = t => t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+    const motionDuration = ms => prefersReducedMotion ? 0 : ms;
+
+    const getCenterOffset = ()=> Math.max(0, (viewport.clientHeight/2) - (ITEM_HEIGHT/2));
+    const syncPosition = ()=>{
+      const translate = getCenterOffset() - position * ITEM_HEIGHT;
+      list.style.transform = `translate3d(0, ${translate}px, 0)`;
+    };
+
+    let animationFrame = null;
+    let animationState = null;
+    const cancelAnimation = ()=>{
+      if(animationFrame){
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      animationState = null;
+    };
+    const tickAnimation = now => {
+      if(!animationState){
+        animationFrame = null;
+        return;
+      }
+      const {from,to,start,duration,ease,onFinish} = animationState;
+      const elapsed = Math.max(0, now - start);
+      const progress = duration === 0 ? 1 : Math.min(1, elapsed / duration);
+      const eased = ease(progress);
+      position = from + (to - from) * eased;
+      syncPosition();
+      if(progress >= 1){
+        animationState = null;
+        animationFrame = null;
+        if(onFinish) onFinish();
+      }else{
+        animationFrame = requestAnimationFrame(tickAnimation);
+      }
+    };
+    const startAnimation = (target,{duration=140,ease=easeOutCubic,onFinish}={})=>{
+      const animDuration = motionDuration(duration);
+      cancelAnimation();
+      if(animDuration === 0){
+        position = target;
+        syncPosition();
+        if(onFinish) onFinish();
+        return;
+      }
+      animationState = {
+        from: position,
+        to: target,
+        start: performance.now(),
+        duration: animDuration,
+        ease,
+        onFinish
+      };
+      animationFrame = requestAnimationFrame(tickAnimation);
+    };
+
+    const normalizeIndex = idx => {
+      let next = idx;
+      let shift = 0;
+      if(next < minIndex){
+        next += wrapSpan;
+        shift = wrapSpan;
+      }else if(next > maxIndex){
+        next -= wrapSpan;
+        shift = -wrapSpan;
+      }
+      return { index: next, shift };
+    };
 
     const applySelection = ()=>{
       const children=list.children;
@@ -108,98 +192,170 @@
       }
     };
 
-    const getCenterOffset = ()=> Math.max(0, (viewport.clientHeight/2) - (ITEM_HEIGHT/2));
-
-    const scrollToIndex=(idx,{behavior='auto'}={})=>{
-      programmatic=true;
-      optionIndex = normalizeIndex(idx);
-      const offset = getCenterOffset();
-      const top = Math.max(0, optionIndex*ITEM_HEIGHT - offset);
-      viewport.scrollTo({top, behavior});
-      const value = values[modIndex(optionIndex)];
-      applySelection();
+    let lastValue = values[modIndex(optionIndex)];
+    const emitChangeIfNeeded = value => {
+      if(value===lastValue) return;
+      lastValue = value;
       onChange(value);
-      setTimeout(()=>{ programmatic=false; },0);
     };
 
-    const normalizeIndex = idx => {
-      if(idx < block){
-        return idx + block * (REPEAT-2);
+    const commitIndex = (idx, normalizedInfo) => {
+      const info = normalizedInfo || normalizeIndex(idx);
+      optionIndex = info.index;
+      if(info.shift){
+        position += info.shift;
       }
-      if(idx >= block * (REPEAT-1)){
-        return idx - block * (REPEAT-2);
+      const value = values[modIndex(optionIndex)];
+      applySelection();
+      emitChangeIfNeeded(value);
+      startAnimation(optionIndex);
+    };
+
+    // Tiny resist/bounce when a blocked option is hit so we never rest on invalid values.
+    const bounce = direction => {
+      if(prefersReducedMotion){
+        startAnimation(optionIndex,{duration:0});
+        return;
       }
-      return idx;
+      const overshoot = optionIndex + direction * 0.3;
+      startAnimation(overshoot,{duration:90,ease:easeOutCubic,onFinish:()=>{
+        startAnimation(optionIndex,{duration:140,ease:easeInOutCubic});
+      }});
+    };
+
+    const tryStep = direction => {
+      if(!direction) return false;
+      const info = normalizeIndex(optionIndex + direction);
+      const value = values[modIndex(info.index)];
+      if(disabledChecker(value)){
+        bounce(direction);
+        return false;
+      }
+      commitIndex(info.index, info);
+      return true;
     };
 
     const step = delta => {
-      let idx = optionIndex + delta;
-      let loops=0;
-      const direction = delta>=0 ? 1 : -1;
-      while(loops<=block){
-        idx = normalizeIndex(idx);
-        const value = values[modIndex(idx)];
-        if(!disabledChecker(value)){
-          scrollToIndex(idx,{behavior:'smooth'});
+      if(!delta) return;
+      const direction = delta > 0 ? 1 : -1;
+      let remaining = Math.abs(delta);
+      while(remaining--){
+        if(!tryStep(direction)){
+          break;
+        }
+      }
+      scheduleSnap();
+    };
+
+    // Accumulate wheel/trackpad deltas so one hardware detent maps to one logical step.
+    // The accumulator plus MAX_SLIP implements a tiny hysteresis band that absorbs jitter
+    // while still providing a hint of directional preload.
+    let wheelAccumulator = 0;
+    let wheelFrame = null;
+    let snapTimer = null;
+
+    // After input settles, snap back to the nearest valid slot within ~120ms.
+    const scheduleSnap = ()=>{
+      clearTimeout(snapTimer);
+      snapTimer = setTimeout(()=>{
+        wheelAccumulator = 0;
+        if(animationState && animationState.to === optionIndex){
           return;
         }
-        idx += direction;
-        loops++;
+        startAnimation(optionIndex,{duration:120});
+      }, 120);
+    };
+
+    const applySlip = ()=>{
+      if(animationState) return;
+      if(Math.abs(wheelAccumulator) < 0.5){
+        position = optionIndex;
+        syncPosition();
+        return;
       }
+      const slip = Math.max(-MAX_SLIP, Math.min(MAX_SLIP, wheelAccumulator / DETENT_THRESHOLD));
+      position = optionIndex + slip;
+      syncPosition();
+    };
+
+    const DOM_DELTA_LINE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_LINE : 1;
+    const DOM_DELTA_PAGE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_PAGE : 2;
+
+    // Normalize wheel delta units (pixel/line/page) into pixels so the detent budget is consistent.
+    const normalizeDelta = e => {
+      if(e.deltaMode === DOM_DELTA_LINE){
+        return e.deltaY * ITEM_HEIGHT;
+      }
+      if(e.deltaMode === DOM_DELTA_PAGE){
+        return e.deltaY * ITEM_HEIGHT * 3;
+      }
+      return e.deltaY;
+    };
+
+    // Coalesce wheel work inside rAF so we only compute once per frame.
+    const processWheel = ()=>{
+      wheelFrame = null;
+      while(Math.abs(wheelAccumulator) >= DETENT_THRESHOLD){
+        const direction = wheelAccumulator >= 0 ? 1 : -1;
+        wheelAccumulator -= DETENT_THRESHOLD * direction;
+        if(!tryStep(direction)){
+          wheelAccumulator = 0;
+          break;
+        }
+      }
+      applySlip();
+      scheduleSnap();
     };
 
     viewport.addEventListener('wheel',e=>{
       if(Math.abs(e.deltaY)<=Math.abs(e.deltaX)) return;
       e.preventDefault();
-      step(e.deltaY>0?1:-1);
+      wheelAccumulator += normalizeDelta(e);
+      if(!wheelFrame){
+        wheelFrame = requestAnimationFrame(processWheel);
+      }
     },{passive:false});
 
     viewport.addEventListener('keydown',e=>{
-      if(e.key==='ArrowUp'){ e.preventDefault(); step(-1); }
-      if(e.key==='ArrowDown'){ e.preventDefault(); step(1); }
-    });
-
-    viewport.addEventListener('scroll',()=>{
-      if(programmatic) return;
-      const offset = getCenterOffset();
-      const raw = Math.round((viewport.scrollTop + offset) / ITEM_HEIGHT);
-      let idx = normalizeIndex(raw);
-      if(idx!==raw){
-        scrollToIndex(idx);
-        return;
+      if(e.key==='ArrowUp'){
+        e.preventDefault();
+        wheelAccumulator = 0;
+        step(-1);
       }
-      const direction = raw > optionIndex ? 1 : (raw < optionIndex ? -1 : 0);
-      const value = values[modIndex(raw)];
-      if(disabledChecker(value)){
-        let search = raw;
-        let loops=0;
-        const dir = direction>=0 ? 1 : -1;
-        do{
-          search += dir;
-          search = normalizeIndex(search);
-          const candidate = values[modIndex(search)];
-          if(!disabledChecker(candidate)){
-            scrollToIndex(search);
-            return;
-          }
-          loops++;
-        }while(loops<=block);
+      if(e.key==='ArrowDown'){
+        e.preventDefault();
+        wheelAccumulator = 0;
+        step(1);
       }
-      optionIndex = raw;
-      applySelection();
-      onChange(value);
     });
 
     const setValue = val => {
       const valueIndex = values.indexOf(val);
       if(valueIndex===-1) return;
       const idx = baseBlock*block + valueIndex;
-      scrollToIndex(idx);
+      const info = normalizeIndex(idx);
+      optionIndex = info.index;
+      if(info.shift){
+        position += info.shift;
+      }
+      position = optionIndex;
+      applySelection();
+      lastValue = values[modIndex(optionIndex)];
+      startAnimation(optionIndex,{duration:0});
     };
+
+    const refresh = ()=>{
+      position = optionIndex;
+      syncPosition();
+    };
+
+    const onResize = ()=>{ syncPosition(); };
+    window.addEventListener('resize', onResize);
 
     setTimeout(()=>{ setValue(options.initial ?? values[0]); },0);
 
     applySelection();
+    syncPosition();
 
     return {
       element: viewport,
@@ -209,10 +365,19 @@
       setDisabledChecker(fn){
         disabledChecker = fn || (()=>false);
         applySelection();
+        if(disabledChecker(values[modIndex(optionIndex)])){
+          if(!tryStep(1)) tryStep(-1);
+        }
       },
-      refresh(){ scrollToIndex(optionIndex); }
+      refresh,
+      dispose(){
+        cancelAnimation();
+        window.removeEventListener('resize', onResize);
+      }
     };
   }
+
+
 
 
   // ---------- State ----------
@@ -750,8 +915,11 @@
 
   function closeDinnerPicker({returnFocus=false}={}){
     if(!dinnerDialog) return;
-    const { overlay, previousFocus } = dinnerDialog;
+    const { overlay, previousFocus, cleanup } = dinnerDialog;
     overlay.remove();
+    if(typeof cleanup === 'function'){
+      cleanup();
+    }
     if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
       previousFocus.focus();
     }
@@ -948,7 +1116,15 @@
 
     dialog.addEventListener('keydown', handleKeyDown);
 
-    dinnerDialog = { overlay, dialog, previousFocus };
+    dinnerDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        hourWheel?.dispose?.();
+        minuteWheel?.dispose?.();
+      }
+    };
 
     setTimeout(()=>{
       hourWheel.element.focus();
