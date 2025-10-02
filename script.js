@@ -1074,22 +1074,26 @@
         )
       );
 
-      const checkoutLine = () =>
-        makeEl(
-          'div',
-          'email-activity',
-          // Wrap the parenthetical stay window in a neutral span so only that time drops out of the bold styling.
-          `<strong>${escapeHtml(fmt12('11:00'))}</strong> Check-Out | Welcome to stay on property until <span class="email-activity-parenthetical-time">${escapeHtml(fmt12('13:00'))}</span>`,
-          {html:true}
-        );
-      const checkinLine = () =>
-        makeEl(
-          'div',
-          'email-activity',
-          // Same wrapper keeps the early arrival window unbolded while preserving surrounding emphasis.
-          `<strong>${escapeHtml(fmt12('16:00'))}</strong> Guaranteed Check-In | Welcome to arrive as early as <span class="email-activity-parenthetical-time">${escapeHtml(fmt12('12:00'))}</span>`,
-          {html:true}
-        );
+      const checkoutLine = () => {
+        // The arrival/departure subtitles live inside a bold container, so the parenthetical inherits the heavy weight.
+        // Building the node tree manually lets us wrap the time (including parentheses)
+        // in a scoped span that forces font-weight: 400.
+        const row = makeEl('div', 'email-activity');
+        row.appendChild(makeEl('strong', undefined, fmt12('11:00')));
+        row.appendChild(document.createTextNode(' Check-Out | Welcome to stay on property until '));
+        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', `(${fmt12('13:00')})`);
+        row.appendChild(stayWindow);
+        return row;
+      };
+      const checkinLine = () => {
+        const row = makeEl('div', 'email-activity');
+        row.appendChild(makeEl('strong', undefined, fmt12('16:00')));
+        row.appendChild(document.createTextNode(' Guaranteed Check-In | Welcome to arrive as early as '));
+        // Apply the same scoped span so the early-arrival window stays regular weight.
+        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', `(${fmt12('12:00')})`);
+        row.appendChild(arrivalWindow);
+        return row;
+      };
 
       if(state.departure && keyDate(state.departure)===k)
         daySection.appendChild(checkoutLine());
