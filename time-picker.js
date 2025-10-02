@@ -633,12 +633,23 @@
     const defaultHour = hours.includes(defaultValue?.hour) ? defaultValue.hour : hours[0];
     const defaultMinute = minutes.includes(defaultValue?.minute) ? defaultValue.minute : minutes[0];
 
-    const deriveSafeMinute = (hour, meridiem, candidate) => {
-      if(!isMinuteDisabled({ hour, minute: candidate, meridiem })){
+    const computeDisabledMinutes = (hour, meridiem) => {
+      const disabledSet = new Set();
+      for(const minute of minutes){
+        if(isMinuteDisabled({ hour, minute, meridiem })){
+          disabledSet.add(minute);
+        }
+      }
+      return disabledSet;
+    };
+
+    const deriveSafeMinute = (hour, meridiem, candidate, disabledSet) => {
+      const isDisabled = value => disabledSet ? disabledSet.has(value) : isMinuteDisabled({ hour, minute: value, meridiem });
+      if(!isDisabled(candidate)){
         return candidate;
       }
       for(const minute of minutes){
-        if(!isMinuteDisabled({ hour, minute, meridiem })){
+        if(!isDisabled(minute)){
           return minute;
         }
       }
@@ -650,23 +661,15 @@
     // ready. The fallback minute search also resolves blocked defaults up front.
     const initialHour = defaultHour;
     const initialMeridiem = defaultMeridiem;
-    const initialMinute = deriveSafeMinute(initialHour, initialMeridiem, defaultMinute);
+    let disabledMinutes = computeDisabledMinutes(initialHour, initialMeridiem);
+    // Tiny init fix: use the same disabled snapshot to pick the initial minute so
+    // the first paint already knows which values are blocked.
+    const initialMinute = deriveSafeMinute(initialHour, initialMeridiem, defaultMinute, disabledMinutes);
 
     let currentHour = initialHour;
     let currentMinute = initialMinute;
     let currentMeridiem = initialMeridiem;
 
-    const computeDisabledMinutes = (hour, meridiem) => {
-      const disabledSet = new Set();
-      for(const minute of minutes){
-        if(isMinuteDisabled({ hour, minute, meridiem })){
-          disabledSet.add(minute);
-        }
-      }
-      return disabledSet;
-    };
-
-    let disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
     const minuteDisabledChecker = value => disabledMinutes.has(value);
 
     // Shared markup + tokens ensure each consumer lands on identical visuals.
