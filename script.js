@@ -77,12 +77,18 @@
     const wrapSpan = block * (REPEAT-2);
     const DETENT_THRESHOLD = ITEM_HEIGHT * 0.72; // Pixel budget for a single wheel detent after normalization.
     const MAX_SLIP = 0.45; // Limit the visual preload while we wait for a full detent.
+    const MAX_STEPS_PER_FRAME = 3; // Upper bound so even aggressive wheels advance in digestible bursts.
+    const MAX_STEPS_PER_GESTURE = 18; // Prevent runaway acceleration on long flicks while still allowing fast travel.
+    const SNAP_IDLE_MS = 110; // Idle window that defines the end of a gesture before snapping.
+    const SNAP_DURATION_MS = 150; // Final ease duration so wheels glide into place instead of teleporting.
 
     let optionIndex = baseBlock * block;
     let position = optionIndex;
     let disabledChecker = options.disabledChecker || (()=>false);
     const formatValue = options.formatValue || (v=>v);
     const onChange = options.onChange || (()=>{});
+    const lockController = options.lockController || null; // Shared lock keeps the sibling wheel frozen while this one settles.
+    const lockId = options.lockId || null;
 
     const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let prefersReducedMotion = !!reduceMotionQuery.matches;
@@ -123,6 +129,7 @@
 
     let animationFrame = null;
     let animationState = null;
+    let pendingSettleId = 0;
     const cancelAnimation = ()=>{
       if(animationFrame){
         cancelAnimationFrame(animationFrame);
@@ -215,11 +222,17 @@
     const bounce = direction => {
       if(prefersReducedMotion){
         startAnimation(optionIndex,{duration:0});
+        finishGesture();
         return;
       }
       const overshoot = optionIndex + direction * 0.3;
+      const settleId = ++pendingSettleId;
       startAnimation(overshoot,{duration:90,ease:easeOutCubic,onFinish:()=>{
-        startAnimation(optionIndex,{duration:140,ease:easeInOutCubic});
+        startAnimation(optionIndex,{duration:SNAP_DURATION_MS,ease:easeInOutCubic,onFinish:()=>{
+          if(settleId===pendingSettleId){
+            finishGesture();
+          }
+        }});
       }});
     };
 
@@ -239,12 +252,16 @@
       if(!delta) return;
       const direction = delta > 0 ? 1 : -1;
       let remaining = Math.abs(delta);
+      let moved = false;
       while(remaining--){
         if(!tryStep(direction)){
           break;
         }
+        moved = true;
       }
-      scheduleSnap();
+      if(moved){
+        scheduleSnap();
+      }
     };
 
     // Accumulate wheel/trackpad deltas so one hardware detent maps to one logical step.
@@ -253,17 +270,67 @@
     let wheelAccumulator = 0;
     let wheelFrame = null;
     let snapTimer = null;
+    let activeGestureId = 0;
+    let gestureSerial = 0;
+    let gestureStepBudget = 0;
+    let lastGestureTs = 0;
+
+    // Exclusive gestures and speed limiting live here: we request the shared lock, reset the
+    // per-gesture step budget, and only allow a bounded number of detents to convert each frame.
+    const requestGesture = ()=>{
+      if(lockController && !lockController.request(lockId)){
+        return false;
+      }
+      const now = performance.now();
+      const shouldReset = !activeGestureId || (now - lastGestureTs) > SNAP_IDLE_MS;
+      lastGestureTs = now;
+      if(shouldReset){
+        activeGestureId = ++gestureSerial;
+        gestureStepBudget = MAX_STEPS_PER_GESTURE;
+      }else if(gestureStepBudget<=0){
+        gestureStepBudget = MAX_STEPS_PER_GESTURE;
+      }
+      return true;
+    };
+
+    const finishGesture = ()=>{
+      activeGestureId = 0;
+      gestureStepBudget = 0;
+      if(snapTimer){
+        clearTimeout(snapTimer);
+        snapTimer = null;
+      }
+      if(lockController && lockController.release){
+        lockController.release(lockId);
+      }
+    };
 
     // After input settles, snap back to the nearest valid slot within ~120ms.
     const scheduleSnap = ()=>{
+      if(!activeGestureId) return;
       clearTimeout(snapTimer);
+      const settleId = ++pendingSettleId;
+      const gestureId = activeGestureId;
       snapTimer = setTimeout(()=>{
         wheelAccumulator = 0;
         if(animationState && animationState.to === optionIndex){
+          if(settleId===pendingSettleId){
+            const priorFinish = animationState.onFinish;
+            animationState.onFinish = ()=>{
+              if(priorFinish) priorFinish();
+              if(pendingSettleId===settleId && activeGestureId===gestureId){
+                finishGesture();
+              }
+            };
+          }
           return;
         }
-        startAnimation(optionIndex,{duration:120});
-      }, 120);
+        startAnimation(optionIndex,{duration:SNAP_DURATION_MS,ease: easeInOutCubic,onFinish:()=>{
+          if(pendingSettleId===settleId && activeGestureId===gestureId){
+            finishGesture();
+          }
+        }});
+      }, SNAP_IDLE_MS);
     };
 
     const applySlip = ()=>{
@@ -292,23 +359,50 @@
       return e.deltaY;
     };
 
-    // Coalesce wheel work inside rAF so we only compute once per frame.
+    // Coalesce wheel work inside rAF so we only compute once per frame and respect the step cap.
     const processWheel = ()=>{
       wheelFrame = null;
+      if(!activeGestureId){
+        applySlip();
+        return;
+      }
       while(Math.abs(wheelAccumulator) >= DETENT_THRESHOLD){
-        const direction = wheelAccumulator >= 0 ? 1 : -1;
-        wheelAccumulator -= DETENT_THRESHOLD * direction;
-        if(!tryStep(direction)){
+        if(gestureStepBudget<=0){
           wheelAccumulator = 0;
           break;
         }
+        const direction = wheelAccumulator >= 0 ? 1 : -1;
+        const stepsThisFrame = Math.min(
+          Math.floor(Math.abs(wheelAccumulator) / DETENT_THRESHOLD),
+          MAX_STEPS_PER_FRAME,
+          gestureStepBudget
+        );
+        if(stepsThisFrame<=0){
+          break;
+        }
+        for(let i=0;i<stepsThisFrame;i++){
+          wheelAccumulator -= DETENT_THRESHOLD * direction;
+          if(!tryStep(direction)){
+            wheelAccumulator = 0;
+            break;
+          }
+          gestureStepBudget = Math.max(0, gestureStepBudget - 1);
+        }
+        break;
       }
       applySlip();
       scheduleSnap();
+      if(Math.abs(wheelAccumulator) >= DETENT_THRESHOLD && !wheelFrame){
+        wheelFrame = requestAnimationFrame(processWheel);
+      }
     };
 
     viewport.addEventListener('wheel',e=>{
       if(Math.abs(e.deltaY)<=Math.abs(e.deltaX)) return;
+      if(!requestGesture()){
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       wheelAccumulator += normalizeDelta(e);
       if(!wheelFrame){
@@ -319,11 +413,13 @@
     viewport.addEventListener('keydown',e=>{
       if(e.key==='ArrowUp'){
         e.preventDefault();
+        if(!requestGesture()) return;
         wheelAccumulator = 0;
         step(-1);
       }
       if(e.key==='ArrowDown'){
         e.preventDefault();
+        if(!requestGesture()) return;
         wheelAccumulator = 0;
         step(1);
       }
@@ -373,6 +469,51 @@
       dispose(){
         cancelAnimation();
         window.removeEventListener('resize', onResize);
+        clearTimeout(snapTimer);
+        if(lockController && lockController.forceRelease){
+          lockController.forceRelease(lockId);
+        }
+      }
+    };
+  }
+
+
+  // Simple exclusive lock shared by the wheels so a gesture only moves one column at a time.
+  function createWheelLockController(graceMs=160){
+    let owner = null;
+    let releaseTimer = null;
+    return {
+      request(id){
+        if(!id) return true;
+        if(owner && owner !== id){
+          return false;
+        }
+        owner = id;
+        if(releaseTimer){
+          clearTimeout(releaseTimer);
+          releaseTimer = null;
+        }
+        return true;
+      },
+      release(id){
+        if(!id || owner !== id) return;
+        if(releaseTimer){
+          clearTimeout(releaseTimer);
+        }
+        releaseTimer = setTimeout(()=>{
+          if(owner === id){
+            owner = null;
+          }
+          releaseTimer = null;
+        }, graceMs);
+      },
+      forceRelease(id){
+        if(!id || owner !== id) return;
+        if(releaseTimer){
+          clearTimeout(releaseTimer);
+          releaseTimer = null;
+        }
+        owner = null;
       }
     };
   }
@@ -976,6 +1117,7 @@
 
     let hourWheel;
     let minuteWheel;
+    const wheelLock = createWheelLockController(160); // Shared lock so only one column responds per gesture.
 
     function updateMinuteDisabled(){
       if(!minuteWheel) return;
@@ -995,12 +1137,16 @@
     hourWheel = createWheel(dinnerHours, {
       initial: initialHour,
       formatValue: v=>v,
-      onChange:()=> updateMinuteDisabled()
+      onChange:()=> updateMinuteDisabled(),
+      lockController: wheelLock,
+      lockId: 'hours'
     });
 
     minuteWheel = createWheel(dinnerMinutes, {
       initial: initialMinute,
-      formatValue: v=>pad(v)
+      formatValue: v=>pad(v),
+      lockController: wheelLock,
+      lockId: 'minutes'
     });
 
     updateMinuteDisabled();
