@@ -340,6 +340,17 @@
         }
       }
 
+      if(rowAccumulator !== 0){
+        // Keep the visible offset within ±1 row. Any additional whole steps are
+        // re-queued so subsequent animation frames can emit them one-at-a-time
+        // without visually teleporting past intermediate options.
+        const overflow = Math.trunc(rowAccumulator);
+        if(overflow !== 0){
+          pendingRowDelta += overflow;
+          rowAccumulator -= overflow;
+        }
+      }
+
       if(!moved && delta === 0){
         // Idle decay keeps the free offset easing toward centre so the snap timer
         // never fights with live input.
