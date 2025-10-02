@@ -18,11 +18,8 @@
     const SNAP_IDLE_MS = 140;
     const SNAP_DURATION_MS = 160;
     const NUDGE_DURATION_MS = 90;
-    const MAX_VELOCITY = ITEM_HEIGHT * 1.35;
-    const VELOCITY_FRICTION = 0.76;
-    const VELOCITY_EPSILON = 0.015;
     const MICRO_DELTA_THRESHOLD = 0.4;
-    const DELTA_GAIN = 0.22;
+    const MAX_WHEEL_ROWS_PER_EVENT = 6;
 
     let optionIndex = baseBlock * block;
     let position = optionIndex;
@@ -177,9 +174,9 @@
         cancelAnimationFrame(wheelFrame);
         wheelFrame = null;
       }
-      pendingPixelDelta = 0;
-      microPixelDelta = 0;
-      velocityPx = 0;
+      pendingRowDelta = 0;
+      microRowDelta = 0;
+      rowAccumulator = 0;
       if(animDuration === 0){
         position = target;
         syncPosition();
@@ -242,15 +239,20 @@
       }
     };
 
-    let pendingPixelDelta = 0;
-    let microPixelDelta = 0;
-    let velocityPx = 0;
+    // Wheel quantizer state: accumulate deltas in row units so we can walk the
+    // active index deterministically (≤ ±1 step per frame) without fighting the
+    // idle snap animation.
+    let pendingRowDelta = 0;
+    let microRowDelta = 0;
+    let rowAccumulator = 0;
     let wheelFrame = null;
     let snapTimer = null;
     let activeGestureId = 0;
     let gestureSerial = 0;
     let lastGestureTs = 0;
     let lastScrollDirection = 0;
+    const ROW_DECAY = 0.68;
+    const ROW_EPSILON = 1e-3;
 
     const requestGesture = () => {
       if(lockController && !lockController.request(lockId)){
@@ -283,9 +285,9 @@
         cancelAnimationFrame(wheelFrame);
         wheelFrame = null;
       }
-      pendingPixelDelta = 0;
-      microPixelDelta = 0;
-      velocityPx = 0;
+      pendingRowDelta = 0;
+      microRowDelta = 0;
+      rowAccumulator = 0;
     };
 
     const wrapPosition = () => {
@@ -298,24 +300,18 @@
       }
     };
 
-    const syncActiveIndexFromPosition = () => {
-      // Wheel deltas now integrate smoothly into `position`, but we walk the
-      // active option index a single row at a time so a tiny trackpad nudge
-      // cannot hop past the immediately-adjacent value. This preserves the
-      // existing idle-then-snap timer (see `scheduleSnap`) while ensuring each
-      // intermediate value emits onChange before resist/bounce logic decides
-      // whether it can settle there.
-      let diff = position - optionIndex;
-      while(diff >= 0.5){
-        const info = normalizeIndex(optionIndex + 1);
-        applyIndexCore(info.index, info);
-        diff = position - optionIndex;
+    const wheelStep = direction => {
+      const info = normalizeIndex(optionIndex + direction);
+      const value = values[modIndex(info.index)];
+      if(disabledChecker(value)){
+        // Resist path: dump the accumulator so we ease back to the current row
+        // and let `bounce` nudge before settling.
+        rowAccumulator = 0;
+        bounce(direction);
+        return false;
       }
-      while(diff <= -0.5){
-        const info = normalizeIndex(optionIndex - 1);
-        applyIndexCore(info.index, info);
-        diff = position - optionIndex;
-      }
+      applyIndexCore(info.index, info);
+      return true;
     };
 
     const runFreeScroll = () => {
@@ -323,31 +319,41 @@
         stopFreeScroll();
         return;
       }
-      const delta = pendingPixelDelta;
-      pendingPixelDelta = 0;
+      const delta = pendingRowDelta;
+      pendingRowDelta = 0;
       if(delta !== 0){
-        velocityPx += delta * DELTA_GAIN;
+        rowAccumulator += delta;
         lastScrollDirection = delta > 0 ? 1 : -1;
       }
 
-      if(Math.abs(velocityPx) > MAX_VELOCITY){
-        velocityPx = velocityPx > 0 ? MAX_VELOCITY : -MAX_VELOCITY;
+      // Deterministic quantizer: clamp to a single adjacent step per frame so a
+      // gentle wheel tick can never hop more than ±1 option. Any excess sticks in
+      // `rowAccumulator` and will emit in following frames, preserving the smooth
+      // progression during fast flicks.
+      const step = Math.trunc(rowAccumulator);
+      let moved = false;
+      if(step !== 0){
+        const clamped = step > 0 ? 1 : -1;
+        if(wheelStep(clamped)){
+          rowAccumulator -= clamped;
+          moved = true;
+        }
       }
 
-      if(Math.abs(velocityPx) > VELOCITY_EPSILON){
-        position += (velocityPx / ITEM_HEIGHT);
+      if(!moved && delta === 0){
+        // Idle decay keeps the free offset easing toward centre so the snap timer
+        // never fights with live input.
+        rowAccumulator *= ROW_DECAY;
+        if(Math.abs(rowAccumulator) < ROW_EPSILON){
+          rowAccumulator = 0;
+        }
       }
 
+      position = optionIndex + rowAccumulator;
       wrapPosition();
-      syncActiveIndexFromPosition();
       syncPosition();
 
-      velocityPx *= VELOCITY_FRICTION;
-      if(Math.abs(velocityPx) <= VELOCITY_EPSILON){
-        velocityPx = 0;
-      }
-
-      if(pendingPixelDelta !== 0 || Math.abs(velocityPx) > VELOCITY_EPSILON){
+      if(pendingRowDelta !== 0 || Math.abs(rowAccumulator) > ROW_EPSILON){
         wheelFrame = requestAnimationFrame(runFreeScroll);
       }else{
         wheelFrame = null;
@@ -375,18 +381,22 @@
 
     const pushWheelDelta = delta => {
       if(delta === 0) return;
-      const magnitude = Math.abs(delta);
-      if(magnitude < MICRO_DELTA_THRESHOLD){
-        microPixelDelta += delta;
-        if(Math.abs(microPixelDelta) < MICRO_DELTA_THRESHOLD){
+      // Normalise to rows and clamp extreme bursts so the accumulator releases
+      // them over successive frames instead of teleporting.
+      const rowDelta = Math.max(-MAX_WHEEL_ROWS_PER_EVENT, Math.min(MAX_WHEEL_ROWS_PER_EVENT, delta / ITEM_HEIGHT));
+      const magnitude = Math.abs(rowDelta);
+      const MICRO_ROW_THRESHOLD = MICRO_DELTA_THRESHOLD / ITEM_HEIGHT;
+      if(magnitude < MICRO_ROW_THRESHOLD){
+        microRowDelta += rowDelta;
+        if(Math.abs(microRowDelta) < MICRO_ROW_THRESHOLD){
           return;
         }
-        delta = microPixelDelta;
-        microPixelDelta = 0;
+        pendingRowDelta += microRowDelta;
+        microRowDelta = 0;
       }else{
-        microPixelDelta = 0;
+        microRowDelta = 0;
+        pendingRowDelta += rowDelta;
       }
-      pendingPixelDelta += delta;
       queueFreeScroll();
     };
 
