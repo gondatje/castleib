@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activities Column Preview</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .demo-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+    .demo-log{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;min-height:80px;font-size:14px;display:flex;flex-direction:column;gap:6px;}
+    .demo-log-entry{margin:0;}
+    .demo-activities{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:8px 0;}
+    .demo-toolbar{display:flex;flex-direction:column;gap:12px;}
+    .demo-hint{font-size:13px;color:var(--muted);margin:0;}
+  </style>
+</head>
+<body class="demo-page">
+  <div class="demo-container">
+    <header class="demo-header">
+      <h1>Activities column interactions</h1>
+      <p class="demo-section-copy">This sandbox illustrates the updated Apple-inspired list for activities, including hover, press, disabled, keyboard, and analytics logging states.</p>
+    </header>
+
+    <section class="demo-section">
+      <div class="demo-toolbar">
+        <div class="demo-actions">
+          <button id="demoThemeToggle" type="button">Toggle dark mode</button>
+          <button id="demoFocusFirst" type="button">Focus first row</button>
+          <span class="demo-hint">Use mouse, keyboard (Space/Enter), or touch simulation to trigger rows.</span>
+        </div>
+        <p class="demo-hint">Activation log updates live to confirm the shared handler fires exactly once per interaction.</p>
+      </div>
+      <div class="demo-activities" id="demoActivities" role="list" aria-label="Demo activities"></div>
+      <div class="demo-log" id="demoLog" aria-live="polite" aria-atomic="false"></div>
+    </section>
+  </div>
+
+  <script src="activities-interactions.js"></script>
+  <script src="activities-demo.js"></script>
+</body>
+</html>

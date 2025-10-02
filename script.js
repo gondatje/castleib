@@ -34,6 +34,21 @@
   }));
   const attachGroupPillInteractions = assignmentChipLogic.attachGroupPillInteractions || (() => ({ open: () => {}, close: () => {} }));
 
+  const attachRowPressInteractions = (window.CHSActivitiesInteractions && typeof window.CHSActivitiesInteractions.attachRowPressInteractions === 'function')
+    ? window.CHSActivitiesInteractions.attachRowPressInteractions
+    : (element, { onActivate }) => {
+        const handler = (event) => {
+          if(event && event.target && event.target.closest && event.target.closest('[data-press-exempt="true"]')){
+            return;
+          }
+          onActivate(event);
+        };
+        element.addEventListener('click', handler);
+        return {
+          dispose(){ element.removeEventListener('click', handler); }
+        };
+      };
+
   const dinnerIconSvg = `<svg viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon"><path fill="currentColor" d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"></path></svg>`;
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
@@ -467,12 +482,38 @@
         return;
       }
       const row = item.data;
-      const div=document.createElement('div'); div.className='item';
-      const left=document.createElement('div'); left.className='item-left';
+      const div=document.createElement('div');
+      div.className='activity-row';
+      div.setAttribute('role','button');
+      const disabled = !!row.disabled;
+      if(disabled){
+        div.dataset.disabled='true';
+        div.setAttribute('aria-disabled','true');
+        div.tabIndex = -1;
+      }else{
+        div.tabIndex = 0;
+        div.removeAttribute('aria-disabled');
+      }
+      const ariaLabel = `Add activity: ${fmt12(row.start)} to ${fmt12(row.end)} ${row.title}`;
+      div.setAttribute('aria-label', ariaLabel);
 
-      const text=document.createElement('div');
-      text.textContent = `${fmt12(row.start)} - ${fmt12(row.end)} | ${row.title}`;
-      left.appendChild(text);
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      time.textContent = `${fmt12(row.start)} – ${fmt12(row.end)}`;
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = row.title;
+      headline.appendChild(title);
+
+      body.appendChild(headline);
 
       const tagWrap=document.createElement('div'); tagWrap.className='tag-row';
 
@@ -485,11 +526,18 @@
         renderAssignments(tagWrap, entry, assignedIds, dateK);
       }
 
-      left.appendChild(tagWrap);
+      body.appendChild(tagWrap);
 
-      const add=document.createElement('button');
-      add.className='add'; add.textContent='+'; add.title='Assign active guests';
-      add.onclick=()=>{
+      const setPressedState = (pressed)=>{
+        if(pressed){
+          div.dataset.pressed='true';
+        }else{
+          delete div.dataset.pressed;
+        }
+      };
+
+      const activate = ()=>{
+        if(disabled){ return; }
         const actives = state.guests.filter(g=>g.active);
         if(actives.length===0){ alert('Toggle at least one guest pill before assigning.'); return; }
         const d = getOrCreateDay(dateK);
@@ -500,7 +548,44 @@
         renderActivities(); markPreviewDirty(); renderPreview();
       };
 
-      div.appendChild(left); div.appendChild(add);
+      // Guard against accidental scroll taps via shared pointer controller.
+      attachRowPressInteractions(div, {
+        onActivate: activate,
+        isDisabled: () => disabled,
+        onPressChange: setPressedState
+      });
+
+      let keyboardPress = false;
+      div.addEventListener('keydown', (event)=>{
+        if(disabled) return;
+        if(event.key===' ' || event.key==='Spacebar'){
+          event.preventDefault();
+          if(!keyboardPress){
+            keyboardPress = true;
+            setPressedState(true);
+          }
+        }else if(event.key==='Enter'){
+          event.preventDefault();
+          activate();
+        }
+      });
+
+      div.addEventListener('keyup', (event)=>{
+        if(!keyboardPress) return;
+        if(event.key===' ' || event.key==='Spacebar'){
+          event.preventDefault();
+          keyboardPress = false;
+          setPressedState(false);
+          if(!disabled){ activate(); }
+        }
+      });
+
+      div.addEventListener('blur', ()=>{
+        keyboardPress = false;
+        setPressedState(false);
+      });
+
+      div.appendChild(body);
       activitiesEl.appendChild(div);
     });
 
@@ -517,8 +602,6 @@
         return;
       }
 
-      // Derive the chip presentation mode (single chips vs Both/Everyone pill) so dynamic guest
-      // changes immediately reflect in the UI without touching the rendering branch below.
       const plan = getAssignmentChipRenderPlan({
         totalGuestsInStay: state.guests.length,
         assignedGuests
@@ -529,8 +612,6 @@
       }
 
       if(plan.type===AssignmentChipMode.GROUP_BOTH || plan.type===AssignmentChipMode.GROUP_EVERYONE){
-        // Share the existing pill styles for both group cases; aria-label communicates the guest
-        // count so screen readers announce "Both"/"Everyone" with the matching total.
         const pill=document.createElement('button');
         pill.type='button';
         pill.className='tag-everyone';
@@ -538,6 +619,8 @@
         pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
         pill.setAttribute('aria-haspopup','true');
         pill.setAttribute('aria-expanded','false');
+        pill.dataset.pressExempt='true';
+        pill.addEventListener('pointerdown', e=> e.stopPropagation());
 
         const label=document.createElement('span');
         label.textContent=plan.pillLabel || '';
@@ -581,6 +664,8 @@
       x.setAttribute('aria-label', `Remove ${guest.name}`);
       x.title=`Remove ${guest.name}`;
       x.textContent='×';
+      x.dataset.pressExempt='true';
+      x.addEventListener('pointerdown', e=> e.stopPropagation());
       x.onclick=(e)=>{
         e.stopPropagation();
         if(!entry) return;
@@ -606,23 +691,32 @@
       const msg=document.createElement('div');
       msg.className='data-status';
       msg.textContent=text;
-      msg.style.padding='1rem';
-      msg.style.background='#fef3c7';
-      msg.style.border='1px solid #f59e0b';
-      msg.style.borderRadius='0.75rem';
-      msg.style.color='#92400e';
+      msg.style.padding='16px';
+      msg.style.background='var(--panel)';
+      msg.style.border='1px solid var(--border)';
+      msg.style.borderRadius='14px';
+      msg.style.color='var(--muted)';
       msg.style.textAlign='center';
+      msg.style.boxShadow='0 1px 2px rgba(12,18,32,.06)';
       activitiesEl.appendChild(msg);
     }
 
     function renderDinner(entry){
       const div=document.createElement('div');
-      div.className='item dinner-item';
-      const left=document.createElement('div');
-      left.className='item-left';
-      const text=document.createElement('div');
-      text.textContent = `${fmt12(entry.start)} | ${entry.title}`;
-      left.appendChild(text);
+      div.className='activity-row dinner-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      time.textContent = fmt12(entry.start);
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = entry.title;
+      headline.appendChild(time);
+      headline.appendChild(title);
+      body.appendChild(headline);
 
       const tagWrap=document.createElement('div');
       tagWrap.className='tag-row';
@@ -633,11 +727,13 @@
       chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${pencilSvg}</span><span class="sr-only">Edit dinner time</span>`;
       chip.setAttribute('aria-label','Edit dinner time');
       chip.title='Edit dinner time';
+      chip.dataset.pressExempt='true';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
       tagWrap.appendChild(chip);
 
-      left.appendChild(tagWrap);
-      div.appendChild(left);
+      body.appendChild(tagWrap);
+      div.appendChild(body);
       activitiesEl.appendChild(div);
     }
   }
