@@ -447,9 +447,16 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .dinner-title{font-size:17px;font-weight:600;letter-spacing:.01em;}
 .dinner-close{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:#f1f5f9;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;color:var(--muted);}
 .dinner-body{display:flex;justify-content:center;}
-.dinner-wheels{display:flex;align-items:center;gap:12px;}
-.dinner-wheel-col{position:relative;padding:8px;border-radius:16px;background:linear-gradient(180deg,rgba(241,245,249,.9),#fff);box-shadow:inset 0 0 0 1px rgba(148,163,184,.25);}
-.dinner-wheel-col::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:44px;margin-top:-22px;border-radius:12px;border:1px solid rgba(42,107,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);pointer-events:none;}
+.time-picker{display:flex;flex-direction:column;align-items:center;gap:16px;}
+.time-picker-wheels{display:flex;align-items:center;gap:12px;}
+.time-picker-column{position:relative;padding:8px;border-radius:16px;background:linear-gradient(180deg,rgba(241,245,249,.9),#fff);box-shadow:inset 0 0 0 1px rgba(148,163,184,.25);}
+.time-picker-column::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:44px;margin-top:-22px;border-radius:12px;border:1px solid rgba(42,107,255,.16);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);pointer-events:none;}
+.time-picker-meridiem-static{font-size:18px;font-weight:600;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;justify-content:center;height:176px;padding:0 4px;}
+.time-picker-range-actions{display:flex;gap:12px;justify-content:center;margin-top:12px;flex-wrap:wrap;}
+.time-picker-range-btn{border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:8px 16px;font-weight:500;font-size:14px;cursor:pointer;transition:box-shadow .16s ease,transform .16s ease;background-clip:padding-box;}
+.time-picker-range-btn:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 6px 14px rgba(42,107,255,.18);}
+.time-picker-range-btn:active{transform:translateY(1px);}
+.time-picker-fallback{padding:16px;text-align:center;color:var(--muted);font-size:14px;}
 .wheel-viewport{width:72px;height:176px;overflow:hidden;position:relative;border-radius:12px;padding:0 2px;scrollbar-width:none;-ms-overflow-style:none;}
 .wheel-viewport::-webkit-scrollbar{display:none;}
 .wheel-list{position:relative;}
@@ -459,7 +466,6 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .wheel-viewport::before,.wheel-viewport::after{content:"";position:absolute;left:0;right:0;height:44px;pointer-events:none;z-index:2;}
 .wheel-viewport::before{top:0;background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));}
 .wheel-viewport::after{bottom:0;background:linear-gradient(0deg,rgba(255,255,255,.85),rgba(255,255,255,0));}
-.dinner-meridiem{font-size:18px;font-weight:600;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;justify-content:center;height:176px;padding:0 4px;}
 .dinner-actions{display:flex;justify-content:flex-end;gap:10px;}
 .dinner-confirm{width:44px;height:44px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px rgba(42,107,255,.24);cursor:pointer;}
 .dinner-confirm:focus{outline:2px solid #fff;outline-offset:3px;}
@@ -486,3 +492,15 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .demo-scenario-copy{margin:0;font-size:14px;color:var(--muted);}
 .demo-scenario-aria{margin:0;font-size:13px;color:var(--ink);}
 .demo-scenario-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.time-picker-demo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;}
+.time-picker-demo-card{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.time-picker-demo-card h3{margin:0;font-size:18px;letter-spacing:.01em;}
+.time-picker-demo-copy{margin:0;font-size:14px;color:var(--muted);}
+.time-picker-demo-controls{display:flex;flex-wrap:wrap;gap:8px;}
+.time-picker-demo-btn{border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;transition:box-shadow .16s ease,transform .16s ease;}
+.time-picker-demo-btn:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 8px 16px rgba(42,107,255,.18);}
+.time-picker-demo-btn:active{transform:translateY(1px);}
+.time-picker-demo-preview{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--ink);}
+.time-picker-demo-value{font-weight:600;}
+.time-picker-demo-helpers{font-size:13px;color:var(--muted);}
+.time-picker-demo-host{display:flex;justify-content:center;}
