@@ -143,7 +143,29 @@ body[data-theme='dark'] .dinner-item{
   box-shadow:inset 0 0 0 1px rgba(148,163,255,0.32);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto}
+html{
+  /* Ensure the root context participates in full-height calculations so flex/grid
+   * descendants can rely on percentage-based sizing. */
+  block-size:100%;
+}
+
+body{
+  margin:0;
+  background:var(--color-bg);
+  color:var(--text-primary);
+  font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto;
+  /*
+   * Lock the document shell to the viewport. 100vh provides a universal fallback,
+   * while 100dvh absorbs dynamic browser UI. Padding for safe areas is deferred
+   * to the grid container so gutters remain consistent on notched hardware.
+   */
+  block-size:100vh;
+  block-size:100dvh;
+  min-block-size:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+}
 .app{
   /*
    * Desktop columns use an even 1fr grid so every rail shares the width.
@@ -151,13 +173,17 @@ body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.4
    */
   display:grid;
   grid-template-columns:minmax(0,1fr);
+  grid-auto-rows:1fr;
   gap:var(--layout-gap);
-  align-items:start;
+  align-items:stretch;
   padding-block:var(--layout-gap);
   padding-inline:var(--space-edge);
   padding-inline-start:calc(var(--space-edge) + env(safe-area-inset-left));
   padding-inline-end:calc(var(--space-edge) + env(safe-area-inset-right));
   margin:0;
+  flex:1;
+  block-size:100%;
+  min-block-size:0;
 }
 
 .left,.center,.right{
@@ -178,12 +204,32 @@ body{margin:0;background:var(--color-bg);color:var(--text-primary);font:15px/1.4
 
 /* Desktop/full-screen: enforce three equal columns that fill the viewport width. */
 @media(min-width:1280px){
+  body{
+    /* Lock the outer page scroll once three columns are on-screen. */
+    overflow:hidden;
+  }
   .app{
     grid-template-columns:repeat(3,minmax(var(--layout-column-min),1fr));
   }
   .right{grid-column:auto;}
 }
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;min-inline-size:0}
+
+@media(max-width:1279px){
+  /* Below desktop, allow the shell to grow naturally so mobile/tablet stacks can scroll. */
+  .app{block-size:auto;}
+}
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  min-inline-size:0;
+  /* Stretch cards to fill their grid tracks while allowing inner scroll areas. */
+  display:flex;
+  flex-direction:column;
+  block-size:100%;
+  min-block-size:0;
+}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -246,6 +292,19 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
  * to stay in sync with the theme palette.
  */
 #activities,#demoActivities{display:flex;flex-direction:column;padding:4px 0;gap:0;background:var(--surface);}
+#activities{
+  /*
+   * Flex growth grants the list the remaining column height so header/actions
+   * stay pinned while the body scrolls. Overflow containment keeps scroll
+   * chaining off the page and reserves scrollbar gutter to prevent reflow.
+   */
+  flex:1 1 auto;
+  min-block-size:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+  -webkit-overflow-scrolling:touch;
+}
 #activities .activity-row,#demoActivities .activity-row{position:relative;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:transparent;cursor:pointer;touch-action:pan-y;transition:background-color .18s ease,box-shadow .22s ease,transform .16s ease,opacity .16s ease;}
 #activities .activity-row::after,#demoActivities .activity-row::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:1px;background:var(--activity-divider);transform-origin:center;transform:scaleY(.5);}
 #activities .activity-row:last-of-type::after,#demoActivities .activity-row:last-of-type::after{content:none;}
