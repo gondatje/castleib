@@ -202,6 +202,67 @@ body{
   .right{grid-column:1/-1;}
 }
 
+/*
+ * iPad layout: run a dedicated two-by-two grid that keeps Calendar + Activities in the
+ * first row and the Preview anchored below. The grid height targets the viewport so the
+ * top row fills the screen on load while the preview waits off-screen.
+ */
+@media (min-width:744px) and (max-width:1279px){
+  .app{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-areas:
+      "cal act"
+      "preview preview";
+    grid-template-rows:minmax(0,1fr) auto;
+    row-gap:var(--layout-gap);
+    column-gap:var(--layout-gap);
+    /*
+     * Viewport fill: subtract the padded gutters (including safe areas) so the first
+     * grid row stretches to the visible edge without forcing the preview on-screen.
+     */
+    --app-grid-block-offset:calc((var(--layout-gap) * 2) + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+    min-block-size:calc(100vh - var(--app-grid-block-offset));
+    min-block-size:calc(100svh - var(--app-grid-block-offset));
+    min-block-size:calc(100dvh - var(--app-grid-block-offset));
+    padding-block-start:calc(var(--layout-gap) + env(safe-area-inset-top));
+    padding-block-end:calc(var(--layout-gap) + env(safe-area-inset-bottom));
+  }
+  .left{grid-area:cal;}
+  .center{grid-area:act;}
+  .right{
+    /* Preview spans both columns in the second row so it reads as a full-width summary. */
+    grid-area:preview;
+    grid-column:auto;
+  }
+  /*
+   * Containment: allow the cards to own the row height while clipping overflow so the
+   * internal scrollers keep calendar cells and activities from spilling into Preview.
+   */
+  .left.card,.center.card{
+    overflow:hidden;
+    overflow:clip;
+  }
+  .left.card > #calendar{
+    /*
+     * Calendar stack: flex so the header/nav stay pinned while the grid + guests scroll
+     * together. The min-block-size guard keeps Split View heights stable when space is tight.
+     */
+    display:flex;
+    flex-direction:column;
+    flex:1 1 auto;
+    min-block-size:0;
+    overflow:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable both-edges;
+    -webkit-overflow-scrolling:touch;
+  }
+  .right.card{
+    block-size:auto;
+    min-block-size:0;
+    overflow:visible;
+  }
+}
+
 /* Desktop/full-screen: enforce three equal columns that fill the viewport width. */
 @media(min-width:1280px){
   body{
@@ -339,6 +400,14 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .calendar-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
 .calendar-actions button{height:32px;padding:0 10px;border-radius:10px}
 #actions{margin:8px 0 12px}
+.guest-section{
+  /* Hairline divider + spacing align the relocated guest block with the calendar controls. */
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid var(--border-hairline);
+}
+
+.guest-section .row{margin-bottom:10px}
 
 .dinner-chip{width:26px;height:26px;border-radius:50%;border:1px solid var(--chipBorder);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:var(--ink);position:relative;padding:0;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;}
 .dinner-chip:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 4px 12px rgba(12,18,32,.16);transform:translateY(-1px);}
