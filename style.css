@@ -27,6 +27,8 @@
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Calendar sizing fallback keeps mobile square cells readable before JS measurements run. */
+  --calendar-cell-size:56px;
   /* Responsive layout tokens keep columns balanced and gutters subtle across breakpoints. */
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
@@ -156,10 +158,12 @@ body{
   font:15px/1.45 -apple-system,system-ui,Segoe UI,Roboto;
   /*
    * Lock the document shell to the viewport. 100vh provides a universal fallback,
-   * while 100dvh absorbs dynamic browser UI. Padding for safe areas is deferred
-   * to the grid container so gutters remain consistent on notched hardware.
+   * 100svh defends older Safari from collapsing during toolbar transitions, and
+   * 100dvh tracks the live visual viewport. Safe-area padding moves to the
+   * layout grid so gutters stay balanced on notched hardware.
    */
   block-size:100vh;
+  block-size:100svh;
   block-size:100dvh;
   min-block-size:100vh;
   display:flex;
@@ -230,6 +234,35 @@ body{
   block-size:100%;
   min-block-size:0;
 }
+@media(max-width:1023px){
+  /* Mobile-first adjustments enlarge touch targets without disturbing desktop rails. */
+  body{font-size:16px;line-height:1.5;}
+  .app{gap:clamp(0.75rem,2.5vw,1.25rem);}
+  .card{padding:20px 18px;gap:14px;}
+  #calendar{gap:16px;--calendar-gap:clamp(4px,1.6vw,10px);}
+  .toolbar{margin-bottom:0;}
+  .toolbar .nav-row{gap:12px;}
+  .toolbar .nav-btn,
+  .calendar-actions button,
+  #actions>button,
+  #prevDay,
+  #nextDay,
+  #toggleAll,
+  #toggleEdit,
+  #copy{
+    min-inline-size:44px;
+    min-block-size:44px;
+  }
+  .calendar-actions{gap:8px;}
+  .calendar-actions button{padding-inline:14px;font-size:15px;}
+  .dow div{font-size:12px;letter-spacing:.04em;}
+  .days button{font-size:15px;}
+  #actions{flex-wrap:wrap;}
+  #actions>button{flex:1 1 calc(50% - 8px);padding-inline:14px;font-size:15px;}
+  .guest-input{min-block-size:44px;}
+  .row{gap:10px;}
+}
+
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -238,9 +271,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .lock-icon{width:1em;height:1em;display:block}
 #toggleEdit{display:flex;align-items:center;justify-content:center;gap:0;line-height:1}
 .muted{color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .dow div{font-size:11px;color:var(--muted);text-align:center}
-.days button{aspect-ratio:1/1;border-radius:12px;background:#fff;position:relative}
+.days{grid-auto-rows:var(--calendar-cell-size);min-block-size:0;align-content:start}
+.days button{inline-size:100%;block-size:100%;border-radius:12px;background:#fff;position:relative;min-inline-size:44px;min-block-size:44px}
 .days button.other{opacity:.45}
 .days button.focus{outline:2px solid var(--brand)}
 .days button.today::after{content:'';position:absolute;bottom:6px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--brand);transform:translateX(-50%)}
@@ -271,8 +305,8 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 @media(hover:hover){.chip:hover .initial,.chip:focus-within .initial{opacity:0;}.chip:hover .x,.chip:focus-within .x{opacity:1;pointer-events:auto;}}
 @media(hover:none){.chip .x{opacity:1;pointer-events:auto;}}
 .chip .x:focus{outline:2px solid var(--brand);outline-offset:1px;}
-.guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
-.icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
+.guest-input{min-height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
+.icon-btn{min-inline-size:36px;min-block-size:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
 .icon-btn svg{display:block;width:24px;height:24px}
 .section .row{margin-bottom:8px}
 #guests{padding-top:4px}
@@ -332,12 +366,31 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .section{margin-top:16px}
 #calMonth{font-weight:700;font-size:16px}
 #calYear{color:var(--muted);font-size:12px}
+#calendar{
+  /*
+   * Treat the calendar rail as a self-contained grid so headers, body, and
+   * actions stay aligned on rotation. min-block-size:0 ensures the days matrix
+   * can scroll if future mobile affordances require it.
+   */
+  display:grid;
+  grid-template-rows:auto auto 1fr auto;
+  gap:12px;
+  min-block-size:0;
+  --calendar-gap:clamp(4px,0.9vw,8px);
+}
+#calendar .grid{gap:var(--calendar-gap);}
+#calGrid{
+  /* Grid rows share a computed square size so weekday headers always align. */
+  min-block-size:0;
+  grid-auto-flow:row;
+  overscroll-behavior:contain;
+}
 .toolbar{margin-bottom:8px}
 .toolbar .nav-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;width:100%}
 .toolbar .monthyear-col{display:flex;flex-direction:column;line-height:1.05;align-items:center;text-align:center;flex:0 0 140px;white-space:nowrap}
-.toolbar .nav-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0}
+.toolbar .nav-btn{min-inline-size:36px;min-block-size:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0}
 .calendar-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
-.calendar-actions button{height:32px;padding:0 10px;border-radius:10px}
+.calendar-actions button{min-block-size:32px;padding:0 10px;border-radius:10px}
 #actions{margin:8px 0 12px}
 
 .dinner-chip{width:26px;height:26px;border-radius:50%;border:1px solid var(--chipBorder);background:#fff;display:inline-flex;align-items:center;justify-content:center;color:var(--ink);position:relative;padding:0;cursor:pointer;transition:box-shadow .2s ease,transform .2s ease;}

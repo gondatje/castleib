@@ -652,6 +652,36 @@
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
+
+  // ResizeObserver + visualViewport keep the calendar square by re-measuring once per frame on rotation.
+  const calendarMetrics = (()=>{
+    if(!calGrid) return { schedule: ()=>{} };
+    const COLUMNS = 7;
+    const MIN_SIZE = 44;
+    let frame = null;
+    const measure = ()=>{
+      frame = null;
+      const width = calGrid.clientWidth;
+      const styles = getComputedStyle(calGrid);
+      const gap = parseFloat(styles.columnGap || styles.gap || '0');
+      const usable = width - gap * (COLUMNS - 1);
+      const size = width <= 0 ? MIN_SIZE : Math.max(MIN_SIZE, Math.floor(usable / COLUMNS));
+      calGrid.style.setProperty('--calendar-cell-size', `${size}px`);
+    };
+    const schedule = ()=>{
+      if(frame !== null) return;
+      frame = requestAnimationFrame(measure);
+    };
+    if(window.ResizeObserver){
+      const ro = new ResizeObserver(()=>{ schedule(); });
+      ro.observe(calGrid);
+    }
+    const viewport = window.visualViewport;
+    const target = viewport && viewport.addEventListener ? viewport : window;
+    target.addEventListener('resize', schedule, { passive: true });
+    schedule();
+    return { schedule };
+  })();
   calGrid.addEventListener('keydown',e=>{
     if(e.target.tagName==='BUTTON' && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
       e.preventDefault();
@@ -738,6 +768,7 @@
       btn.addEventListener('click',()=>{ state.focus=zero(d); renderAll(); });
       calGrid.appendChild(btn);
     }
+    calendarMetrics.schedule();
   }
 
   // ---------- Guests ----------
