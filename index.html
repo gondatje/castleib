@@ -73,11 +73,21 @@
 
     <!-- Preview -->
     <section class="right card">
-      <h2>Preview</h2>
-      <div id="email" class="email" spellcheck="false"></div>
-      <div class="row stick-right">
-        <button id="toggleEdit" title="Edit/Lock (Cmd/Ctrl + Dbl-Click)">✎</button>
-        <button id="copy" title="Copy">⧉</button>
+      <!--
+        iPad layout regression fix: keep the Preview title and body in the same scroll
+        container so Safari no longer detaches the sticky header from its content.
+      -->
+      <div class="preview-shell" role="presentation">
+        <header class="preview-header">
+          <h2>Preview</h2>
+        </header>
+        <div class="preview-body">
+          <div id="email" class="email" spellcheck="false"></div>
+          <div class="row stick-right">
+            <button id="toggleEdit" title="Edit/Lock (Cmd/Ctrl + Dbl-Click)">✎</button>
+            <button id="copy" title="Copy">⧉</button>
+          </div>
+        </div>
       </div>
     </section>
   </div>

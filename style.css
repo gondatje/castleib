@@ -270,7 +270,27 @@ body{
   .right.card{
     block-size:auto;
     min-block-size:0;
-    overflow:visible;
+    /*
+     * overflow:visible let the heading's top margin collapse with the card so Safari
+     * treated it as detached from the preview body. Clipping hands scroll control to the
+     * preview-shell so sticky behaves locally.
+     */
+    overflow:hidden;
+  }
+  .right.card .preview-shell{
+    /* Scroll containment keeps the header + body travelling together within Preview. */
+    block-size:100%;
+    min-block-size:0;
+    overflow:auto;
+    overscroll-behavior:contain;
+    scrollbar-gutter:stable both-edges;
+    -webkit-overflow-scrolling:touch;
+  }
+  .preview-header{
+    /* Sticky title now anchors to the Preview container rather than the viewport. */
+    position:sticky;
+    top:0;
+    z-index:1;
   }
 }
 
@@ -300,6 +320,26 @@ body{
   display:flex;
   flex-direction:column;
   block-size:100%;
+  min-block-size:0;
+}
+.preview-shell{
+  /* Shared structure keeps the Preview header + body in a single flex column. */
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  min-block-size:0;
+}
+.preview-header{
+  /* Convert the old margin gap to padding so sticky backgrounds stay filled. */
+  padding-block-end:12px;
+  background:var(--surface);
+}
+.preview-header h2{margin:0;}
+.preview-body{
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  gap:12px;
   min-block-size:0;
 }
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
