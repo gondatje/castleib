@@ -504,3 +504,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .time-picker-demo-value{font-weight:600;}
 .time-picker-demo-helpers{font-size:13px;color:var(--muted);}
 .time-picker-demo-host{display:flex;justify-content:center;}
+.time-picker-demo-card--physics{gap:20px;}
+.time-picker-demo-physics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
+.time-picker-demo-physics-column{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;}
+.time-picker-demo-physics-column h4{margin:0;font-size:15px;}
+.time-picker-demo-physics-hint{margin:0;font-size:13px;color:var(--muted);}
+.time-picker-demo-host--physics{justify-content:center;}
