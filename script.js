@@ -92,6 +92,7 @@
   const $ = sel => document.querySelector(sel);
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
+  const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
   const toggleEditBtn=$('#toggleEdit');
@@ -151,6 +152,73 @@
     return null;
   }
   const weekdayKey = d => ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+  const SEASON_DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  const SEASON_NAME_PATTERN = /(Spring|Summer|Fall|Winter)/i;
+  const seasonLabelCache = new Map();
+
+  function normalizeSeasonWord(word){
+    if(!word) return word;
+    const lower = word.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+
+  function parseSeasonLabelFromString(value){
+    if(!value) return null;
+    const match = SEASON_NAME_PATTERN.exec(String(value));
+    if(!match) return null;
+    const seasonWord = normalizeSeasonWord(match[1]);
+    const after = String(value).slice(match.index);
+    const afterYear = after.match(/(\d{4})/);
+    if(afterYear) return `${seasonWord} ${afterYear[1]}`;
+    const before = String(value).slice(0, match.index);
+    const beforeYear = before.match(/(\d{4})(?!.*\d{4})/);
+    if(beforeYear) return `${seasonWord} ${beforeYear[1]}`;
+    return null;
+  }
+
+  function resolveSeasonLabelForSeasonDay({ season, dayKey, activities }){
+    if(!season || !window.CHSDataLayer) return null;
+    if(seasonLabelCache.has(season.name)) return seasonLabelCache.get(season.name);
+
+    const daySequence = [];
+    if(dayKey && !daySequence.includes(dayKey)) daySequence.push(dayKey);
+    SEASON_DAY_KEYS.forEach(key=>{ if(!daySequence.includes(key)) daySequence.push(key); });
+
+    for(const key of daySequence){
+      const rows = (key===dayKey && Array.isArray(activities))
+        ? activities
+        : window.CHSDataLayer.getActivitiesForSeasonDay(season.name, key);
+      if(!rows || rows.length===0) continue;
+      for(const row of rows){
+        // Activity metadata already powers the Preview card. Reusing it keeps the
+        // season pill anchored to the same selected-day source instead of
+        // guessing from Date.now(). Preferred fields (if present) cascade from a
+        // dedicated label to the PDF/source title before we bail.
+        const meta = window.CHSDataLayer.getActivityMetadata({ season: season.name, day: key, title: row.title, start: row.start });
+        if(!meta) continue;
+        const explicitLabel = parseSeasonLabelFromString(meta.seasonLabel || meta.title || '');
+        if(explicitLabel){
+          seasonLabelCache.set(season.name, explicitLabel);
+          return explicitLabel;
+        }
+        const fromSource = parseSeasonLabelFromString(meta.source || '');
+        if(fromSource){
+          seasonLabelCache.set(season.name, fromSource);
+          return fromSource;
+        }
+      }
+    }
+
+    // As a final fallback, try to parse the broader season name (date range) in case
+    // the dataset happens to include "Fall 2025" directly in the label.
+    const fallback = parseSeasonLabelFromString(season.name);
+    if(fallback){
+      seasonLabelCache.set(season.name, fallback);
+      return fallback;
+    }
+
+    return null;
+  }
 
   // ---------- Calendar ----------
   function renderCalendar(){
@@ -296,12 +364,46 @@
     }
   }
 
+  function updateSeasonPill(label){
+    if(!seasonIndicator || !seasonValue) return;
+    if(!label){
+      seasonValue.textContent='';
+      seasonIndicator.hidden = true;
+      delete seasonIndicator.dataset.visible;
+      seasonIndicator.removeAttribute('aria-label');
+      return;
+    }
+    seasonValue.textContent = label;
+    seasonIndicator.setAttribute('aria-label', `Season: ${label}`);
+    if(seasonIndicator.hidden){
+      seasonIndicator.hidden = false;
+      requestAnimationFrame(()=>{ seasonIndicator.dataset.visible='true'; });
+    }else{
+      seasonIndicator.dataset.visible='true';
+    }
+  }
+
   // ---------- Activities ----------
   function renderActivities(){
     const wname=weekdayName(state.focus);
     dayTitle.innerHTML = `${escapeHtml(wname)}, ${escapeHtml(state.focus.toLocaleString(undefined,{month:'long'}))} ${ordinalHtml(state.focus.getDate())}`;
 
     updateAddDinnerButton();
+
+    const weekKey = weekdayKey(state.focus);
+    let season = null;
+    let baseList = [];
+    let seasonLabel = null;
+
+    if(state.dataStatus==='ready'){
+      season = activeSeason(state.focus);
+      if(season){
+        baseList = window.CHSDataLayer.getActivitiesForSeasonDay(season.name, weekKey).slice().sort((a,b)=> a.start.localeCompare(b.start));
+        seasonLabel = resolveSeasonLabelForSeasonDay({ season, dayKey: weekKey, activities: baseList });
+      }
+    }
+
+    updateSeasonPill(seasonLabel);
 
     if(state.dataStatus==='loading'){
       renderStatusMessage('Loading activities…');
@@ -313,14 +415,10 @@
       return;
     }
 
-    const season = activeSeason(state.focus);
     if(!season){
       renderStatusMessage(buildOutOfSeasonMessage());
       return;
     }
-
-    const weekKey = weekdayKey(state.focus);
-    const baseList = season ? window.CHSDataLayer.getActivitiesForSeasonDay(season.name, weekKey).slice().sort((a,b)=> a.start.localeCompare(b.start)) : [];
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
     const combined = baseList.map(row=>({kind:'activity', data: row}));
