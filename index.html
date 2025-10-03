@@ -39,7 +39,9 @@
         </div>
         <!-- Guest tools sit in the calendar flow so iPad can stack header → nav → grid → controls → guests without JS shuffles. -->
         <div class="section guest-section">
-          <h2>Guests</h2>
+          <div class="card-section-header">
+            <h2>Guests</h2>
+          </div>
           <div class="row">
             <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
             <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
@@ -57,15 +59,16 @@
 
     <!-- Activities -->
     <section class="center card">
-      <div class="row space-between">
+      <div class="card-section-header">
         <h2>Activities</h2>
-        <div class="row day-header">
-          <button id="prevDay" title="Previous Day" aria-label="Previous Day">‹</button>
-          <div class="day-header-details">
-            <div id="dayTitle" class="muted" aria-live="polite"></div>
-          </div>
-          <button id="nextDay" title="Next Day" aria-label="Next Day">›</button>
+      </div>
+
+      <div class="row day-header">
+        <button id="prevDay" title="Previous Day" aria-label="Previous Day">‹</button>
+        <div class="day-header-details">
+          <div id="dayTitle" class="muted" aria-live="polite"></div>
         </div>
+        <button id="nextDay" title="Next Day" aria-label="Next Day">›</button>
       </div>
 
       <div id="actions" class="row">
@@ -80,7 +83,9 @@
 
     <!-- Preview -->
     <section class="right card preview-card">
-      <h2>Preview</h2>
+      <div class="card-section-header">
+        <h2>Preview</h2>
+      </div>
       <div id="email" class="email" spellcheck="false"></div>
       <div class="row stick-right">
         <button id="toggleEdit" title="Edit/Lock (Cmd/Ctrl + Dbl-Click)">✎</button>
