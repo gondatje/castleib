@@ -324,8 +324,9 @@ body{
 .day-header-details #dayTitle{margin:0}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.calendar-header{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:0 0 12px;padding-bottom:12px;border-bottom:1px solid var(--border-hairline)}
-.calendar-header h2{margin:0}
+.calendar-header,.card-section-header{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:0 0 12px;padding-bottom:12px;border-bottom:1px solid var(--border-hairline);inline-size:100%}
+.card-section-header{padding-top:0.4375rem}
+.calendar-header h2,.card-section-header h2{margin:0}
 .calendar-header .season-indicator{margin-inline-start:auto}
 @media(max-width:640px){
   .calendar-header{align-items:flex-start}
