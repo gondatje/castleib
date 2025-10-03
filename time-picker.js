@@ -719,14 +719,19 @@
       minutes.push(m);
     }
 
-    const meridiems = showAmPm ? ['AM', 'PM'] : [];
+    const meridiemOptions = ['AM', 'PM'];
+    const meridiems = showAmPm ? meridiemOptions : [];
+    const fixedFallback = String(fixedMeridiem || 'AM').toUpperCase();
 
     const normalizeMeridiem = value => {
-      if(showAmPm){
-        const normalized = String(value || 'AM').toUpperCase();
-        return meridiems.includes(normalized) ? normalized : meridiems[0];
+      const normalized = String(value || fixedFallback).toUpperCase();
+      if(normalized === 'AM' || normalized === 'PM'){
+        if(showAmPm){
+          return normalized;
+        }
+        return fixedMeridiem ? fixedFallback : normalized;
       }
-      return fixedMeridiem || 'AM';
+      return showAmPm ? (meridiems[0] || 'AM') : fixedFallback;
     };
 
     const defaultMeridiem = normalizeMeridiem(defaultValue?.meridiem);
@@ -834,6 +839,36 @@
     let meridiemWheel = null;
     let staticMeridiem = null;
 
+    const getValue = () => ({
+      hour: currentHour,
+      minute: currentMinute,
+      meridiem: currentMeridiem
+    });
+
+    const syncMeridiem = (value, { emitChange = true } = {}) => {
+      const normalized = normalizeMeridiem(value);
+      if(normalized === currentMeridiem){
+        if(emitChange){
+          onChange(getValue());
+        }
+        return normalized;
+      }
+      currentMeridiem = normalized;
+      disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
+      minuteWheel.setDisabledChecker(minuteDisabledChecker);
+      if(disabledMinutes.has(currentMinute)){
+        const fallback = deriveSafeMinute(currentHour, currentMeridiem, currentMinute);
+        if(minutes.includes(fallback)){
+          minuteWheel.setValue(fallback);
+          currentMinute = fallback;
+        }
+      }
+      if(emitChange){
+        onChange(getValue());
+      }
+      return normalized;
+    };
+
     if(showAmPm){
       const meridiemColumn = document.createElement('div');
       meridiemColumn.className = 'time-picker-column time-picker-meridiem';
@@ -845,17 +880,7 @@
         lockId: 'meridiem',
         ariaLabel: ariaLabels.meridiem || 'AM or PM',
         onChange(value){
-          currentMeridiem = value;
-          disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
-          minuteWheel.setDisabledChecker(minuteDisabledChecker);
-          if(disabledMinutes.has(currentMinute)){
-            const fallback = deriveSafeMinute(currentHour, currentMeridiem, currentMinute);
-            if(minutes.includes(fallback)){
-              minuteWheel.setValue(fallback);
-              currentMinute = fallback;
-            }
-          }
-          onChange(getValue());
+          syncMeridiem(value);
         }
       });
       meridiemColumn.appendChild(meridiemWheel.element);
@@ -893,12 +918,6 @@
       root.appendChild(rangeActions);
     }
 
-    const getValue = () => ({
-      hour: currentHour,
-      minute: currentMinute,
-      meridiem: currentMeridiem
-    });
-
     disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
     minuteWheel.setDisabledChecker(minuteDisabledChecker);
 
@@ -914,11 +933,21 @@
       }
     };
 
+    const setMeridiem = value => {
+      const normalized = normalizeMeridiem(value);
+      if(meridiemWheel && typeof meridiemWheel.setValue === 'function'){
+        meridiemWheel.setValue(normalized);
+      }else{
+        syncMeridiem(normalized);
+      }
+    };
+
     return {
       element: root,
       getValue,
       focus,
       dispose,
+      setMeridiem,
       get hourWheel(){ return hourWheel; },
       get minuteWheel(){ return minuteWheel; },
       get meridiemWheel(){ return meridiemWheel; }
