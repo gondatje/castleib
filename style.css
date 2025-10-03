@@ -548,8 +548,21 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   padding-block-end:calc(var(--spa-viewport-gutter) + env(safe-area-inset-bottom));
 }
 /*
+ * Desktop browsers switch to a grid centering context so Safari/Chrome honor the
+ * viewport clamping while touch/iPad builds retain the flex alignment that was
+ * already tuned for tablet safe areas.
+ */
+@media (pointer:fine){
+  .spa-overlay{
+    display:grid;
+    place-items:center;
+    align-content:center;
+  }
+}
+/*
  * Cap the dialog height with viewport units (dvh/svh fallbacks) so it never
- * exceeds the available vertical space while keeping header/actions visible.
+ * exceeds the available vertical space; the shared overlay gutter covers the
+ * safe-area breathing room so header/actions always stay accessible.
  */
 .spa-dialog{
   background:#fff;
@@ -583,10 +596,12 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   display:flex;
   flex-direction:column;
   gap:24px;
+  flex:1 1 auto;
   overflow:auto;
   min-height:0;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable;
 }
 .spa-header,
 .spa-actions{
