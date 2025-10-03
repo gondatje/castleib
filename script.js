@@ -15,6 +15,35 @@
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
   const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
+  const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
+  const to24Time = ({ hour, minute, meridiem }) => {
+    let h = Number(hour) || 0;
+    const m = Number(minute) || 0;
+    const normalizedMeridiem = (meridiem || '').toUpperCase() === 'PM' ? 'PM' : 'AM';
+    if(normalizedMeridiem === 'AM'){
+      if(h === 12) h = 0;
+    }else{
+      if(h < 12) h += 12;
+      if(h === 24) h = 12; // guard against 12 PM interpreted as 24
+    }
+    return `${pad(h)}:${pad(m)}`;
+  };
+  const from24Time = hm => {
+    const { hour, minute } = parse24Time(hm || '00:00');
+    const meridiem = hour >= 12 ? 'PM' : 'AM';
+    let displayHour = hour % 12;
+    if(displayHour === 0) displayHour = 12;
+    return { hour: displayHour, minute, meridiem };
+  };
+  const addMinutesToTime = (hm, duration) => {
+    const { hour, minute } = parse24Time(hm || '00:00');
+    const total = hour * 60 + minute + duration;
+    const normalized = ((total % (24*60)) + (24*60)) % (24*60);
+    const nextHour = Math.floor(normalized / 60);
+    const nextMinute = normalized % 60;
+    return `${pad(nextHour)}:${pad(nextMinute)}`;
+  };
+  const formatDurationLabel = minutes => `${minutes}-Minute`;
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
@@ -50,6 +79,7 @@
       };
 
   const dinnerIconSvg = `<svg viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon"><path fill="currentColor" d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"></path></svg>`;
+  const spaIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="spa-icon"><path fill="currentColor" d="M12 2c-.4 0-.78.2-1 .53C9.5 4.63 6 10.22 6 13.5 6 17.64 8.86 20 12 20s6-2.36 6-6.5c0-3.28-3.5-8.87-5-10.97A1.2 1.2 0 0 0 12 2Zm0 16c-2.37 0-4-1.4-4-4.5 0-1.58 1.57-4.68 4-8.08 2.43 3.4 4 6.5 4 8.08 0 3.1-1.63 4.5-4 4.5Zm-5.5 1a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5Z"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
 
@@ -65,6 +95,46 @@
 
   const dinnerTitle = 'Dinner at Harvest';
   const defaultDinnerTime = '19:00';
+
+  const SPA_THERAPIST_OPTIONS = [
+    { id: 'no-preference', label: 'No Preference' },
+    { id: 'female', label: 'Female Therapist' },
+    { id: 'male', label: 'Male Therapist' }
+  ];
+
+  const SPA_LOCATION_OPTIONS = [
+    { id: 'same-cabana', label: 'Same Cabana' },
+    { id: 'separate-cabanas', label: 'Separate Cabanas' },
+    { id: 'in-room', label: 'In-Room' }
+  ];
+
+  const defaultSpaStartTime = '14:00';
+  const generateSpaEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `spa_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+  function buildSpaCatalog(dataset){
+    const services = Array.isArray(dataset?.services) ? dataset.services : [];
+    const byCategory = new Map();
+    const byName = new Map();
+    services.forEach(service => {
+      const entry = {
+        name: service.name,
+        category: service.category,
+        subcategory: service.subcategory,
+        durations: Array.isArray(service.durations) ? service.durations.slice() : Array.isArray(service.durations_minutes) ? service.durations_minutes.slice() : [],
+        supportsInRoom: service.supportsInRoom ?? service.supports_in_room ?? null
+      };
+      byName.set(entry.name, entry);
+      if(!byCategory.has(entry.category)){
+        byCategory.set(entry.category, []);
+      }
+      byCategory.get(entry.category).push(entry);
+    });
+    const categories = Array.from(byCategory.entries()).map(([category, list]) => ({
+      category,
+      services: list.slice().sort((a,b)=> a.name.localeCompare(b.name))
+    })).sort((a,b)=> a.category.localeCompare(b.category));
+    return { categories, byName };
+  }
 
   const TimePickerKit = window.TimePickerKit || {};
   const { createTimePicker } = TimePickerKit;
@@ -85,7 +155,8 @@
     editing: false,
     userEdited: '',
     previewDirty: true,
-    previewFrozen: false
+    previewFrozen: false,
+    spaCatalog: null
   };
 
   // ---------- DOM ----------
@@ -98,6 +169,7 @@
   const toggleEditBtn=$('#toggleEdit');
   const copyBtn=$('#copy');
   const addDinnerBtn=$('#addDinner');
+  const addSpaBtn=$('#addSpa');
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
@@ -130,6 +202,7 @@
       const activitiesDataset = window.CHSDataLayer.getActivitiesDataset();
       const spaDataset = window.CHSDataLayer.getSpaDataset();
       state.data = { activities: activitiesDataset, spa: spaDataset };
+      state.spaCatalog = buildSpaCatalog(spaDataset);
       state.dataStatus = 'ready';
       ensureFocusInSeason();
       // Wait for the rest of this module to register helpers (e.g. toggleIcons) before rendering.
@@ -274,6 +347,7 @@
   }
   function renderGuests(){
     syncDinnerGuests();
+    syncSpaGuests();
     guestsEl.innerHTML='';
     state.guests.forEach((g,ix)=>{
       const b=document.createElement('button');
@@ -338,6 +412,12 @@
     });
   }
 
+  if(addSpaBtn){
+    addSpaBtn.addEventListener('click',()=>{
+      openSpaEditor({ mode:'add', dateKey: keyDate(state.focus) });
+    });
+  }
+
   renderAll();
 
   function updateToggleAllButton(){
@@ -389,6 +469,7 @@
     dayTitle.innerHTML = `${escapeHtml(wname)}, ${escapeHtml(state.focus.toLocaleString(undefined,{month:'long'}))} ${ordinalHtml(state.focus.getDate())}`;
 
     updateAddDinnerButton();
+    updateAddSpaButton();
 
     const weekKey = weekdayKey(state.focus);
     let season = null;
@@ -421,11 +502,18 @@
     }
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
+    const spaEntries = getSpaEntries(dateK);
     const combined = baseList.map(row=>({kind:'activity', data: row}));
     if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
+    // Inject saved SPA blocks alongside activities/dinner so the list remains time-ordered.
+    spaEntries.forEach(entry => combined.push({ kind:'spa', data: entry }));
     combined.sort((a,b)=>{
-      const aStart = a.kind==='activity' ? a.data.start : (a.data.start || '');
-      const bStart = b.kind==='activity' ? b.data.start : (b.data.start || '');
+      const resolveStart = item => {
+        if(item.kind==='activity') return item.data.start || '';
+        return item.data.start || '';
+      };
+      const aStart = resolveStart(a);
+      const bStart = resolveStart(b);
       return aStart.localeCompare(bStart);
     });
 
@@ -433,6 +521,10 @@
     combined.forEach(item=>{
       if(item.kind==='dinner'){
         renderDinner(item.data);
+        return;
+      }
+      if(item.kind==='spa'){
+        renderSpa(item.data);
         return;
       }
       const row = item.data;
@@ -690,9 +782,125 @@
       div.appendChild(body);
       activitiesEl.appendChild(div);
     }
+
+    function renderSpa(entry){
+      const div=document.createElement('div');
+      div.className='activity-row spa-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      const startLabel = entry.start ? fmt12(entry.start) : '';
+      const endLabel = entry.end ? fmt12(entry.end) : '';
+      time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      const summary = summarizeSpaTitle(entry);
+      title.textContent = summary;
+      headline.appendChild(title);
+
+      body.appendChild(headline);
+
+      const tagWrap=document.createElement('div');
+      tagWrap.className='tag-row';
+
+      const assignmentGuests = Array.from(entry.guestIds || []).map(id => state.guests.find(g=>g.id===id)).filter(Boolean);
+      const plan = getAssignmentChipRenderPlan({ totalGuestsInStay: state.guests.length, assignedGuests: assignmentGuests });
+      if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
+        const pill = document.createElement('button');
+        pill.type='button';
+        pill.className='tag-everyone';
+        pill.dataset.assignmentPill = plan.type;
+        pill.setAttribute('aria-haspopup','true');
+        pill.setAttribute('aria-expanded','false');
+        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
+        const label=document.createElement('span');
+        label.textContent = plan.pillLabel || '';
+        pill.appendChild(label);
+        const pop=document.createElement('div');
+        pop.className='popover';
+        pop.setAttribute('role','group');
+        pop.setAttribute('aria-label','Guests assigned');
+        plan.guests.forEach(guest => {
+          const chip=document.createElement('span');
+          chip.className='chip';
+          chip.style.borderColor = guest.color;
+          chip.style.color = guest.color;
+          chip.title = guest.name;
+          const initial=document.createElement('span');
+          initial.className='initial';
+          initial.textContent = guest.name.charAt(0).toUpperCase();
+          chip.appendChild(initial);
+          const x=document.createElement('span');
+          x.className='x';
+          x.textContent='×';
+          x.setAttribute('aria-hidden','true');
+          chip.appendChild(x);
+          pop.appendChild(chip);
+        });
+        pill.appendChild(pop);
+        attachGroupPillInteractions(pill);
+        tagWrap.appendChild(pill);
+      }else if(plan.type === AssignmentChipMode.INDIVIDUAL){
+        plan.guests.forEach(guest => {
+          const chip=document.createElement('span');
+          chip.className='chip';
+          chip.style.borderColor = guest.color;
+          chip.style.color = guest.color;
+          chip.title = guest.name;
+          const initial=document.createElement('span');
+          initial.className='initial';
+          initial.textContent = guest.name.charAt(0).toUpperCase();
+          chip.appendChild(initial);
+          const x=document.createElement('span');
+          x.className='x';
+          x.textContent='×';
+          x.setAttribute('aria-hidden','true');
+          chip.appendChild(x);
+          tagWrap.appendChild(chip);
+        });
+      }
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='spa-chip dinner-chip';
+      // Reuse the dinner chip visuals to ensure the SPA edit affordance matches hover/focus
+      // behaviour and sizing expectations from the existing activities list.
+      chip.innerHTML = `<span class="chip-icon">${spaIconSvg}</span><span class="chip-pencil">${pencilSvg}</span><span class="sr-only">Edit spa appointment</span>`;
+      chip.setAttribute('aria-label','Edit spa appointment');
+      chip.title='Edit spa appointment';
+      chip.dataset.pressExempt='true';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
+      chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
+      tagWrap.appendChild(chip);
+
+      body.appendChild(tagWrap);
+      div.appendChild(body);
+      activitiesEl.appendChild(div);
+    }
+
+    function summarizeSpaTitle(entry){
+      if(!entry || !Array.isArray(entry.appointments) || entry.appointments.length===0){
+        return 'Spa Appointment';
+      }
+      const first = entry.appointments[0];
+      const sameService = entry.appointments.every(app => app.serviceName === first.serviceName);
+      const sameDuration = entry.appointments.every(app => app.durationMinutes === first.durationMinutes);
+      if(sameService && sameDuration){
+        return `${formatDurationLabel(first.durationMinutes)} ${first.serviceName}`;
+      }
+      return 'Spa Appointments';
+    }
   }
 
   let dinnerDialog = null;
+  let spaDialog = null;
 
   function updateAddDinnerButton(){
     if(!addDinnerBtn) return;
@@ -700,6 +908,13 @@
     addDinnerBtn.disabled = !enabled;
     const entry = enabled ? getDinnerEntry(keyDate(state.focus)) : null;
     addDinnerBtn.setAttribute('aria-pressed', entry ? 'true' : 'false');
+  }
+
+  function updateAddSpaButton(){
+    if(!addSpaBtn) return;
+    const enabled = state.dataStatus==='ready' && state.spaCatalog && state.spaCatalog.categories.length>0;
+    addSpaBtn.disabled = !enabled;
+    addSpaBtn.setAttribute('aria-pressed','false');
   }
 
   function closeDinnerPicker({returnFocus=false}={}){
@@ -893,6 +1108,683 @@
       timePicker?.focus?.();
     },0);
   }
+
+  function closeSpaEditor({returnFocus=false}={}){
+    if(!spaDialog) return;
+    const { overlay, previousFocus, cleanup } = spaDialog;
+    overlay.remove();
+    if(typeof cleanup === 'function') cleanup();
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    spaDialog = null;
+    document.body.classList.remove('spa-lock');
+  }
+
+  function openSpaEditor({mode='add', dateKey, entryId}={}){
+    if(state.dataStatus!=='ready' || !state.spaCatalog || state.spaCatalog.categories.length===0) return;
+    closeSpaEditor();
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = entryId ? getSpaEntry(targetDateKey, entryId) : null;
+    const catalog = state.spaCatalog;
+    const findService = name => catalog.byName.get(name) || (catalog.categories[0]?.services[0] || null);
+
+    const orderedGuests = () => state.guests.map(g=>g.id);
+    let assignedIds = existing ? Array.from(existing.guestIds || []) : state.guests.filter(g=>g.active).map(g=>g.id);
+    if(assignedIds.length===0){
+      assignedIds = orderedGuests();
+    }
+    if(assignedIds.length===0){
+      alert('Add at least one guest before booking spa appointments.');
+      return;
+    }
+    const assignedSet = new Set(assignedIds);
+
+    const defaultService = (()=>{
+      if(existing && existing.appointments?.length){
+        const match = findService(existing.appointments[0].serviceName);
+        if(match) return match;
+      }
+      return catalog.categories[0]?.services[0] || null;
+    })();
+
+    const createSelection = (service, overrides={}) => {
+      const svc = service || defaultService;
+      const baseDuration = Array.isArray(svc?.durations) && svc.durations.length ? svc.durations[0] : 60;
+      const duration = overrides.durationMinutes ?? baseDuration;
+      const start = overrides.start || defaultSpaStartTime;
+      return {
+        guestId: overrides.guestId || '',
+        serviceName: svc?.name || overrides.serviceName || '',
+        serviceCategory: svc?.category || overrides.serviceCategory || '',
+        durationMinutes: duration,
+        start,
+        end: addMinutesToTime(start, duration),
+        therapist: overrides.therapist || 'no-preference',
+        location: overrides.location || 'same-cabana',
+        supportsInRoom: svc?.supportsInRoom !== false
+      };
+    };
+
+    const selections = new Map();
+    assignedIds.forEach(id => {
+      const existingSelection = existing?.appointments?.find(app => app.guestId===id);
+      if(existingSelection){
+        const svc = findService(existingSelection.serviceName);
+        const selection = createSelection(svc, {
+          guestId: id,
+          serviceName: existingSelection.serviceName,
+          serviceCategory: existingSelection.serviceCategory,
+          durationMinutes: existingSelection.durationMinutes,
+          start: existingSelection.start,
+          therapist: existingSelection.therapist,
+          location: existingSelection.location,
+          supportsInRoom: svc?.supportsInRoom !== false
+        });
+        selection.end = existingSelection.end || addMinutesToTime(selection.start, selection.durationMinutes);
+        if(selection.location==='in-room' && selection.supportsInRoom===false){
+          selection.location = 'same-cabana';
+        }
+        selections.set(id, selection);
+      }else{
+        const selection = createSelection(defaultService, { guestId: id });
+        selections.set(id, selection);
+      }
+    });
+
+    const identical = (()=>{
+      const values = Array.from(selections.values());
+      if(values.length<=1) return true;
+      const [first] = values;
+      return values.every(sel => sel.serviceName===first.serviceName && sel.durationMinutes===first.durationMinutes && sel.start===first.start && sel.end===first.end && sel.therapist===first.therapist && sel.location===first.location);
+    })();
+
+    let linkGuests = identical || !existing;
+    let activeGuestId = assignedIds[0] || null;
+
+    const orderedAssigned = () => state.guests.map(g=>g.id).filter(id => assignedSet.has(id));
+
+    const overlay = document.createElement('div');
+    overlay.className='spa-overlay';
+    const dialog = document.createElement('div');
+    dialog.className='spa-dialog';
+
+    const header = document.createElement('div');
+    header.className='spa-header';
+    const title=document.createElement('h2');
+    title.className='spa-title';
+    title.textContent = mode==='edit' ? 'Edit Spa Appointment' : 'Add Spa Appointment';
+    const closeBtn=document.createElement('button');
+    closeBtn.type='button';
+    closeBtn.className='spa-close';
+    closeBtn.setAttribute('aria-label','Close');
+    closeBtn.textContent='×';
+    closeBtn.addEventListener('click',()=> closeSpaEditor({returnFocus:true}));
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    // Compose the SPA flow left-to-right so each decision feeds the next stage:
+    // service → duration → start time → therapist → location. Mutating one
+    // step immediately cascades the data updates so the preview stays in sync.
+    const layout=document.createElement('div');
+    layout.className='spa-layout';
+    dialog.appendChild(layout);
+
+    const serviceSection=document.createElement('section');
+    serviceSection.className='spa-section spa-section-services';
+    const serviceHeading=document.createElement('h3');
+    serviceHeading.textContent='Service';
+    serviceSection.appendChild(serviceHeading);
+    const serviceList=document.createElement('div');
+    serviceList.className='spa-service-list';
+    serviceList.setAttribute('role','listbox');
+    serviceList.setAttribute('aria-label','Spa services');
+    serviceSection.appendChild(serviceList);
+
+    catalog.categories.forEach(group => {
+      const cat=document.createElement('div');
+      cat.className='spa-service-category';
+      const catTitle=document.createElement('h4');
+      catTitle.textContent=group.category;
+      cat.appendChild(catTitle);
+      const list=document.createElement('div');
+      list.className='spa-service-options';
+      group.services.forEach(service => {
+        const option=document.createElement('button');
+        option.type='button';
+        option.className='spa-service-option';
+        option.dataset.serviceName = service.name;
+        option.setAttribute('role','option');
+        option.textContent = service.name;
+        option.addEventListener('click',()=>{
+          selectService(service.name);
+        });
+        list.appendChild(option);
+      });
+      cat.appendChild(list);
+      serviceList.appendChild(cat);
+    });
+
+    layout.appendChild(serviceSection);
+
+    const detailsSection=document.createElement('section');
+    detailsSection.className='spa-section spa-section-details';
+    layout.appendChild(detailsSection);
+
+    const durationGroup=document.createElement('div');
+    durationGroup.className='spa-block';
+    const durationHeading=document.createElement('h3');
+    durationHeading.textContent='Duration';
+    durationGroup.appendChild(durationHeading);
+    const durationList=document.createElement('div');
+    durationList.className='spa-duration-list';
+    durationList.setAttribute('role','radiogroup');
+    durationList.setAttribute('aria-label','Duration');
+    durationGroup.appendChild(durationList);
+    detailsSection.appendChild(durationGroup);
+
+    const timeGroup=document.createElement('div');
+    timeGroup.className='spa-block';
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Start Time';
+    timeGroup.appendChild(timeHeading);
+    const timeContainer=document.createElement('div');
+    timeContainer.className='spa-time-picker';
+    timeGroup.appendChild(timeContainer);
+    const endPreview=document.createElement('div');
+    endPreview.className='spa-end-preview';
+    endPreview.setAttribute('aria-live','polite');
+    timeGroup.appendChild(endPreview);
+    detailsSection.appendChild(timeGroup);
+
+    const therapistGroup=document.createElement('div');
+    therapistGroup.className='spa-block';
+    const therapistHeading=document.createElement('h3');
+    therapistHeading.textContent='Therapist Preference';
+    therapistGroup.appendChild(therapistHeading);
+    const therapistList=document.createElement('div');
+    therapistList.className='spa-radio-list';
+    therapistList.setAttribute('role','radiogroup');
+    therapistList.setAttribute('aria-label','Therapist preference');
+    SPA_THERAPIST_OPTIONS.forEach(option => {
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='spa-radio';
+      btn.dataset.value=option.id;
+      btn.textContent=option.label;
+      btn.addEventListener('click',()=> selectTherapist(option.id));
+      therapistList.appendChild(btn);
+    });
+    therapistGroup.appendChild(therapistList);
+    detailsSection.appendChild(therapistGroup);
+
+    const locationGroup=document.createElement('div');
+    locationGroup.className='spa-block';
+    const locationHeading=document.createElement('h3');
+    locationHeading.textContent='Location';
+    locationGroup.appendChild(locationHeading);
+    const locationList=document.createElement('div');
+    locationList.className='spa-radio-list';
+    locationList.setAttribute('role','radiogroup');
+    locationList.setAttribute('aria-label','Location');
+    SPA_LOCATION_OPTIONS.forEach(option => {
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='spa-radio';
+      btn.dataset.value=option.id;
+      btn.textContent=option.label;
+      btn.addEventListener('click',()=> selectLocation(option.id));
+      locationList.appendChild(btn);
+    });
+    const locationHelper=document.createElement('p');
+    locationHelper.className='spa-helper-text';
+    locationGroup.appendChild(locationList);
+    locationGroup.appendChild(locationHelper);
+    detailsSection.appendChild(locationGroup);
+
+    const guestSection=document.createElement('section');
+    guestSection.className='spa-section spa-section-guests';
+    const guestHeading=document.createElement('h3');
+    guestHeading.textContent='Guests';
+    guestSection.appendChild(guestHeading);
+    const guestList=document.createElement('div');
+    guestList.className='spa-guest-list';
+    guestSection.appendChild(guestList);
+
+    const syncRow=document.createElement('label');
+    syncRow.className='spa-sync-row';
+    const syncCheckbox=document.createElement('input');
+    syncCheckbox.type='checkbox';
+    syncCheckbox.checked = linkGuests;
+    syncCheckbox.addEventListener('change',()=>{
+      linkGuests = syncCheckbox.checked;
+      if(linkGuests){
+        const id = orderedAssigned()[0];
+        if(id){
+          activeGuestId = id;
+          syncFrom(id);
+        }
+      }
+      refreshGuestControls();
+      refreshAllControls();
+    });
+    const syncLabel=document.createElement('span');
+    syncLabel.textContent='Keep guests in sync';
+    syncRow.appendChild(syncCheckbox);
+    syncRow.appendChild(syncLabel);
+    guestSection.appendChild(syncRow);
+
+    const guestEditorRow=document.createElement('div');
+    guestEditorRow.className='spa-guest-editor-row';
+    const guestEditorLabel=document.createElement('label');
+    guestEditorLabel.textContent='Editing details for';
+    guestEditorLabel.className='spa-guest-editor-label';
+    const guestSelect=document.createElement('select');
+    guestSelect.className='spa-guest-select';
+    guestSelect.addEventListener('change',()=>{
+      activeGuestId = guestSelect.value || null;
+      refreshAllControls();
+    });
+    guestEditorRow.appendChild(guestEditorLabel);
+    guestEditorRow.appendChild(guestSelect);
+    guestSection.appendChild(guestEditorRow);
+
+    const guestHelper=document.createElement('p');
+    guestHelper.className='spa-helper-text';
+    guestSection.appendChild(guestHelper);
+
+    dialog.appendChild(guestSection);
+
+    const actions=document.createElement('div');
+    actions.className='spa-actions';
+    const confirmBtn=document.createElement('button');
+    confirmBtn.type='button';
+    confirmBtn.className='spa-confirm';
+    confirmBtn.textContent = mode==='edit' ? 'Update appointment' : 'Add appointment';
+    actions.appendChild(confirmBtn);
+    let removeBtn=null;
+    if(mode==='edit' && existing){
+      removeBtn=document.createElement('button');
+      removeBtn.type='button';
+      removeBtn.className='spa-remove';
+      removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove spa appointment</span>`;
+      actions.appendChild(removeBtn);
+    }
+    dialog.appendChild(actions);
+
+    const previousFocus=document.activeElement;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('spa-lock');
+
+    const timePicker = createTimePicker ? createTimePicker({
+      hourRange:[1,12],
+      minuteStep:5,
+      showAmPm:true,
+      defaultValue: from24Time(getCanonicalSelection()?.start || defaultSpaStartTime),
+      ariaLabels:{ hours:'Spa hour', minutes:'Spa minutes', meridiem:'AM or PM' },
+      onChange(value){
+        const targetIds = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+        const nextStart = to24Time(value);
+        targetIds.forEach(id => {
+          const selection = selections.get(id);
+          if(selection){
+            selection.start = nextStart;
+            // Duration drives end time: recompute whenever start shifts so preview stays live.
+            selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+          }
+        });
+        refreshEndPreview();
+      }
+    }) : null;
+    if(timePicker){
+      timeContainer.appendChild(timePicker.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='time-picker-fallback';
+      fallback.textContent='Time picker unavailable.';
+      timeContainer.appendChild(fallback);
+    }
+
+    function getCanonicalSelection(){
+      const ids = orderedAssigned();
+      const id = linkGuests ? ids[0] : activeGuestId;
+      return id ? selections.get(id) : null;
+    }
+
+    function syncFrom(sourceId){
+      const base = selections.get(sourceId);
+      if(!base) return;
+      orderedAssigned().forEach(id => {
+        if(id===sourceId) return;
+        selections.set(id, { ...base, guestId: id });
+      });
+    }
+
+    function refreshServiceOptions(){
+      const selection = getCanonicalSelection();
+      const activeName = selection?.serviceName || '';
+      serviceList.querySelectorAll('.spa-service-option').forEach(btn => {
+        const selected = btn.dataset.serviceName===activeName;
+        btn.classList.toggle('selected', selected);
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+      });
+    }
+
+    function refreshDurationOptions(){
+      durationList.innerHTML='';
+      const selection = getCanonicalSelection();
+      const service = findService(selection?.serviceName);
+      const durations = service?.durations?.slice() || [];
+      durations.forEach(minutes => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-radio';
+        btn.dataset.value=String(minutes);
+        btn.textContent=formatDurationLabel(minutes);
+        const selected = selection?.durationMinutes===minutes;
+        btn.classList.toggle('selected', selected);
+        btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        btn.addEventListener('click',()=> selectDuration(minutes));
+        durationList.appendChild(btn);
+      });
+    }
+
+    function refreshTherapistOptions(){
+      const selection = getCanonicalSelection();
+      therapistList.querySelectorAll('.spa-radio').forEach(btn => {
+        const selected = btn.dataset.value===selection?.therapist;
+        btn.classList.toggle('selected', selected);
+        btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      });
+    }
+
+    function refreshLocationOptions(){
+      const selection = getCanonicalSelection();
+      const service = findService(selection?.serviceName);
+      const supportsInRoom = service?.supportsInRoom !== false;
+      locationList.querySelectorAll('.spa-radio').forEach(btn => {
+        const value = btn.dataset.value;
+        const disabled = value==='in-room' && !supportsInRoom;
+        btn.classList.toggle('selected', selection?.location===value);
+        btn.setAttribute('aria-pressed', selection?.location===value ? 'true' : 'false');
+        btn.disabled = disabled;
+      });
+      if(!supportsInRoom){
+        locationHelper.textContent='In-Room service is unavailable for this treatment.';
+      }else{
+        locationHelper.textContent='';
+      }
+    }
+
+    function refreshGuestControls(){
+      guestList.innerHTML='';
+      state.guests.forEach(guest => {
+        const row=document.createElement('label');
+        row.className='spa-guest-row';
+        const checkbox=document.createElement('input');
+        checkbox.type='checkbox';
+        checkbox.checked = assignedSet.has(guest.id);
+        checkbox.addEventListener('change',()=>{
+          if(checkbox.checked){
+            assignedSet.add(guest.id);
+            if(!selections.has(guest.id)){
+              const base = getCanonicalSelection() || createSelection(defaultService, { guestId: guest.id });
+              const clone = { ...base, guestId: guest.id };
+              clone.end = addMinutesToTime(clone.start, clone.durationMinutes);
+              selections.set(guest.id, clone);
+            }
+            if(linkGuests){
+              const id = orderedAssigned()[0];
+              if(id){
+                syncFrom(id);
+              }
+            }
+          }else{
+            assignedSet.delete(guest.id);
+            selections.delete(guest.id);
+            if(activeGuestId===guest.id){
+              activeGuestId = orderedAssigned()[0] || null;
+            }
+          }
+          refreshGuestControls();
+          refreshAllControls();
+        });
+        const swatch=document.createElement('span');
+        swatch.className='spa-guest-swatch';
+        swatch.style.background = guest.color;
+        row.appendChild(checkbox);
+        row.appendChild(swatch);
+        const label=document.createElement('span');
+        label.textContent=guest.name;
+        row.appendChild(label);
+        guestList.appendChild(row);
+      });
+
+      guestSelect.innerHTML='';
+      orderedAssigned().forEach(id => {
+        const guest = state.guests.find(g=>g.id===id);
+        if(!guest) return;
+        const opt=document.createElement('option');
+        opt.value=id;
+        opt.textContent=guest.name;
+        guestSelect.appendChild(opt);
+      });
+      if(orderedAssigned().length===0){
+        guestHelper.textContent='Select at least one guest to continue.';
+      }else{
+        guestHelper.textContent='';
+      }
+      if(!orderedAssigned().includes(activeGuestId)){
+        activeGuestId = orderedAssigned()[0] || null;
+      }
+      guestSelect.disabled = linkGuests;
+      guestSelect.value = activeGuestId || '';
+    }
+
+    function refreshTimePickerSelection(){
+      const selection = getCanonicalSelection();
+      if(!selection || !timePicker) return;
+      const { hour, minute, meridiem } = from24Time(selection.start);
+      timePicker.hourWheel?.setValue?.(hour);
+      timePicker.minuteWheel?.setValue?.(minute);
+      timePicker.meridiemWheel?.setValue?.(meridiem);
+    }
+
+    function refreshEndPreview(){
+      const selection = getCanonicalSelection();
+      if(selection){
+        endPreview.textContent = `${fmt12(selection.start)} – ${fmt12(selection.end)}`;
+      }else{
+        endPreview.textContent = '';
+      }
+    }
+
+    function refreshAllControls(){
+      refreshServiceOptions();
+      refreshDurationOptions();
+      refreshTherapistOptions();
+      refreshLocationOptions();
+      refreshTimePickerSelection();
+      refreshEndPreview();
+      updateConfirmState();
+    }
+
+    function updateConfirmState(){
+      confirmBtn.disabled = orderedAssigned().length===0;
+    }
+
+    function selectService(name){
+      const service = findService(name);
+      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      targets.forEach(id => {
+        const selection = selections.get(id) || createSelection(service, { guestId: id });
+        selection.serviceName = service?.name || name;
+        selection.serviceCategory = service?.category || '';
+        selection.supportsInRoom = service?.supportsInRoom !== false;
+        const durations = service?.durations?.slice() || [];
+        if(!durations.includes(selection.durationMinutes)){
+          selection.durationMinutes = durations[0] || selection.durationMinutes;
+        }
+        // Whenever duration shifts, recompute the derived end time so the preview follows.
+        selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        if(selection.location==='in-room' && selection.supportsInRoom===false){
+          selection.location='same-cabana';
+        }
+        selections.set(id, selection);
+      });
+      if(linkGuests && targets.length){
+        syncFrom(targets[0]);
+      }
+      refreshAllControls();
+    }
+
+    function selectDuration(minutes){
+      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      targets.forEach(id => {
+        const selection = selections.get(id);
+        if(!selection) return;
+        selection.durationMinutes = minutes;
+        selection.end = addMinutesToTime(selection.start, minutes);
+      });
+      if(linkGuests && targets.length){
+        syncFrom(targets[0]);
+      }
+      refreshAllControls();
+    }
+
+    function selectTherapist(id){
+      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      targets.forEach(targetId => {
+        const selection = selections.get(targetId);
+        if(selection){
+          selection.therapist = id;
+        }
+      });
+      if(linkGuests && targets.length){
+        syncFrom(targets[0]);
+      }
+      refreshTherapistOptions();
+      updateConfirmState();
+    }
+
+    function selectLocation(id){
+      const service = findService(getCanonicalSelection()?.serviceName);
+      // Location gating mirrors the data model: if the current service blocks in-room,
+      // surface the helper text and ignore attempts to re-enable the option.
+      if(id==='in-room' && service?.supportsInRoom===false){
+        locationHelper.textContent='In-Room service is unavailable for this treatment.';
+        return;
+      }
+      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      targets.forEach(targetId => {
+        const selection = selections.get(targetId);
+        if(selection){
+          selection.location = id;
+        }
+      });
+      if(linkGuests && targets.length){
+        syncFrom(targets[0]);
+      }
+      refreshLocationOptions();
+      updateConfirmState();
+    }
+
+    refreshGuestControls();
+    refreshAllControls();
+
+    function confirmSelection(){
+      if(orderedAssigned().length===0) return;
+      const appointments = orderedAssigned().map(id => {
+        const selection = selections.get(id);
+        return selection ? {
+          guestId: id,
+          serviceName: selection.serviceName,
+          serviceCategory: selection.serviceCategory,
+          durationMinutes: selection.durationMinutes,
+          start: selection.start,
+          end: addMinutesToTime(selection.start, selection.durationMinutes),
+          therapist: selection.therapist,
+          location: selection.location
+        } : null;
+      }).filter(Boolean);
+      upsertSpaEntry(targetDateKey, { id: existing?.id, appointments });
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeSpaEditor({returnFocus:true});
+    }
+
+    confirmBtn.addEventListener('click', confirmSelection);
+
+    if(removeBtn){
+      removeBtn.addEventListener('click',()=>{
+        removeSpaEntry(targetDateKey, existing.id);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeSpaEditor({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click', e=>{
+      if(e.target===overlay){
+        closeSpaEditor({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown = e => {
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeSpaEditor({returnFocus:true});
+        return;
+      }
+      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
+        e.preventDefault();
+        confirmSelection();
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,select,input[type="checkbox"],[tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length-1];
+        if(e.shiftKey){
+          if(document.activeElement===first){
+            e.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    spaDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        timePicker?.dispose?.();
+      }
+    };
+
+    setTimeout(()=>{
+      if(linkGuests){
+        timePicker?.focus?.();
+      }else if(guestSelect && !guestSelect.disabled){
+        guestSelect.focus();
+      }
+    },0);
+  }
+
   function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
   function sortDayEntries(dateK){
     const day = state.schedule[dateK];
@@ -923,6 +1815,28 @@
     }
   }
 
+  function syncSpaGuests(){
+    const activeIds = new Set(state.guests.map(g=>g.id));
+    const purgeKeys = [];
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      for(let i = day.length - 1; i >= 0; i--){
+        const entry = day[i];
+        if(entry.type!=='spa') continue;
+        entry.appointments = entry.appointments.filter(app => activeIds.has(app.guestId));
+        recomputeSpaEntrySummary(entry);
+        if(entry.appointments.length===0){
+          day.splice(i,1);
+        }
+      }
+      if(day.length===0){
+        purgeKeys.push(key);
+      }
+    }
+    purgeKeys.forEach(key => delete state.schedule[key]);
+  }
+
   function upsertDinner(dateK, time){
     const day = getOrCreateDay(dateK);
     let entry = getDinnerEntry(dateK);
@@ -944,6 +1858,101 @@
       day.splice(idx,1);
       if(day.length===0) delete state.schedule[dateK];
     }
+  }
+
+  function recomputeSpaEntrySummary(entry){
+    if(!entry || entry.type!=='spa') return;
+    let minStart = null;
+    let maxEnd = null;
+    const ids = new Set();
+    entry.appointments = Array.isArray(entry.appointments) ? entry.appointments.filter(app => app && app.guestId) : [];
+    entry.appointments.forEach(app => {
+      ids.add(app.guestId);
+      if(app.start){
+        if(!minStart || app.start < minStart) minStart = app.start;
+      }
+      if(app.end){
+        if(!maxEnd || app.end > maxEnd) maxEnd = app.end;
+      }
+    });
+    entry.guestIds = ids;
+    entry.start = minStart;
+    entry.end = maxEnd;
+  }
+
+  function getSpaEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return [];
+    return day.filter(entry=>entry.type==='spa');
+  }
+
+  function getSpaEntry(dateK, id){
+    if(!id) return null;
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry=> entry.type==='spa' && entry.id===id) || null;
+  }
+
+  function upsertSpaEntry(dateK, entry){
+    const day = getOrCreateDay(dateK);
+    let target = entry.id ? day.find(item => item.type==='spa' && item.id===entry.id) : null;
+    if(!target){
+      target = { type:'spa', id: entry.id || generateSpaEntryId(), appointments: [], guestIds: new Set(), start: null, end: null };
+      day.push(target);
+    }
+    target.appointments = entry.appointments.map(app => ({ ...app }));
+    recomputeSpaEntrySummary(target);
+    sortDayEntries(dateK);
+    return target;
+  }
+
+  function removeSpaEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry => entry.type==='spa' && entry.id===entryId);
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
+  }
+
+  const spaTherapistLabel = id => (SPA_THERAPIST_OPTIONS.find(opt => opt.id===id)?.label) || 'No Preference';
+  const spaLocationLabel = id => (SPA_LOCATION_OPTIONS.find(opt => opt.id===id)?.label) || 'Same Cabana';
+  const pluralizeServiceTitle = name => {
+    if(!name) return '';
+    const trimmed = name.trim();
+    return /s$/i.test(trimmed) ? trimmed : `${trimmed}s`;
+  };
+
+  function buildSpaPreviewLines(entry){
+    if(!entry || !Array.isArray(entry.appointments)) return [];
+    const appointments = entry.appointments.slice();
+    if(appointments.length===0) return [];
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const base = appointments[0];
+    const everyoneMatches = appointments.every(app => app.serviceName===base.serviceName && app.durationMinutes===base.durationMinutes && app.start===base.start && app.end===base.end && app.therapist===base.therapist && app.location===base.location);
+    const lines = [];
+    if(everyoneMatches){
+      // When every guest shares the same configuration, pluralise the service label
+      // and omit the guest tags so the preview mirrors the shared experience.
+      const serviceTitle = `${formatDurationLabel(base.durationMinutes)} ${pluralizeServiceTitle(base.serviceName)}`;
+      const therapist = spaTherapistLabel(base.therapist);
+      const location = spaLocationLabel(base.location);
+      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}`);
+      return lines;
+    }
+    const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
+    orderedIds.forEach(id => {
+      const app = appointments.find(a=>a.guestId===id);
+      if(!app) return;
+      const guest = guestLookup.get(id);
+      const serviceTitle = `${formatDurationLabel(app.durationMinutes)} ${app.serviceName}`;
+      const therapist = spaTherapistLabel(app.therapist);
+      const location = spaLocationLabel(app.location);
+      const guestLabel = guest ? ` | ${escapeHtml(guest.name)}` : '';
+      lines.push(`${escapeHtml(fmt12(app.start))} – ${escapeHtml(fmt12(app.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
+    });
+    return lines;
   }
 
   // ---------- Preview ----------
@@ -1045,6 +2054,15 @@
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       items.forEach(it=>{
         const isDinner = it.type==='dinner';
+        if(it.type==='spa'){
+          const spaLines = buildSpaPreviewLines(it);
+          spaLines.forEach(line => {
+            daySection.appendChild(
+              makeEl('div','email-activity', line, {html:true})
+            );
+          });
+          return;
+        }
         const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
         if(!isDinner && ids.length===0) return;
         const everyone = isDinner || (ids.length===state.guests.length);
@@ -1259,5 +2277,21 @@
   function formatStayDate(date, includeWeekday=false){
     const base = `${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}, ${date.getFullYear()}`;
     return includeWeekday ? `${weekdayName(date)}, ${base}` : base;
+  }
+
+  if(typeof window !== 'undefined'){
+    window.CHSBuilderDebug = {
+      addGuest,
+      setArrival,
+      setDeparture,
+      openSpaEditor,
+      openDinnerPicker,
+      focusDate(date){
+        if(!(date instanceof Date)) return;
+        state.focus = zero(date);
+        renderAll();
+      },
+      getState(){ return state; }
+    };
   }
 })();
