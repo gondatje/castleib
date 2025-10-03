@@ -20,6 +20,9 @@
   --chip:#eef2ff;
   --chipBorder:#c7d2fe;
   --chipText:#1e1b4b;
+  /* Tight spacing tokens keep navigation affordances tucked in without losing breathing room. */
+  --space-tight-gap:clamp(0.375rem,1vw,0.5rem);
+  --space-tight-boundary:clamp(0.375rem,1.6vw,0.625rem);
   --activity-divider:var(--border-hairline);
   --activity-hover:rgba(42,107,255,0.06);
   --activity-pressed:rgba(42,107,255,0.12);
@@ -50,6 +53,8 @@
     --chip:#1f2937;
     --chipBorder:rgba(148,163,184,0.45);
     --chipText:#e0e7ff;
+    --space-tight-gap:clamp(0.375rem,1vw,0.5rem);
+    --space-tight-boundary:clamp(0.375rem,1.6vw,0.625rem);
     --activity-divider:var(--border-hairline);
     --activity-hover:rgba(255,255,255,0.06);
     --activity-pressed:rgba(255,255,255,0.1);
@@ -82,6 +87,8 @@ body[data-theme='dark']{
   --activity-focus-ring:rgba(148,163,255,0.7);
   --activity-focus-glow:rgba(148,163,255,0.35);
   --border:rgba(148,163,184,0.28);
+  --space-tight-gap:clamp(0.375rem,1vw,0.5rem);
+  --space-tight-boundary:clamp(0.375rem,1.6vw,0.625rem);
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
   --layout-column-min:clamp(16rem,25vw,22rem);
@@ -109,6 +116,8 @@ body[data-theme='light']{
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
   --layout-column-min:clamp(16rem,25vw,22rem);
+  --space-tight-gap:clamp(0.375rem,1vw,0.5rem);
+  --space-tight-boundary:clamp(0.375rem,1.6vw,0.625rem);
 }
 @media (prefers-color-scheme: dark){
   body[data-theme='light']{
@@ -130,6 +139,8 @@ body[data-theme='light']{
     --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
     --activity-focus-ring:rgba(42,107,255,0.55);
     --activity-focus-glow:rgba(42,107,255,0.16);
+    --space-tight-gap:clamp(0.375rem,1vw,0.5rem);
+    --space-tight-boundary:clamp(0.375rem,1.6vw,0.625rem);
   }
 }
 @media (prefers-color-scheme: dark){
@@ -324,14 +335,17 @@ body{
  */
 .day-header{
   display:grid;
-  grid-template-columns:auto minmax(0,1fr) auto;
+  /* Reserve 44px columns so the nav controls remain tappable and visually fixed. */
+  grid-template-columns:minmax(44px,max-content) minmax(0,1fr) minmax(44px,max-content);
   align-items:center;
-  column-gap:clamp(0.5rem,1.5vw,0.75rem);
+  /* Tighten the gaps with the dedicated spacing token to tuck the arrows near the title. */
+  column-gap:var(--space-tight-gap);
   row-gap:8px;
   margin-inline:auto;
   inline-size:100%;
   max-inline-size:min(100%,26rem);
-  padding-inline:clamp(0.5rem,2vw,0.75rem);
+  /* Matching boundary padding keeps the center column protected without drifting off axis. */
+  padding-inline:var(--space-tight-boundary);
 }
 .day-header-details{
   display:flex;
@@ -343,6 +357,7 @@ body{
   justify-self:center;
   justify-content:center;
   text-align:center;
+  max-inline-size:100%;
 }
 /* Pin the navigation buttons to the grid edges so they never drift with title width. */
 #prevDay{justify-self:start}
@@ -354,7 +369,14 @@ body{
   .season-indicator{transition:none;transform:none}
 }
 .season-indicator-pill{display:inline-flex;align-items:center;justify-content:center;padding:0.25rem 0.65rem;border-radius:999px;border:1px solid var(--border-hairline);background:var(--chip);background:color-mix(in srgb,var(--chip) 80%,var(--surface));color:var(--chipText);font-size:0.82rem;line-height:1.1;font-weight:500;min-height:1.5rem}
-.day-header-details #dayTitle{margin:0}
+.day-header-details #dayTitle{
+  margin:0;
+  /* Allow the centered title to truncate before it ever collides with the navigation controls. */
+  max-inline-size:100%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .calendar-header,.card-section-header{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:0 0 12px;padding-bottom:12px;border-bottom:1px solid var(--border-hairline);inline-size:100%}
