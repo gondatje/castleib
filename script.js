@@ -1311,12 +1311,16 @@
     header.appendChild(closeBtn);
     dialog.appendChild(header);
 
+    const body = document.createElement('div');
+    body.className='spa-body';
+    dialog.appendChild(body);
+
     // Compose the SPA flow left-to-right so each decision feeds the next stage:
     // service → duration → start time → therapist → location. Mutating one
     // step immediately cascades the data updates so the preview stays in sync.
     const layout=document.createElement('div');
     layout.className='spa-layout';
-    dialog.appendChild(layout);
+    body.appendChild(layout);
 
     const serviceSection=document.createElement('section');
     serviceSection.className='spa-section spa-section-services';
@@ -1486,7 +1490,7 @@
     guestHelper.className='spa-helper-text';
     guestSection.appendChild(guestHelper);
 
-    dialog.appendChild(guestSection);
+    body.appendChild(guestSection);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
