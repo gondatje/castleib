@@ -316,13 +316,22 @@ body{
  * Activities header uses a dedicated grid so the navigation buttons occupy
  * fixed edge columns while the title sits in an independent center column.
  * This keeps the title mathematically centered regardless of button width.
+ *
+ * The header rails are further constrained with an inline max-size so the
+ * arrows stay visually connected to the title. Padding provides a consistent
+ * buffer that prevents the title from ever colliding with the controls even
+ * as copy length changes.
  */
 .day-header{
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
   align-items:center;
-  column-gap:12px;
+  column-gap:clamp(0.5rem,1.5vw,0.75rem);
   row-gap:8px;
+  margin-inline:auto;
+  inline-size:100%;
+  max-inline-size:min(100%,26rem);
+  padding-inline:clamp(0.5rem,2vw,0.75rem);
 }
 .day-header-details{
   display:flex;
