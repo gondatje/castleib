@@ -527,8 +527,71 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .dinner-remove:focus{outline:2px solid var(--brand);outline-offset:2px;}
 .dinner-lock{overflow:hidden;}
 .spa-icon{display:block;}
-.spa-overlay{position:fixed;inset:0;background:rgba(12,18,32,.46);display:flex;align-items:center;justify-content:center;padding:24px;z-index:2100;}
-.spa-dialog{background:#fff;border-radius:24px;padding:24px;max-width:940px;width:100%;box-shadow:0 26px 54px rgba(12,18,32,.2);border:1px solid rgba(226,232,240,.85);display:flex;flex-direction:column;gap:24px;}
+/*
+ * Modal overlay spacing uses a responsive gutter + safe-area insets so the
+ * dialog always breathes away from the viewport edges (including iOS chrome).
+ */
+.spa-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(12,18,32,.46);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:2100;
+  --spa-viewport-gutter:clamp(24px,5vh,64px);
+  padding-inline:var(--space-edge);
+  padding-inline-start:calc(var(--space-edge) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--space-edge) + env(safe-area-inset-right));
+  padding-block:var(--spa-viewport-gutter);
+  padding-block-start:calc(var(--spa-viewport-gutter) + env(safe-area-inset-top));
+  padding-block-end:calc(var(--spa-viewport-gutter) + env(safe-area-inset-bottom));
+}
+/*
+ * Cap the dialog height with viewport units (dvh/svh fallbacks) so it never
+ * exceeds the available vertical space while keeping header/actions visible.
+ */
+.spa-dialog{
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  max-width:940px;
+  width:100%;
+  box-shadow:0 26px 54px rgba(12,18,32,.2);
+  border:1px solid rgba(226,232,240,.85);
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+  overflow:hidden;
+  max-height:calc(100vh - 2*var(--spa-viewport-gutter));
+}
+@supports (height:100svh){
+  .spa-dialog{
+    max-height:calc(100svh - 2*var(--spa-viewport-gutter));
+  }
+}
+@supports (height:100dvh){
+  .spa-dialog{
+    max-height:calc(100dvh - 2*var(--spa-viewport-gutter));
+  }
+}
+/*
+ * The body section becomes the scrolling container so content scrolls while
+ * header + footer stay anchored; overscroll containment keeps gestures local.
+ */
+.spa-body{
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+  overflow:auto;
+  min-height:0;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.spa-header,
+.spa-actions{
+  flex-shrink:0;
+}
 .spa-header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .spa-title{margin:0;font-size:22px;font-weight:600;letter-spacing:.01em;}
 .spa-close{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:#f1f5f9;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;color:var(--muted);cursor:pointer;}
