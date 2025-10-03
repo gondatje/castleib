@@ -325,6 +325,13 @@ body{
 .day-header-details #dayTitle{margin:0}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.calendar-header{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:0 0 12px}
+.calendar-header h2{margin:0}
+.calendar-header .season-indicator{margin-inline-start:auto}
+@media(max-width:640px){
+  .calendar-header{align-items:flex-start}
+  .calendar-header .season-indicator{margin-inline-start:0}
+}
 button{border:1px solid var(--border);background:#f1f5f9;border-radius:10px;padding:8px 10px;cursor:pointer;touch-action:manipulation}
 button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .lock-icon{width:1em;height:1em;display:block}

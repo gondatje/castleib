@@ -10,7 +10,13 @@
   <div class="app">
     <!-- Calendar -->
     <section class="left card">
-      <h2>Calendar</h2>
+      <div class="calendar-header">
+        <h2>Calendar</h2>
+        <div id="seasonIndicator" class="season-indicator" hidden>
+          <span class="season-indicator-label">Season</span>
+          <span id="seasonValue" class="season-indicator-pill"></span>
+        </div>
+      </div>
       <div id="calendar">
         <div class="toolbar">
           <div class="nav-row">
@@ -58,10 +64,6 @@
           <button id="prevDay" title="Previous Day" aria-label="Previous Day">‹</button>
           <div class="day-header-details">
             <div id="dayTitle" class="muted" aria-live="polite"></div>
-            <div id="seasonIndicator" class="season-indicator" hidden>
-              <span class="season-indicator-label">Season</span>
-              <span id="seasonValue" class="season-indicator-pill"></span>
-            </div>
           </div>
           <button id="nextDay" title="Next Day" aria-label="Next Day">›</button>
         </div>
