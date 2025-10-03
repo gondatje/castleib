@@ -914,7 +914,8 @@
     if(!addSpaBtn) return;
     const enabled = state.dataStatus==='ready' && state.spaCatalog && state.spaCatalog.categories.length>0;
     addSpaBtn.disabled = !enabled;
-    addSpaBtn.setAttribute('aria-pressed','false');
+    const hasEntry = enabled ? getSpaEntries(keyDate(state.focus)).length>0 : false;
+    addSpaBtn.setAttribute('aria-pressed', hasEntry ? 'true' : 'false');
   }
 
   function closeDinnerPicker({returnFocus=false}={}){
@@ -1134,10 +1135,6 @@
     if(assignedIds.length===0){
       assignedIds = orderedGuests();
     }
-    if(assignedIds.length===0){
-      alert('Add at least one guest before booking spa appointments.');
-      return;
-    }
     const assignedSet = new Set(assignedIds);
 
     const defaultService = (()=>{
@@ -1166,6 +1163,7 @@
       };
     };
 
+    const TEMPLATE_ID = '__template__';
     const selections = new Map();
     assignedIds.forEach(id => {
       const existingSelection = existing?.appointments?.find(app => app.guestId===id);
@@ -1192,17 +1190,106 @@
       }
     });
 
+    if(assignedIds.length>0){
+      const baseId = assignedIds[0];
+      const baseSelection = selections.get(baseId) || createSelection(defaultService, { guestId: baseId });
+      selections.set(TEMPLATE_ID, { ...baseSelection, guestId: TEMPLATE_ID });
+    }else{
+      // The template slot retains the in-progress configuration so opening without
+      // guests (or temporarily removing all assignees) keeps the flow populated.
+      selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
+    }
+
     const identical = (()=>{
       const values = Array.from(selections.values());
-      if(values.length<=1) return true;
-      const [first] = values;
-      return values.every(sel => sel.serviceName===first.serviceName && sel.durationMinutes===first.durationMinutes && sel.start===first.start && sel.end===first.end && sel.therapist===first.therapist && sel.location===first.location);
+      if(values.length<=2){
+        // When only the template exists (no guests yet) treat the flow as linked so
+        // the duration/time controls stay in sync once guests are added.
+        return true;
+      }
+      const comparable = values.filter(sel => sel.guestId!==TEMPLATE_ID);
+      if(comparable.length<=1) return true;
+      const [first] = comparable;
+      return comparable.every(sel => sel.serviceName===first.serviceName && sel.durationMinutes===first.durationMinutes && sel.start===first.start && sel.end===first.end && sel.therapist===first.therapist && sel.location===first.location);
     })();
 
     let linkGuests = identical || !existing;
     let activeGuestId = assignedIds[0] || null;
 
     const orderedAssigned = () => state.guests.map(g=>g.id).filter(id => assignedSet.has(id));
+
+    const ensureTemplateSelection = () => {
+      if(!selections.has(TEMPLATE_ID)){
+        selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
+      }
+      return selections.get(TEMPLATE_ID);
+    };
+
+    const syncTemplateFromSourceId = sourceId => {
+      const source = sourceId ? selections.get(sourceId) : null;
+      const base = source ? { ...source, guestId: TEMPLATE_ID } : createSelection(defaultService, { guestId: TEMPLATE_ID });
+      selections.set(TEMPLATE_ID, base);
+      return base;
+    };
+
+    const resolveEditableTargets = () => {
+      const assigned = orderedAssigned();
+      if(assigned.length===0){
+        ensureTemplateSelection();
+        return [TEMPLATE_ID];
+      }
+      if(linkGuests){
+        return assigned;
+      }
+      if(activeGuestId && assignedSet.has(activeGuestId)){
+        return [activeGuestId];
+      }
+      activeGuestId = assigned[0];
+      return [activeGuestId];
+    };
+
+    const getSelectionFor = (id, fallbackService) => {
+      if(id===TEMPLATE_ID){
+        return ensureTemplateSelection();
+      }
+      let selection = selections.get(id);
+      if(!selection){
+        selection = createSelection(fallbackService || defaultService, { guestId: id });
+        selections.set(id, selection);
+      }
+      return selection;
+    };
+
+    const getCanonicalSelection = () => {
+      const assigned = orderedAssigned();
+      if(assigned.length===0){
+        return ensureTemplateSelection();
+      }
+      if(linkGuests){
+        const baseId = assigned[0];
+        return selections.get(baseId) || ensureTemplateSelection();
+      }
+      if(activeGuestId && assignedSet.has(activeGuestId)){
+        return selections.get(activeGuestId) || ensureTemplateSelection();
+      }
+      const fallbackId = assigned[0];
+      activeGuestId = fallbackId;
+      return selections.get(fallbackId) || ensureTemplateSelection();
+    };
+
+    const syncFrom = (sourceId, { includeTemplate=false }={}) => {
+      const base = selections.get(sourceId);
+      if(!base){
+        return;
+      }
+      orderedAssigned().forEach(id => {
+        if(id===sourceId) return;
+        selections.set(id, { ...base, guestId: id });
+      });
+      if(includeTemplate){
+        syncTemplateFromSourceId(sourceId);
+      }
+    };
 
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
@@ -1360,11 +1447,16 @@
     syncCheckbox.addEventListener('change',()=>{
       linkGuests = syncCheckbox.checked;
       if(linkGuests){
-        const id = orderedAssigned()[0];
-        if(id){
-          activeGuestId = id;
-          syncFrom(id);
+        const ids = orderedAssigned();
+        const sourceId = ids[0] || TEMPLATE_ID;
+        if(ids.length){
+          activeGuestId = ids[0];
         }
+        syncFrom(sourceId, { includeTemplate:true });
+      }else{
+        const canonical = getCanonicalSelection();
+        const sourceId = canonical?.guestId && canonical.guestId!==TEMPLATE_ID ? canonical.guestId : TEMPLATE_ID;
+        syncTemplateFromSourceId(sourceId);
       }
       refreshGuestControls();
       refreshAllControls();
@@ -1426,16 +1518,16 @@
       defaultValue: from24Time(getCanonicalSelection()?.start || defaultSpaStartTime),
       ariaLabels:{ hours:'Spa hour', minutes:'Spa minutes', meridiem:'AM or PM' },
       onChange(value){
-        const targetIds = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+        const targets = resolveEditableTargets();
         const nextStart = to24Time(value);
-        targetIds.forEach(id => {
-          const selection = selections.get(id);
-          if(selection){
-            selection.start = nextStart;
-            // Duration drives end time: recompute whenever start shifts so preview stays live.
-            selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
-          }
+        targets.forEach(id => {
+          const selection = getSelectionFor(id);
+          selection.start = nextStart;
+          // Duration drives end time: recompute whenever start shifts so preview stays live.
+          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
         });
+        const sourceId = targets[0] || TEMPLATE_ID;
+        syncTemplateFromSourceId(sourceId);
         refreshEndPreview();
       }
     }) : null;
@@ -1448,24 +1540,9 @@
       timeContainer.appendChild(fallback);
     }
 
-    function getCanonicalSelection(){
-      const ids = orderedAssigned();
-      const id = linkGuests ? ids[0] : activeGuestId;
-      return id ? selections.get(id) : null;
-    }
-
-    function syncFrom(sourceId){
-      const base = selections.get(sourceId);
-      if(!base) return;
-      orderedAssigned().forEach(id => {
-        if(id===sourceId) return;
-        selections.set(id, { ...base, guestId: id });
-      });
-    }
-
     function refreshServiceOptions(){
       const selection = getCanonicalSelection();
-      const activeName = selection?.serviceName || '';
+      const activeName = selection?.serviceName || defaultService?.name || '';
       serviceList.querySelectorAll('.spa-service-option').forEach(btn => {
         const selected = btn.dataset.serviceName===activeName;
         btn.classList.toggle('selected', selected);
@@ -1476,7 +1553,7 @@
     function refreshDurationOptions(){
       durationList.innerHTML='';
       const selection = getCanonicalSelection();
-      const service = findService(selection?.serviceName);
+      const service = findService(selection?.serviceName) || defaultService;
       const durations = service?.durations?.slice() || [];
       durations.forEach(minutes => {
         const btn=document.createElement('button');
@@ -1503,7 +1580,7 @@
 
     function refreshLocationOptions(){
       const selection = getCanonicalSelection();
-      const service = findService(selection?.serviceName);
+      const service = findService(selection?.serviceName) || defaultService;
       const supportsInRoom = service?.supportsInRoom !== false;
       locationList.querySelectorAll('.spa-radio').forEach(btn => {
         const value = btn.dataset.value;
@@ -1530,23 +1607,33 @@
         checkbox.addEventListener('change',()=>{
           if(checkbox.checked){
             assignedSet.add(guest.id);
-            if(!selections.has(guest.id)){
-              const base = getCanonicalSelection() || createSelection(defaultService, { guestId: guest.id });
-              const clone = { ...base, guestId: guest.id };
-              clone.end = addMinutesToTime(clone.start, clone.durationMinutes);
-              selections.set(guest.id, clone);
-            }
+            const canonical = getCanonicalSelection() || ensureTemplateSelection();
+            const clone = { ...canonical, guestId: guest.id };
+            clone.end = addMinutesToTime(clone.start, clone.durationMinutes);
+            selections.set(guest.id, clone);
             if(linkGuests){
-              const id = orderedAssigned()[0];
-              if(id){
-                syncFrom(id);
+              const ids = orderedAssigned();
+              const sourceId = ids[0] || TEMPLATE_ID;
+              if(ids.length){
+                activeGuestId = ids[0];
               }
+              syncFrom(sourceId, { includeTemplate:true });
+            }else{
+              syncTemplateFromSourceId(guest.id);
             }
           }else{
             assignedSet.delete(guest.id);
             selections.delete(guest.id);
             if(activeGuestId===guest.id){
               activeGuestId = orderedAssigned()[0] || null;
+            }
+            if(linkGuests){
+              const ids = orderedAssigned();
+              if(ids.length){
+                syncFrom(ids[0], { includeTemplate:true });
+              }else{
+                syncTemplateFromSourceId(TEMPLATE_ID);
+              }
             }
           }
           refreshGuestControls();
@@ -1572,7 +1659,9 @@
         opt.textContent=guest.name;
         guestSelect.appendChild(opt);
       });
-      if(orderedAssigned().length===0){
+      if(state.guests.length===0){
+        guestHelper.textContent='Add guests to assign this appointment.';
+      }else if(orderedAssigned().length===0){
         guestHelper.textContent='Select at least one guest to continue.';
       }else{
         guestHelper.textContent='';
@@ -1580,7 +1669,7 @@
       if(!orderedAssigned().includes(activeGuestId)){
         activeGuestId = orderedAssigned()[0] || null;
       }
-      guestSelect.disabled = linkGuests;
+      guestSelect.disabled = linkGuests || orderedAssigned().length===0;
       guestSelect.value = activeGuestId || '';
     }
 
@@ -1617,10 +1706,10 @@
     }
 
     function selectService(name){
-      const service = findService(name);
-      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      const service = findService(name) || defaultService;
+      const targets = resolveEditableTargets();
       targets.forEach(id => {
-        const selection = selections.get(id) || createSelection(service, { guestId: id });
+        const selection = getSelectionFor(id, service);
         selection.serviceName = service?.name || name;
         selection.serviceCategory = service?.category || '';
         selection.supportsInRoom = service?.supportsInRoom !== false;
@@ -1633,60 +1722,60 @@
         if(selection.location==='in-room' && selection.supportsInRoom===false){
           selection.location='same-cabana';
         }
-        selections.set(id, selection);
       });
-      if(linkGuests && targets.length){
-        syncFrom(targets[0]);
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
       }
       refreshAllControls();
     }
 
     function selectDuration(minutes){
-      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      const targets = resolveEditableTargets();
       targets.forEach(id => {
-        const selection = selections.get(id);
-        if(!selection) return;
+        const selection = getSelectionFor(id);
         selection.durationMinutes = minutes;
         selection.end = addMinutesToTime(selection.start, minutes);
       });
-      if(linkGuests && targets.length){
-        syncFrom(targets[0]);
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
       }
       refreshAllControls();
     }
 
     function selectTherapist(id){
-      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      const targets = resolveEditableTargets();
       targets.forEach(targetId => {
-        const selection = selections.get(targetId);
-        if(selection){
-          selection.therapist = id;
-        }
+        const selection = getSelectionFor(targetId);
+        selection.therapist = id;
       });
-      if(linkGuests && targets.length){
-        syncFrom(targets[0]);
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
       }
       refreshTherapistOptions();
       updateConfirmState();
     }
 
     function selectLocation(id){
-      const service = findService(getCanonicalSelection()?.serviceName);
+      const canonical = getCanonicalSelection();
+      const canonicalService = canonical ? findService(canonical.serviceName) || defaultService : defaultService;
       // Location gating mirrors the data model: if the current service blocks in-room,
       // surface the helper text and ignore attempts to re-enable the option.
-      if(id==='in-room' && service?.supportsInRoom===false){
+      if(id==='in-room' && canonicalService?.supportsInRoom===false){
         locationHelper.textContent='In-Room service is unavailable for this treatment.';
         return;
       }
-      const targets = linkGuests ? orderedAssigned() : [activeGuestId].filter(Boolean);
+      const targets = resolveEditableTargets();
       targets.forEach(targetId => {
-        const selection = selections.get(targetId);
-        if(selection){
-          selection.location = id;
+        const selection = getSelectionFor(targetId);
+        const service = findService(selection.serviceName) || defaultService;
+        const supportsInRoom = service?.supportsInRoom !== false;
+        if(id==='in-room' && !supportsInRoom){
+          return;
         }
+        selection.location = id;
       });
-      if(linkGuests && targets.length){
-        syncFrom(targets[0]);
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
       }
       refreshLocationOptions();
       updateConfirmState();
