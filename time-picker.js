@@ -15,11 +15,13 @@
     const minIndex = block;
     const maxIndex = block * (REPEAT - 1) - 1;
     const wrapSpan = block * (REPEAT - 2);
-    const SNAP_IDLE_MS = 140;
+    const SNAP_IDLE_MS = 160;
     const SNAP_DURATION_MS = 160;
     const NUDGE_DURATION_MS = 90;
     const MICRO_DELTA_THRESHOLD = 0.4;
     const MAX_WHEEL_ROWS_PER_EVENT = 6;
+    const WHEEL_MODE_SMOOTH = 'smooth';
+    const WHEEL_MODE_DISCRETE = 'discrete';
 
     let optionIndex = baseBlock * block;
     let position = optionIndex;
@@ -249,6 +251,7 @@
     let wheelFrame = null;
     let snapTimer = null;
     let activeGestureId = 0;
+    let activeWheelMode = null;
     let gestureSerial = 0;
     let lastGestureTs = 0;
     let lastScrollDirection = 0;
@@ -289,6 +292,8 @@
       pendingRowDelta = 0;
       microRowDelta = 0;
       rowAccumulator = 0;
+      lineRemainder = 0;
+      activeWheelMode = null;
     };
 
     const wrapPosition = () => {
@@ -327,45 +332,54 @@
         lastScrollDirection = delta > 0 ? 1 : -1;
       }
 
-      // Deterministic quantizer: clamp to a single adjacent step per frame so a
-      // gentle wheel tick can never hop more than ±1 option. Any excess sticks in
-      // `rowAccumulator` and will emit in following frames, preserving the smooth
-      // progression during fast flicks.
-      const step = Math.trunc(rowAccumulator);
-      let moved = false;
-      if(step !== 0){
-        const clamped = step > 0 ? 1 : -1;
-        if(wheelStep(clamped)){
-          rowAccumulator -= clamped;
-          moved = true;
-        }
-      }
+      let shouldContinue = false;
 
-      if(rowAccumulator !== 0){
-        // Keep the visible offset within ±1 row. Any additional whole steps are
-        // re-queued so subsequent animation frames can emit them one-at-a-time
-        // without visually teleporting past intermediate options.
-        const overflow = Math.trunc(rowAccumulator);
-        if(overflow !== 0){
-          pendingRowDelta += overflow;
-          rowAccumulator -= overflow;
+      if(activeWheelMode === WHEEL_MODE_DISCRETE){
+        // Deterministic quantizer: clamp to a single adjacent step per frame so a
+        // gentle wheel tick can never hop more than ±1 option. Any excess sticks in
+        // `rowAccumulator` and will emit in following frames, preserving the smooth
+        // progression during fast flicks.
+        const step = Math.trunc(rowAccumulator);
+        let moved = false;
+        if(step !== 0){
+          const clamped = step > 0 ? 1 : -1;
+          if(wheelStep(clamped)){
+            rowAccumulator -= clamped;
+            moved = true;
+          }
         }
-      }
 
-      if(!moved && delta === 0){
-        // Idle decay keeps the free offset easing toward centre so the snap timer
-        // never fights with live input.
-        rowAccumulator *= ROW_DECAY;
-        if(Math.abs(rowAccumulator) < ROW_EPSILON){
-          rowAccumulator = 0;
+        if(rowAccumulator !== 0){
+          // Keep the visible offset within ±1 row. Any additional whole steps are
+          // re-queued so subsequent animation frames can emit them one-at-a-time
+          // without visually teleporting past intermediate options.
+          const overflow = Math.trunc(rowAccumulator);
+          if(overflow !== 0){
+            pendingRowDelta += overflow;
+            rowAccumulator -= overflow;
+          }
         }
+
+        if(!moved && delta === 0){
+          // Idle decay keeps the free offset easing toward centre so the snap timer
+          // never fights with live input.
+          rowAccumulator *= ROW_DECAY;
+          if(Math.abs(rowAccumulator) < ROW_EPSILON){
+            rowAccumulator = 0;
+          }
+        }
+
+        shouldContinue = pendingRowDelta !== 0 || Math.abs(rowAccumulator) > ROW_EPSILON;
+      }else{
+        shouldContinue = pendingRowDelta !== 0;
       }
 
       position = optionIndex + rowAccumulator;
       wrapPosition();
+      rowAccumulator = position - optionIndex;
       syncPosition();
 
-      if(pendingRowDelta !== 0 || Math.abs(rowAccumulator) > ROW_EPSILON){
+      if(shouldContinue){
         wheelFrame = requestAnimationFrame(runFreeScroll);
       }else{
         wheelFrame = null;
@@ -381,20 +395,42 @@
     const DOM_DELTA_LINE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_LINE : 1;
     const DOM_DELTA_PAGE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_PAGE : 2;
 
-    const normalizeDelta = e => {
-      if(e.deltaMode === DOM_DELTA_LINE){
-        lineRemainder += e.deltaY;
-        const lines = Math.sign(lineRemainder) * Math.min(1, Math.trunc(Math.abs(lineRemainder)));
-        lineRemainder -= lines;
-        return lines * ITEM_HEIGHT;
+    // Input handling strategy: each wheel gesture is classified as either a
+    // smooth pixel stream (trackpads / Magic Mouse) or a discrete stepper
+    // (traditional notched wheels). Smooth gestures accumulate a free offset
+    // that never gets tugged back toward the selected row so the wheel feels
+    // loose while active; discrete gestures stay quantised so every notch lands
+    // exactly one value. The idle snap timer (see `scheduleSnap`) applies to
+    // both modes.
+    const classifyWheelEvent = e => {
+      if(e.deltaMode === DOM_DELTA_LINE || e.deltaMode === DOM_DELTA_PAGE){
+        return WHEEL_MODE_DISCRETE;
       }
-      if(e.deltaMode === DOM_DELTA_PAGE){
-        return e.deltaY * ITEM_HEIGHT * 3;
+      const absY = Math.abs(e.deltaY);
+      if(absY >= ITEM_HEIGHT){
+        return WHEEL_MODE_DISCRETE;
+      }
+      return WHEEL_MODE_SMOOTH;
+    };
+
+    const normalizeDelta = (e, mode) => {
+      if(mode === WHEEL_MODE_DISCRETE){
+        if(e.deltaMode === DOM_DELTA_LINE){
+          lineRemainder += e.deltaY;
+          const lines = Math.sign(lineRemainder) * Math.min(1, Math.trunc(Math.abs(lineRemainder)));
+          lineRemainder -= lines;
+          return lines * ITEM_HEIGHT;
+        }
+        if(e.deltaMode === DOM_DELTA_PAGE){
+          return e.deltaY * ITEM_HEIGHT * 3;
+        }
+      }else{
+        lineRemainder = 0;
       }
       return e.deltaY;
     };
 
-    const pushWheelDelta = delta => {
+    const pushWheelDelta = (delta, _mode) => {
       if(delta === 0) return;
       // Normalise to rows and clamp extreme bursts so the accumulator releases
       // them over successive frames instead of teleporting.
@@ -449,10 +485,11 @@
       });
     };
 
-    // Idle-then-snap: we wait ~140ms after the last gesture delta before
-    // animating back to center. Disabled targets trigger the resist path via
-    // `findNearestValid`/`nudgeAndSettle`, so a blocked minute gently bounces
-    // without teleporting.
+    // Idle-then-snap: we wait ~160ms after the last gesture delta before
+    // animating back to centre. Blocked values are only resolved here — we round
+    // the floating position to the nearest row, then run the Dinner rules via
+    // `findNearestValid`/`nudgeAndSettle` so the bounce happens at snap time and
+    // never interrupts the live gesture.
     const scheduleSnap = () => {
       const settleId = ++pendingSettleId;
       if(snapTimer){
@@ -464,17 +501,20 @@
           return;
         }
         const gestureId = activeGestureId;
-        const value = values[modIndex(optionIndex)];
+        const targetIndex = Math.round(position);
+        const normalizedTarget = normalizeIndex(targetIndex);
+        const value = values[modIndex(normalizedTarget.index)];
+        const directionHint = lastScrollDirection || Math.sign(targetIndex - optionIndex) || 1;
         if(disabledChecker(value)){
-          const fallback = findNearestValid(optionIndex, lastScrollDirection);
+          const fallback = findNearestValid(targetIndex, directionHint);
           if(fallback){
             nudgeAndSettle(fallback.info, fallback.direction, settleId, gestureId);
           }else{
-            bounce(lastScrollDirection || 1);
+            bounce(directionHint);
           }
           return;
         }
-        commitIndex(optionIndex, null, {
+        commitIndex(normalizedTarget.index, normalizedTarget, {
           onFinish: () => {
             if(settleId === pendingSettleId && gestureId === activeGestureId){
               finishGesture();
@@ -486,9 +526,14 @@
 
     viewport.addEventListener('wheel', e => {
       e.preventDefault();
+      const mode = classifyWheelEvent(e);
       if(!requestGesture()) return;
       cancelAnimation();
-      pushWheelDelta(normalizeDelta(e));
+      if(activeWheelMode && activeWheelMode !== mode){
+        stopFreeScroll();
+      }
+      activeWheelMode = mode;
+      pushWheelDelta(normalizeDelta(e, mode), mode);
       scheduleSnap();
     }, { passive: false });
 
@@ -713,7 +758,8 @@
 
     // Derive the first render snapshot (hour/minute/meridiem + disabled minutes)
     // synchronously so we never paint a greyed-out selection before the state is
-    // ready. The fallback minute search also resolves blocked defaults up front.
+    // ready. The fallback minute search also resolves blocked defaults up front,
+    // so opening at 7:00 PM lands perfectly centred with no transient grey :00.
     const initialHour = defaultHour;
     const initialMeridiem = defaultMeridiem;
     let disabledMinutes = computeDisabledMinutes(initialHour, initialMeridiem);

@@ -204,4 +204,104 @@
     grid.appendChild(card);
     rebuild(scenario.defaults[0].value);
   });
+
+  const renderPhysicsShowcase = () => {
+    const card = document.createElement('article');
+    card.className = 'time-picker-demo-card time-picker-demo-card--physics';
+    card.setAttribute('data-scenario', 'physics');
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'Scroll physics QA';
+    card.appendChild(heading);
+
+    const description = document.createElement('p');
+    description.className = 'time-picker-demo-copy';
+    description.textContent = 'Use the left picker with a trackpad or Magic Mouse to feel the loose glide; use the right picker with a traditional wheel to verify one-step ticks. Both enforce the dinner blocking rules.';
+    card.appendChild(description);
+
+    const controls = document.createElement('div');
+    controls.className = 'time-picker-demo-controls';
+    card.appendChild(controls);
+
+    const resetButton = createButton('Reset both to 7:00 PM');
+    controls.appendChild(resetButton);
+
+    const physicsGrid = document.createElement('div');
+    physicsGrid.className = 'time-picker-demo-physics-grid';
+    card.appendChild(physicsGrid);
+
+    const columns = [
+      {
+        id: 'smooth',
+        title: 'Trackpad / Magic Mouse',
+        hint: 'Pixel scrolling stays free until the idle snap kicks in.'
+      },
+      {
+        id: 'discrete',
+        title: 'Traditional wheel',
+        hint: 'Each notch advances exactly one value and then snaps cleanly.'
+      }
+    ];
+
+    const columnState = columns.map(column => {
+      const col = document.createElement('div');
+      col.className = 'time-picker-demo-physics-column';
+
+      const title = document.createElement('h4');
+      title.textContent = column.title;
+      col.appendChild(title);
+
+      const hint = document.createElement('p');
+      hint.className = 'time-picker-demo-physics-hint';
+      hint.textContent = column.hint;
+      col.appendChild(hint);
+
+      const valueLabel = document.createElement('div');
+      valueLabel.className = 'time-picker-demo-value';
+      col.appendChild(valueLabel);
+
+      const host = document.createElement('div');
+      host.className = 'time-picker-demo-host time-picker-demo-host--physics';
+      col.appendChild(host);
+
+      physicsGrid.appendChild(col);
+
+      return { id: column.id, col, valueLabel, host, picker: null };
+    });
+
+    const dinnerConfig = {
+      hourRange: [5, 8],
+      minuteStep: 15,
+      showAmPm: false,
+      fixedMeridiem: 'PM',
+      staticMeridiemLabel: 'pm',
+      isMinuteDisabled: ({ hour, minute }) => (dinnerRules[hour] || new Set()).has(minute),
+      defaultValue: { hour: 7, minute: 0, meridiem: 'PM' }
+    };
+
+    const rebuildColumn = column => {
+      if(column.picker){
+        column.picker.dispose();
+        column.host.innerHTML = '';
+      }
+      const picker = createTimePicker({
+        ...dinnerConfig,
+        onChange(value){
+          column.valueLabel.textContent = `Selected: ${formatValue(value)}`;
+        }
+      });
+      column.host.appendChild(picker.element);
+      column.valueLabel.textContent = `Selected: ${formatValue(picker.getValue())}`;
+      column.picker = picker;
+    };
+
+    resetButton.addEventListener('click', () => {
+      columnState.forEach(rebuildColumn);
+    });
+
+    columnState.forEach(rebuildColumn);
+    grid.appendChild(card);
+  };
+
+  renderPhysicsShowcase();
 })();
