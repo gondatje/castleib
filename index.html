@@ -54,9 +54,15 @@
     <section class="center card">
       <div class="row space-between">
         <h2>Activities</h2>
-        <div class="row">
+        <div class="row day-header">
           <button id="prevDay" title="Previous Day" aria-label="Previous Day">‹</button>
-          <div id="dayTitle" class="muted" aria-live="polite"></div>
+          <div class="day-header-details">
+            <div id="dayTitle" class="muted" aria-live="polite"></div>
+            <div id="seasonIndicator" class="season-indicator" hidden>
+              <span class="season-indicator-label">Season</span>
+              <span id="seasonValue" class="season-indicator-pill"></span>
+            </div>
+          </div>
           <button id="nextDay" title="Next Day" aria-label="Next Day">›</button>
         </div>
       </div>

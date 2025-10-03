@@ -312,6 +312,17 @@ body{
   min-block-size:0;
 }
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.day-header{align-items:flex-start;gap:8px}
+.day-header-details{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;min-width:0}
+.season-indicator{display:inline-flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text-muted);opacity:0;transform:translateY(-2px);transition:opacity 120ms ease,transform 120ms ease}
+.season-indicator[hidden]{display:none}
+.season-indicator[data-visible="true"]{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion: reduce){
+  .season-indicator{transition:none;transform:none}
+}
+.season-indicator-label{font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:600}
+.season-indicator-pill{display:inline-flex;align-items:center;justify-content:center;padding:0.25rem 0.65rem;border-radius:999px;border:1px solid var(--border-hairline);background:var(--chip);background:color-mix(in srgb,var(--chip) 80%,var(--surface));color:var(--chipText);font-size:0.82rem;line-height:1.1;font-weight:500;min-height:1.5rem}
+.day-header-details #dayTitle{margin:0}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 button{border:1px solid var(--border);background:#f1f5f9;border-radius:10px;padding:8px 10px;cursor:pointer;touch-action:manipulation}
