@@ -1456,6 +1456,10 @@
     // explicitly unconfirms them.
     function updateGuestControls(){
       guestList.innerHTML='';
+      const singleGuestRoster = state.guests.length===1;
+      if(singleGuestRoster && state.guests[0]){
+        assignedSet.add(state.guests[0].id);
+      }
       const assigned = orderedAssigned();
       const uniform = inUniformMode();
       const confirmedCount = countConfirmedGuests();
@@ -1466,9 +1470,46 @@
       }).filter(Boolean);
       const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
 
+      guestHeading.textContent = singleGuestRoster ? 'Guest' : 'Guests';
+
+      if(singleGuestRoster){
+        const solo = state.guests[0];
+        if(solo){
+          const wrapper=document.createElement('div');
+          wrapper.className='spa-guest-chip spa-guest-chip-static included';
+          wrapper.dataset.guestId = solo.id;
+          // Single-guest stays render the pill as a static name tag so the
+          // inline experience matches the roster while skipping the confirm
+          // workflow entirely.
+          const pill=document.createElement('span');
+          pill.className='guest-pill spa-guest-pill spa-guest-pill-static';
+          pill.style.setProperty('--pillColor', solo.color);
+          if(solo.primary){
+            const star=document.createElement('span');
+            star.className='star';
+            star.textContent='★';
+            star.setAttribute('aria-hidden','true');
+            pill.appendChild(star);
+          }
+          const labelSpan=document.createElement('span');
+          labelSpan.className='label';
+          labelSpan.textContent=buildGuestLabel(solo);
+          pill.appendChild(labelSpan);
+          wrapper.appendChild(pill);
+          guestList.appendChild(wrapper);
+        }
+        guestHint.hidden=true;
+        guestHint.textContent='';
+        guestHint.classList.remove('spa-helper-error');
+        updateConfirmState();
+        return;
+      }
+
       state.guests.forEach(guest => {
         const included = assignedSet.has(guest.id);
         const confirmed = !!guestConfirmState.get(guest.id);
+        // Mirror the roster chips: reuse the shared guest-pill markup (and
+        // color token) so the modal visuals stay 1:1 with the main rail.
         const wrapper=document.createElement('div');
         wrapper.className='spa-guest-chip';
         wrapper.dataset.guestId = guest.id;
@@ -1524,13 +1565,15 @@
         wrapper.appendChild(pill);
 
         if(included){
+          // The checkmark replaces the hover “X” affordance; it only appears when
+          // the chip is interactive (hover/focus) or once a guest is confirmed.
           const confirmBtn=document.createElement('button');
           confirmBtn.type='button';
           confirmBtn.className='spa-guest-confirm-toggle';
           confirmBtn.dataset.spaNoSubmit='true';
           confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
           confirmBtn.setAttribute('aria-label', confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`);
-          confirmBtn.innerHTML = checkSvg;
+          confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">${confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`}</span>`;
           confirmBtn.addEventListener('click',e=>{
             e.stopPropagation();
             setGuestConfirmed(guest.id, !confirmed);
@@ -2031,7 +2074,12 @@
     const confirmBtn=document.createElement('button');
     confirmBtn.type='button';
     confirmBtn.className='spa-confirm';
-    confirmBtn.textContent = mode==='edit' ? 'Update appointment' : 'Add appointment';
+    const confirmLabel = (mode==='edit' || existing) ? 'Update spa appointment' : 'Add spa appointment';
+    // Match the dinner flow: the visible copy is the plus glyph while screen
+    // readers receive a descriptive label so both dialogs share the same
+    // primary-action affordance.
+    confirmBtn.innerHTML = `<span aria-hidden="true">+</span><span class="sr-only">${confirmLabel}</span>`;
+    confirmBtn.setAttribute('aria-label', confirmLabel);
     actions.appendChild(confirmBtn);
     let removeBtn=null;
     if(mode==='edit' && existing){
@@ -2048,6 +2096,10 @@
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
     document.body.classList.add('spa-lock');
+    // Reset scroll so reopen/edit flows land at the top of the sheet regardless
+    // of the previous scroll position.
+    body.scrollTop = 0;
+    dialog.scrollTop = 0;
 
     const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
     // Replace the AM/PM wheel with a segmented toggle so SPA flows keep the
@@ -2606,48 +2658,53 @@
         return;
       }
       const confirmedCount = countConfirmedGuests();
-      let appointments = [];
-      if(confirmedCount===0){
-        // Uniform mode: apply the active selection snapshot to every included guest
-        // so the downstream preview can collapse them into a combined line.
-        const canonical = getCanonicalSelection() || ensureTemplateSelection();
-        const base = canonical || ensureTemplateSelection();
-        appointments = assigned.map(id => {
-          const snapshot = {
-            ...base,
-            guestId: id
-          };
-          selections.set(id, { ...snapshot });
-          return {
-            guestId: id,
-            serviceName: snapshot.serviceName,
-            serviceCategory: snapshot.serviceCategory,
-            durationMinutes: snapshot.durationMinutes,
-            start: snapshot.start,
-            end: addMinutesToTime(snapshot.start, snapshot.durationMinutes),
-            therapist: snapshot.therapist,
-            location: snapshot.location
-          };
-        });
-        if(assigned.length){
-          syncTemplateFromSourceId(assigned[0]);
-        }
-      }else{
-        appointments = assigned.map(id => {
-          const selection = selections.get(id);
-          return selection ? {
-            guestId: id,
-            serviceName: selection.serviceName,
-            serviceCategory: selection.serviceCategory,
-            durationMinutes: selection.durationMinutes,
-            start: selection.start,
-            end: addMinutesToTime(selection.start, selection.durationMinutes),
-            therapist: selection.therapist,
-            location: selection.location
-          } : null;
-        }).filter(Boolean);
+      const canonical = getCanonicalSelection() || ensureTemplateSelection();
+      // Capture the final snapshot for every guest so we can either apply them
+      // uniformly or split them into individual activities when variations exist.
+      const snapshots = assigned.map(id => {
+        const base = confirmedCount===0 ? canonical : (selections.get(id) || canonical);
+        const startValue = base.start || defaultSpaStartTime;
+        const endValue = addMinutesToTime(startValue, base.durationMinutes);
+        const snapshot = {
+          guestId: id,
+          serviceName: base.serviceName,
+          serviceCategory: base.serviceCategory,
+          durationMinutes: base.durationMinutes,
+          start: startValue,
+          end: endValue,
+          therapist: base.therapist,
+          location: base.location
+        };
+        selections.set(id, { ...base, guestId: id, start: startValue, end: endValue });
+        return snapshot;
+      });
+
+      const allIdentical = snapshots.every(snap => {
+        const ref = snapshots[0];
+        return snap.serviceName===ref.serviceName &&
+          snap.serviceCategory===ref.serviceCategory &&
+          snap.durationMinutes===ref.durationMinutes &&
+          snap.start===ref.start &&
+          snap.end===ref.end &&
+          snap.therapist===ref.therapist &&
+          snap.location===ref.location;
+      });
+
+      if(existing?.id && !allIdentical){
+        removeSpaEntry(targetDateKey, existing.id);
       }
-      upsertSpaEntry(targetDateKey, { id: existing?.id, appointments });
+
+      if(allIdentical){
+        const entryId = existing?.id || null;
+        upsertSpaEntry(targetDateKey, { id: entryId, appointments: snapshots });
+      }else{
+        // Per-guest variations become independent rows so each guest carries their
+        // own chip, edit affordance, and preview line.
+        snapshots.forEach((snapshot, index) => {
+          const entryId = (existing && index===0) ? existing.id : null;
+          upsertSpaEntry(targetDateKey, { id: entryId, appointments: [snapshot] });
+        });
+      }
       markPreviewDirty();
       renderActivities();
       renderPreview();

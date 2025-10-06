@@ -621,18 +621,25 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-guest-card{gap:14px;}
 .spa-guest-list{display:flex;flex-wrap:wrap;gap:12px;}
 .spa-guest-chip{position:relative;display:inline-flex;align-items:center;}
+.spa-guest-chip-static .guest-pill{cursor:default;}
 .spa-guest-chip.needs-confirm .guest-pill{border-color:var(--brand);color:var(--brand);box-shadow:0 6px 14px rgba(42,107,255,.18);}
 .spa-guest-chip.active .guest-pill{border-color:var(--brand);box-shadow:0 0 0 2px var(--activity-focus-glow),0 6px 16px rgba(42,107,255,.16);}
 .spa-guest-chip.confirmed .guest-pill{border-color:color-mix(in srgb,var(--brand) 60%,var(--border));}
-.spa-guest-pill{font-size:14px;font-weight:600;}
+.spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;}
+.spa-guest-pill-static{cursor:default;pointer-events:none;}
 .spa-guest-pill:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
-.spa-guest-confirm-toggle{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease;z-index:1;}
-.spa-guest-confirm-toggle svg{width:14px;height:14px;}
-.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{border-color:var(--brand);color:var(--brand);}
-.spa-guest-chip.confirmed .spa-guest-confirm-toggle{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 6px 14px rgba(42,107,255,.25);}
+.spa-guest-confirm-toggle{width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--muted);display:inline-grid;place-items:center;margin-left:2px;opacity:0;cursor:pointer;transition:opacity .12s ease,background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease;}
+.spa-guest-confirm-toggle svg{width:12px;height:12px;}
+.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{opacity:1;border-color:var(--brand);color:var(--brand);}
+.spa-guest-chip.confirmed .spa-guest-confirm-toggle{opacity:1;background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 6px 14px rgba(42,107,255,.25);}
+.spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}
 .spa-guest-confirm-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
 @media(hover:hover){
+  .spa-guest-chip.included:hover .spa-guest-confirm-toggle{opacity:.9;}
   .spa-guest-confirm-toggle:hover{border-color:var(--brand);color:var(--brand);}
+}
+@media(hover:none){
+  .spa-guest-chip.included .spa-guest-confirm-toggle{opacity:.85;}
 }
 .spa-guest-hint{margin-top:-4px;}
 .spa-helper-error{color:var(--brand);font-weight:600;}
