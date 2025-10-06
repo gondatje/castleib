@@ -60,6 +60,20 @@
   const formatDurationLabel = minutes => `${minutes}-Minute`;
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
+  // Utility focus helper so we can safely focus elements without the browser
+  // restoring a previous scroll position. Safari will throw if it doesn't
+  // support the options bag, so we fall back to a plain focus when needed.
+  const focusWithoutScroll = element => {
+    if(!element || typeof element.focus !== 'function'){
+      return;
+    }
+    try{
+      element.focus({ preventScroll:true });
+    }catch(err){
+      element.focus();
+    }
+  };
+
   // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
   // the UI continues to render individual chips if the helper fails to load in a dev sandbox.
   const fallbackAssignmentChipMode = {
@@ -1238,7 +1252,11 @@
     };
 
     setTimeout(()=>{
-      timePicker?.focus?.();
+      if(timePicker?.focus){
+        // Explicitly focus the picker without scrolling so the sheet stays
+        // anchored at the top when it first opens.
+        timePicker.focus({ preventScroll:true });
+      }
     },0);
   }
 
@@ -2013,10 +2031,15 @@
 
     const detailsSection=document.createElement('section');
     detailsSection.className='spa-section spa-section-details';
+    const detailsGrid=document.createElement('div');
+    // The detail grid squeezes the remaining controls into two columns so the
+    // dialog fits within its fixed height without requiring a vertical scroll.
+    detailsGrid.className='spa-details-grid';
+    detailsSection.appendChild(detailsGrid);
     layout.appendChild(detailsSection);
 
     const durationGroup=document.createElement('div');
-    durationGroup.className='spa-block';
+    durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
     durationGroup.appendChild(durationHeading);
@@ -2025,10 +2048,10 @@
     durationList.setAttribute('role','radiogroup');
     durationList.setAttribute('aria-label','Duration');
     durationGroup.appendChild(durationList);
-    detailsSection.appendChild(durationGroup);
+    detailsGrid.appendChild(durationGroup);
 
     const timeGroup=document.createElement('div');
-    timeGroup.className='spa-block';
+    timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Start Time';
     timeGroup.appendChild(timeHeading);
@@ -2062,7 +2085,7 @@
     let startTimeEditing=false;
 
     const therapistGroup=document.createElement('div');
-    therapistGroup.className='spa-block';
+    therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
     therapistGroup.appendChild(therapistHeading);
@@ -2080,10 +2103,10 @@
       therapistList.appendChild(btn);
     });
     therapistGroup.appendChild(therapistList);
-    detailsSection.appendChild(therapistGroup);
+    detailsGrid.appendChild(therapistGroup);
 
     const locationGroup=document.createElement('div');
-    locationGroup.className='spa-block';
+    locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
     locationGroup.appendChild(locationHeading);
@@ -2104,9 +2127,8 @@
     locationHelper.className='spa-helper-text';
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
-    detailsSection.appendChild(locationGroup);
-
-    detailsSection.appendChild(timeGroup);
+    detailsGrid.appendChild(locationGroup);
+    detailsGrid.appendChild(timeGroup);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
@@ -2201,17 +2223,24 @@
     const columnFocusOrder = [];
     const registerTimeColumn = (element, focus) => {
       if(!element) return -1;
-      columnFocusOrder.push({ element, focus });
+      columnFocusOrder.push({
+        element,
+        focus: () => {
+          if(typeof focus === 'function'){
+            focus();
+          }else{
+            focusWithoutScroll(element);
+          }
+        }
+      });
       return columnFocusOrder.length - 1;
     };
     const focusTimeColumn = index => {
       if(!columnFocusOrder.length) return;
       const normalized = (index + columnFocusOrder.length) % columnFocusOrder.length;
       const entry = columnFocusOrder[normalized];
-      if(entry.focus){
+      if(entry){
         entry.focus();
-      }else{
-        entry.element?.focus();
       }
     };
     let hourColumnIndex = -1;
@@ -2230,18 +2259,18 @@
     if(timePicker?.hourWheel?.element){
       hourColumnIndex = registerTimeColumn(timePicker.hourWheel.element, () => {
         if(typeof timePicker.hourWheel.focus === 'function'){
-          timePicker.hourWheel.focus();
+          timePicker.hourWheel.focus({ preventScroll:true });
         }else{
-          timePicker.hourWheel.element.focus();
+          focusWithoutScroll(timePicker.hourWheel.element);
         }
       });
     }
     if(timePicker?.minuteWheel?.element){
       minuteColumnIndex = registerTimeColumn(timePicker.minuteWheel.element, () => {
         if(typeof timePicker.minuteWheel.focus === 'function'){
-          timePicker.minuteWheel.focus();
+          timePicker.minuteWheel.focus({ preventScroll:true });
         }else{
-          timePicker.minuteWheel.element.focus();
+          focusWithoutScroll(timePicker.minuteWheel.element);
         }
       });
     }
@@ -2266,7 +2295,7 @@
       if(focus){
         const btn = meridiemButtons.get(nextValue.meridiem);
         if(btn){
-          btn.focus();
+          focusWithoutScroll(btn);
         }
       }
     };
@@ -2313,7 +2342,8 @@
       toggle.setAttribute('aria-label','Select AM or PM');
       meridiemColumnIndex = registerTimeColumn(toggle, () => {
         const selected = Array.from(meridiemButtons.values()).find(btn => btn.getAttribute('aria-checked')==='true');
-        (selected || toggle.querySelector('button'))?.focus();
+        const target = selected || toggle.querySelector('button');
+        focusWithoutScroll(target);
       });
       MERIDIEM_VALUES.forEach(value => {
         const radio=document.createElement('button');
