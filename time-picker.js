@@ -937,6 +937,7 @@
       const normalized = normalizeMeridiem(value);
       if(meridiemWheel && typeof meridiemWheel.setValue === 'function'){
         meridiemWheel.setValue(normalized);
+        syncMeridiem(normalized, { emitChange: false });
       }else{
         syncMeridiem(normalized);
       }

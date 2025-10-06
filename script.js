@@ -14,7 +14,13 @@
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-  const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
+  const fmt12 = hm => {
+    let [h, m] = hm.split(':').map(Number);
+    const isAm = h < 12;
+    h = ((h + 11) % 12) + 1;
+    const meridiem = isAm ? 'AM' : 'PM';
+    return `${h}:${pad(m)} ${meridiem}`;
+  };
   const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
   const to24Time = ({ hour, minute, meridiem }) => {
     let h = Number(hour) || 0;
@@ -105,6 +111,7 @@
   const SPA_LOCATION_OPTIONS = [
     { id: 'same-cabana', label: 'Same Cabana' },
     { id: 'separate-cabanas', label: 'Separate Cabanas' },
+    { id: 'couples-massage', label: 'Couple’s Massage' },
     { id: 'in-room', label: 'In-Room' }
   ];
 
@@ -1411,14 +1418,17 @@
 
     const serviceSection=document.createElement('section');
     serviceSection.className='spa-section spa-section-services';
+    const serviceCard=document.createElement('div');
+    serviceCard.className='spa-block spa-service-card';
     const serviceHeading=document.createElement('h3');
     serviceHeading.textContent='Service';
-    serviceSection.appendChild(serviceHeading);
+    serviceCard.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
     serviceList.setAttribute('role','tree');
     serviceList.setAttribute('aria-label','Spa services');
-    serviceSection.appendChild(serviceList);
+    serviceCard.appendChild(serviceList);
+    serviceSection.appendChild(serviceCard);
 
     // Category/subcategory accordions share a single state object so only one path
     // stays open at a time. This keeps the vertical stack compact, aligns the
@@ -1433,6 +1443,7 @@
     const subcategoryRows = new Map();
     const subcategoryPanels = new Map();
     const serviceOptionButtons = new Map();
+    let cascadeUserNavigated = false;
 
     const chevronSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5.22 2.97a.75.75 0 0 0 0 1.06L9.19 8l-3.97 3.97a.75.75 0 1 0 1.06 1.06l4.5-4.5a.75.75 0 0 0 0-1.06l-4.5-4.5a.75.75 0 0 0-1.06 0Z" fill="currentColor"/></svg>';
     const createChevron = () => {
@@ -1490,6 +1501,7 @@
     };
 
     const ensureCascadeForService = serviceName => {
+      if(!cascadeUserNavigated) return;
       const meta = catalog.byName.get(serviceName);
       if(!meta) return;
       cascadeState.expandedCategoryId = meta.displayCategoryId || cascadeState.expandedCategoryId;
@@ -1531,6 +1543,7 @@
       categoryPanels.set(category.id, categoryPanel);
 
       const expandCategory = () => {
+        cascadeUserNavigated = true;
         const isOpen = cascadeState.expandedCategoryId === category.id;
         cascadeState.expandedCategoryId = isOpen ? null : category.id;
         if(isOpen){
@@ -1544,11 +1557,13 @@
         if(e.key==='ArrowRight'){
           e.preventDefault();
           if(cascadeState.expandedCategoryId !== category.id){
+            cascadeUserNavigated = true;
             cascadeState.expandedCategoryId = category.id;
             applyCascadeState();
           }else if(category.subcategories && category.subcategories.length){
             const first = category.subcategories[0];
             if(first){
+              cascadeUserNavigated = true;
               cascadeState.expandedSubcategoryId = first.id;
               applyCascadeState();
               const key = `${category.id}::${first.id}`;
@@ -1559,17 +1574,17 @@
             firstService?.button.focus();
           }
         }
-        if(e.key==='ArrowLeft'){
-          e.preventDefault();
-          if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
-            cascadeState.expandedSubcategoryId = null;
-            applyCascadeState();
-          }else if(cascadeState.expandedCategoryId === category.id){
-            cascadeState.expandedCategoryId = null;
-            cascadeState.expandedSubcategoryId = null;
-            applyCascadeState();
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }else if(cascadeState.expandedCategoryId === category.id){
+              cascadeState.expandedCategoryId = null;
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }
           }
-        }
       });
 
       if(category.subcategories && category.subcategories.length){
@@ -1606,6 +1621,7 @@
           subcategoryPanels.set(subKey, subPanel);
 
           const expandSub = () => {
+            cascadeUserNavigated = true;
             const categoryOpen = cascadeState.expandedCategoryId === category.id;
             const isOpen = categoryOpen && cascadeState.expandedSubcategoryId === subcategory.id;
             cascadeState.expandedCategoryId = category.id;
@@ -1619,6 +1635,7 @@
               e.preventDefault();
               cascadeState.expandedCategoryId = category.id;
               cascadeState.expandedSubcategoryId = subcategory.id;
+              cascadeUserNavigated = true;
               applyCascadeState();
               const firstService = subcategory.services[0];
               if(firstService){
@@ -1645,6 +1662,7 @@
             option.setAttribute('aria-label',`Select service: ${service.name}`);
             option.tabIndex = -1;
             option.addEventListener('click',()=>{
+              cascadeUserNavigated = true;
               selectService(service.name);
             });
             option.addEventListener('keydown', e => {
@@ -1669,6 +1687,7 @@
           option.setAttribute('aria-label',`Select service: ${service.name}`);
           option.tabIndex = -1;
           option.addEventListener('click',()=>{
+            cascadeUserNavigated = true;
             selectService(service.name);
           });
           option.addEventListener('keydown', e => {
@@ -1714,8 +1733,29 @@
     const endPreview=document.createElement('div');
     endPreview.className='spa-end-preview';
     endPreview.setAttribute('aria-live','polite');
+    const startTimeDisplay=document.createElement('button');
+    startTimeDisplay.type='button';
+    startTimeDisplay.className='spa-start-time-display';
+    startTimeDisplay.setAttribute('aria-label','Edit start time manually');
+    const timeSeparator=document.createElement('span');
+    timeSeparator.className='spa-time-separator';
+    timeSeparator.textContent='–';
+    const endTimeValue=document.createElement('span');
+    endTimeValue.className='spa-end-time-value';
+    endPreview.appendChild(startTimeDisplay);
+    endPreview.appendChild(timeSeparator);
+    endPreview.appendChild(endTimeValue);
     timeGroup.appendChild(endPreview);
+    const timeHint=document.createElement('p');
+    timeHint.className='spa-helper-text spa-time-hint';
+    timeHint.id='spa-time-hint';
+    timeHint.hidden=true;
+    startTimeDisplay.setAttribute('aria-describedby', timeHint.id);
+    timeGroup.appendChild(timeHint);
     detailsSection.appendChild(timeGroup);
+
+    let startTimeInput=null;
+    let startTimeEditing=false;
 
     const therapistGroup=document.createElement('div');
     therapistGroup.className='spa-block';
@@ -1761,64 +1801,6 @@
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
     detailsSection.appendChild(locationGroup);
-
-    const guestSection=document.createElement('section');
-    guestSection.className='spa-section spa-section-guests';
-    const guestHeading=document.createElement('h3');
-    guestHeading.textContent='Guests';
-    guestSection.appendChild(guestHeading);
-    const guestList=document.createElement('div');
-    guestList.className='spa-guest-list';
-    guestSection.appendChild(guestList);
-
-    const syncRow=document.createElement('label');
-    syncRow.className='spa-sync-row';
-    const syncCheckbox=document.createElement('input');
-    syncCheckbox.type='checkbox';
-    syncCheckbox.checked = linkGuests;
-    syncCheckbox.addEventListener('change',()=>{
-      linkGuests = syncCheckbox.checked;
-      if(linkGuests){
-        const ids = orderedAssigned();
-        const sourceId = ids[0] || TEMPLATE_ID;
-        if(ids.length){
-          activeGuestId = ids[0];
-        }
-        syncFrom(sourceId, { includeTemplate:true });
-      }else{
-        const canonical = getCanonicalSelection();
-        const sourceId = canonical?.guestId && canonical.guestId!==TEMPLATE_ID ? canonical.guestId : TEMPLATE_ID;
-        syncTemplateFromSourceId(sourceId);
-      }
-      refreshGuestControls();
-      refreshAllControls();
-    });
-    const syncLabel=document.createElement('span');
-    syncLabel.textContent='Keep guests in sync';
-    syncRow.appendChild(syncCheckbox);
-    syncRow.appendChild(syncLabel);
-    guestSection.appendChild(syncRow);
-
-    const guestEditorRow=document.createElement('div');
-    guestEditorRow.className='spa-guest-editor-row';
-    const guestEditorLabel=document.createElement('label');
-    guestEditorLabel.textContent='Editing details for';
-    guestEditorLabel.className='spa-guest-editor-label';
-    const guestSelect=document.createElement('select');
-    guestSelect.className='spa-guest-select';
-    guestSelect.addEventListener('change',()=>{
-      activeGuestId = guestSelect.value || null;
-      refreshAllControls();
-    });
-    guestEditorRow.appendChild(guestEditorLabel);
-    guestEditorRow.appendChild(guestSelect);
-    guestSection.appendChild(guestEditorRow);
-
-    const guestHelper=document.createElement('p');
-    guestHelper.className='spa-helper-text';
-    guestSection.appendChild(guestHelper);
-
-    body.appendChild(guestSection);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
@@ -1870,6 +1852,11 @@
       });
       const sourceId = targets[0] || TEMPLATE_ID;
       syncTemplateFromSourceId(sourceId);
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      if(startTimeEditing && startTimeInput){
+        startTimeInput.removeAttribute('aria-invalid');
+      }
       refreshEndPreview();
       syncMeridiemToggle(value.meridiem);
     };
@@ -1883,7 +1870,9 @@
       onChange: handleTimeChange
     }) : null;
 
-    const handleMeridiemInput = (value, { focus } = {}) => {
+    // Route segmented toggle changes through the picker change handler so the
+    // AM/PM state, wheel physics, and selection model stay perfectly aligned.
+    const handleMeridiemInput = (value, { focus, externalValue } = {}) => {
       if(!timePicker) return;
       const normalized = value === 'PM' ? 'PM' : 'AM';
       if(typeof timePicker.setMeridiem === 'function'){
@@ -1892,15 +1881,22 @@
         timePicker.meridiemWheel?.setValue?.(normalized);
       }
       const snapshot = timePicker.getValue?.();
-      const active = snapshot?.meridiem || normalized;
-      syncMeridiemToggle(active);
+      const nextValue = externalValue ? { ...externalValue, meridiem: normalized } : snapshot ? { ...snapshot, meridiem: normalized } : {
+        hour: timePicker.hourWheel?.value ?? initialTimeValue.hour,
+        minute: timePicker.minuteWheel?.value ?? initialTimeValue.minute,
+        meridiem: normalized
+      };
+      handleTimeChange(nextValue);
       if(focus){
-        const btn = meridiemButtons.get(active);
+        const btn = meridiemButtons.get(nextValue.meridiem);
         if(btn){
           btn.focus();
         }
       }
     };
+
+    startTimeDisplay.textContent='—';
+    timeSeparator.hidden=true;
 
     if(timePicker){
       timeContainer.appendChild(timePicker.element);
@@ -1947,6 +1943,101 @@
       fallback.textContent='Time picker unavailable.';
       timeContainer.appendChild(fallback);
     }
+
+    // Parse freeform times like “7am” or “7 00 am” while rejecting entries that
+    // omit a meridiem. Canonicalised values snap to the 5-minute wheel cadence
+    // so manual edits remain in sync with the kinetic picker.
+    function parseManualTimeInput(raw){
+      if(raw==null) return { error:'missing-meridiem' };
+      const trimmed = String(raw).trim();
+      if(trimmed==='') return { error:'missing-meridiem' };
+      const compact = trimmed.toLowerCase().replace(/\s+/g,'');
+      if(!/(am|pm)$/.test(compact)){
+        return { error:'missing-meridiem' };
+      }
+      const match = compact.match(/^(\d{1,2})(?::?(\d{2}))?(am|pm)$/);
+      if(!match) return { error:'invalid' };
+      const hour = Number(match[1]);
+      const minute = match[2]!==undefined ? Number(match[2]) : 0;
+      if(!Number.isInteger(hour) || hour<1 || hour>12) return { error:'invalid' };
+      if(!Number.isInteger(minute) || minute<0 || minute>59) return { error:'invalid' };
+      if(minute % 5 !== 0) return { error:'invalid' };
+      return { hour, minute, meridiem: match[3].toUpperCase() };
+    }
+
+    function finalizeStartTimeEdit(commit){
+      if(!startTimeEditing) return;
+      const input = startTimeInput;
+      if(!input) return;
+      if(commit){
+        const parsed = parseManualTimeInput(input.value);
+        if(parsed.error){
+          timeHint.textContent = parsed.error==='missing-meridiem' ? 'Include am or pm' : 'Enter a valid time (e.g., 7:00 AM)';
+          timeHint.hidden = false;
+          input.setAttribute('aria-invalid','true');
+          setTimeout(()=>{
+            input.focus({ preventScroll:true });
+            input.select();
+          },0);
+          return;
+        }
+        input.removeAttribute('aria-invalid');
+        timeHint.hidden = true;
+        const canonical = fmt12(to24Time(parsed));
+        startTimeDisplay.textContent = canonical;
+        if(timePicker){
+          timePicker.hourWheel?.setValue?.(parsed.hour);
+          timePicker.minuteWheel?.setValue?.(parsed.minute);
+        }
+        handleMeridiemInput(parsed.meridiem, { externalValue: parsed });
+      }else{
+        timeHint.hidden = true;
+        timeHint.textContent='';
+      }
+      input.replaceWith(startTimeDisplay);
+      startTimeInput = null;
+      startTimeEditing = false;
+      if(!commit){
+        startTimeDisplay.focus({ preventScroll:true });
+      }
+    }
+
+    function openStartTimeEditor(){
+      if(startTimeEditing) return;
+      startTimeEditing = true;
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      const input=document.createElement('input');
+      input.type='text';
+      input.className='spa-start-time-input';
+      input.value = startTimeDisplay.textContent?.trim() || '';
+      input.setAttribute('aria-label','Start time');
+      input.setAttribute('aria-describedby', timeHint.id);
+      input.setAttribute('autocomplete','off');
+      input.setAttribute('autocapitalize','none');
+      input.setAttribute('spellcheck','false');
+      input.setAttribute('inputmode','text');
+      input.placeholder='e.g. 7:00 AM';
+      startTimeDisplay.replaceWith(input);
+      startTimeInput = input;
+      requestAnimationFrame(()=>{
+        input.focus({ preventScroll:true });
+        input.select();
+      });
+      input.addEventListener('blur',()=> finalizeStartTimeEdit(true));
+      input.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){
+          e.preventDefault();
+          finalizeStartTimeEdit(true);
+        }
+        if(e.key==='Escape'){
+          e.preventDefault();
+          finalizeStartTimeEdit(false);
+        }
+      });
+    }
+
+    startTimeDisplay.addEventListener('click', openStartTimeEditor);
 
     function refreshServiceOptions(){
       const selection = getCanonicalSelection();
@@ -2009,83 +2100,6 @@
       }
     }
 
-    function refreshGuestControls(){
-      guestList.innerHTML='';
-      state.guests.forEach(guest => {
-        const row=document.createElement('label');
-        row.className='spa-guest-row';
-        const checkbox=document.createElement('input');
-        checkbox.type='checkbox';
-        checkbox.checked = assignedSet.has(guest.id);
-        checkbox.addEventListener('change',()=>{
-          if(checkbox.checked){
-            assignedSet.add(guest.id);
-            const canonical = getCanonicalSelection() || ensureTemplateSelection();
-            const clone = { ...canonical, guestId: guest.id };
-            clone.end = addMinutesToTime(clone.start, clone.durationMinutes);
-            selections.set(guest.id, clone);
-            if(linkGuests){
-              const ids = orderedAssigned();
-              const sourceId = ids[0] || TEMPLATE_ID;
-              if(ids.length){
-                activeGuestId = ids[0];
-              }
-              syncFrom(sourceId, { includeTemplate:true });
-            }else{
-              syncTemplateFromSourceId(guest.id);
-            }
-          }else{
-            assignedSet.delete(guest.id);
-            selections.delete(guest.id);
-            if(activeGuestId===guest.id){
-              activeGuestId = orderedAssigned()[0] || null;
-            }
-            if(linkGuests){
-              const ids = orderedAssigned();
-              if(ids.length){
-                syncFrom(ids[0], { includeTemplate:true });
-              }else{
-                syncTemplateFromSourceId(TEMPLATE_ID);
-              }
-            }
-          }
-          refreshGuestControls();
-          refreshAllControls();
-        });
-        const swatch=document.createElement('span');
-        swatch.className='spa-guest-swatch';
-        swatch.style.background = guest.color;
-        row.appendChild(checkbox);
-        row.appendChild(swatch);
-        const label=document.createElement('span');
-        label.textContent=guest.name;
-        row.appendChild(label);
-        guestList.appendChild(row);
-      });
-
-      guestSelect.innerHTML='';
-      orderedAssigned().forEach(id => {
-        const guest = state.guests.find(g=>g.id===id);
-        if(!guest) return;
-        const opt=document.createElement('option');
-        opt.value=id;
-        opt.textContent=guest.name;
-        guestSelect.appendChild(opt);
-      });
-      if(state.guests.length===0){
-        guestHelper.textContent='Add guests to assign this appointment.';
-      }else if(orderedAssigned().length===0){
-        guestHelper.textContent='Select at least one guest to continue.';
-      }else{
-        guestHelper.textContent='';
-      }
-      if(!orderedAssigned().includes(activeGuestId)){
-        activeGuestId = orderedAssigned()[0] || null;
-      }
-      guestSelect.disabled = linkGuests || orderedAssigned().length===0;
-      guestSelect.value = activeGuestId || '';
-    }
-
     function refreshTimePickerSelection(){
       const selection = getCanonicalSelection();
       if(!selection || !timePicker) return;
@@ -2103,9 +2117,23 @@
     function refreshEndPreview(){
       const selection = getCanonicalSelection();
       if(selection){
-        endPreview.textContent = `${fmt12(selection.start)} – ${fmt12(selection.end)}`;
+        const startLabel = fmt12(selection.start);
+        const endLabel = fmt12(selection.end);
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = startLabel;
+        }else{
+          startTimeDisplay.textContent = startLabel;
+        }
+        timeSeparator.hidden = false;
+        endTimeValue.textContent = endLabel;
       }else{
-        endPreview.textContent = '';
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = '';
+        }else{
+          startTimeDisplay.textContent = '—';
+        }
+        timeSeparator.hidden = true;
+        endTimeValue.textContent = '';
       }
     }
 
@@ -2199,7 +2227,6 @@
       updateConfirmState();
     }
 
-    refreshGuestControls();
     refreshAllControls();
 
     function confirmSelection(){
@@ -2284,11 +2311,7 @@
     };
 
     setTimeout(()=>{
-      if(linkGuests){
-        timePicker?.focus?.();
-      }else if(guestSelect && !guestSelect.disabled){
-        guestSelect.focus();
-      }
+      timePicker?.focus?.();
     },0);
   }
 
