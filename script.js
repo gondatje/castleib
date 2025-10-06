@@ -88,6 +88,7 @@
   const spaIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="spa-icon"><path fill="currentColor" d="M12 2c-.4 0-.78.2-1 .53C9.5 4.63 6 10.22 6 13.5 6 17.64 8.86 20 12 20s6-2.36 6-6.5c0-3.28-3.5-8.87-5-10.97A1.2 1.2 0 0 0 12 2Zm0 16c-2.37 0-4-1.4-4-4.5 0-1.58 1.57-4.68 4-8.08 2.43 3.4 4 6.5 4 8.08 0 3.1-1.63 4.5-4 4.5Zm-5.5 1a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5Z"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
+  const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
 
   const dinnerMinutes = [0,15,30,45];
   const dinnerHours = [5,6,7,8];
@@ -1230,6 +1231,8 @@
       assignedIds = orderedGuests();
     }
     const assignedSet = new Set(assignedIds);
+    // Guest confirmation state mirrors the pill UX: included guests start pending
+    // until their selections are locked via the checkmark control.
     const guestConfirmState = new Map();
     assignedIds.forEach(id => {
       guestConfirmState.set(id, !!existing);
@@ -1298,23 +1301,19 @@
       selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
     }
 
-    const identical = (()=>{
-      const values = Array.from(selections.values());
-      if(values.length<=2){
-        // When only the template exists (no guests yet) treat the flow as linked so
-        // the duration/time controls stay in sync once guests are added.
-        return true;
-      }
-      const comparable = values.filter(sel => sel.guestId!==TEMPLATE_ID);
-      if(comparable.length<=1) return true;
-      const [first] = comparable;
-      return comparable.every(sel => sel.serviceName===first.serviceName && sel.durationMinutes===first.durationMinutes && sel.start===first.start && sel.end===first.end && sel.therapist===first.therapist && sel.location===first.location);
-    })();
-
-    let linkGuests = identical || !existing;
     let activeGuestId = assignedIds[0] || null;
 
     const orderedAssigned = () => state.guests.map(g=>g.id).filter(id => assignedSet.has(id));
+
+    const countConfirmedGuests = () => orderedAssigned().filter(id => guestConfirmState.get(id)).length;
+
+    const inUniformMode = () => {
+      const assigned = orderedAssigned();
+      if(assigned.length===0){
+        return true;
+      }
+      return countConfirmedGuests() === 0;
+    };
 
     const ensureTemplateSelection = () => {
       if(!selections.has(TEMPLATE_ID)){
@@ -1336,14 +1335,25 @@
         ensureTemplateSelection();
         return [TEMPLATE_ID];
       }
-      if(linkGuests){
+      if(inUniformMode()){
+        activeGuestId = null;
         return assigned;
       }
-      if(activeGuestId && assignedSet.has(activeGuestId)){
-        return [activeGuestId];
+      let target = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+      if(target && guestConfirmState.get(target)){
+        target = null;
       }
-      activeGuestId = assigned[0];
-      return [activeGuestId];
+      if(!target){
+        target = assigned.find(id => !guestConfirmState.get(id)) || null;
+      }
+      if(target){
+        activeGuestId = target;
+        if(guestConfirmState.get(target)){
+          return [];
+        }
+        return [target];
+      }
+      return [];
     };
 
     const getSelectionFor = (id, fallbackService) => {
@@ -1363,30 +1373,19 @@
       if(assigned.length===0){
         return ensureTemplateSelection();
       }
-      if(linkGuests){
+      if(inUniformMode()){
         const baseId = assigned[0];
         return selections.get(baseId) || ensureTemplateSelection();
       }
-      if(activeGuestId && assignedSet.has(activeGuestId)){
-        return selections.get(activeGuestId) || ensureTemplateSelection();
+      let targetId = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+      if(!targetId){
+        targetId = assigned.find(id => !guestConfirmState.get(id)) || assigned[0];
       }
-      const fallbackId = assigned[0];
-      activeGuestId = fallbackId;
-      return selections.get(fallbackId) || ensureTemplateSelection();
-    };
-
-    const syncFrom = (sourceId, { includeTemplate=false }={}) => {
-      const base = selections.get(sourceId);
-      if(!base){
-        return;
+      if(targetId){
+        activeGuestId = targetId;
+        return selections.get(targetId) || ensureTemplateSelection();
       }
-      orderedAssigned().forEach(id => {
-        if(id===sourceId) return;
-        selections.set(id, { ...base, guestId: id });
-      });
-      if(includeTemplate){
-        syncTemplateFromSourceId(sourceId);
-      }
+      return ensureTemplateSelection();
     };
 
     const overlay = document.createElement('div');
@@ -1431,18 +1430,6 @@
     guestList.className='spa-guest-list';
     guestList.setAttribute('role','group');
     guestCard.appendChild(guestList);
-    const guestSyncRow=document.createElement('label');
-    guestSyncRow.className='spa-guest-sync';
-    const linkInput=document.createElement('input');
-    linkInput.type='checkbox';
-    linkInput.className='spa-guest-sync-input';
-    linkInput.dataset.spaNoSubmit='true';
-    const linkLabel=document.createElement('span');
-    linkLabel.className='spa-guest-sync-label';
-    linkLabel.textContent='Keep guests in sync';
-    guestSyncRow.appendChild(linkInput);
-    guestSyncRow.appendChild(linkLabel);
-    guestCard.appendChild(guestSyncRow);
     const guestHint=document.createElement('p');
     guestHint.className='spa-helper-text spa-guest-hint';
     guestHint.id='spa-guest-hint';
@@ -1452,46 +1439,73 @@
     guestSection.appendChild(guestCard);
     layout.appendChild(guestSection);
 
+    const buildGuestLabel = guest => guest.name;
+
+    // Submit remains enabled for the uniform fast-path (no confirmations) and only
+    // re-locks when the user starts confirming individual guests.
     function areGuestsReady(){
       const assigned = orderedAssigned();
       if(assigned.length===0) return false;
-      return assigned.every(id => guestConfirmState.get(id));
+      const confirmedCount = countConfirmedGuests();
+      if(confirmedCount===0) return true;
+      return confirmedCount===assigned.length;
     }
 
-    // Chips mirror the stay roster so guests can be toggled per appointment; each
-    // included guest carries an explicit confirmation state before the flow can
-    // be submitted.
+    // Modal pills reuse the roster styling so guests remain familiar. A guest is
+    // editable until confirmed; once confirmed they are locked until the user
+    // explicitly unconfirms them.
     function updateGuestControls(){
       guestList.innerHTML='';
       const assigned = orderedAssigned();
-      const outstanding=[];
+      const uniform = inUniformMode();
+      const confirmedCount = countConfirmedGuests();
+      const outstandingIds = confirmedCount>0 ? assigned.filter(id => !guestConfirmState.get(id)) : [];
+      const outstandingNames = outstandingIds.map(id => {
+        const entry = state.guests.find(g => g.id===id);
+        return entry ? entry.name : '';
+      }).filter(Boolean);
+      const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+
       state.guests.forEach(guest => {
         const included = assignedSet.has(guest.id);
         const confirmed = !!guestConfirmState.get(guest.id);
-        if(included && !confirmed){
-          outstanding.push(guest.name);
+        const wrapper=document.createElement('div');
+        wrapper.className='spa-guest-chip';
+        wrapper.dataset.guestId = guest.id;
+        if(included) wrapper.classList.add('included');
+        if(included && confirmed) wrapper.classList.add('confirmed');
+        if(included && !confirmed && !uniform) wrapper.classList.add('needs-confirm');
+        if(included && activeId===guest.id){
+          wrapper.classList.add('active');
         }
-        const chip=document.createElement('div');
-        chip.className='spa-guest-chip';
-        chip.dataset.guestId = guest.id;
-        if(included) chip.classList.add('included');
-        if(included && confirmed) chip.classList.add('confirmed');
-        if(included && !confirmed) chip.classList.add('needs-confirm');
-        if(included && !linkGuests && activeGuestId===guest.id){
-          chip.classList.add('active');
-        }
+
         const pill=document.createElement('button');
         pill.type='button';
-        pill.className='spa-guest-pill';
-        pill.textContent=guest.name;
+        pill.className='guest-pill spa-guest-pill';
+        // Reuse the roster palette so the modal pills stay color-synced with the
+        // main guest chips.
+        pill.style.setProperty('--pillColor', guest.color);
         pill.setAttribute('aria-pressed', included ? 'true' : 'false');
+        pill.classList.toggle('active', included);
+        if(guest.primary){
+          const star=document.createElement('span');
+          star.className='star';
+          star.textContent='★';
+          star.setAttribute('aria-hidden','true');
+          pill.appendChild(star);
+        }
+        const labelSpan=document.createElement('span');
+        labelSpan.className='label';
+        labelSpan.textContent=buildGuestLabel(guest);
+        pill.appendChild(labelSpan);
+
         pill.addEventListener('click',()=>{
           if(!included){
             includeGuest(guest.id);
             return;
           }
-          if(linkGuests && assigned.length>1){
-            setLinkGuests(false);
+          if(uniform){
+            return;
           }
           setActiveGuest(guest.id);
         });
@@ -1501,71 +1515,66 @@
             includeGuest(guest.id);
           }
         });
-        chip.appendChild(pill);
         if(included){
-          pill.setAttribute('aria-label',`Edit selections for ${guest.name}`);
-          const removeBtn=document.createElement('button');
-          removeBtn.type='button';
-          removeBtn.className='spa-guest-remove';
-          removeBtn.dataset.spaNoSubmit='true';
-          removeBtn.setAttribute('aria-label',`Remove ${guest.name} from this appointment`);
-          removeBtn.innerHTML='×';
-          removeBtn.addEventListener('click',e=>{
-            e.stopPropagation();
-            removeGuest(guest.id);
-          });
-          chip.appendChild(removeBtn);
+          pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
+        }else{
+          pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
+        }
+
+        wrapper.appendChild(pill);
+
+        if(included){
           const confirmBtn=document.createElement('button');
           confirmBtn.type='button';
-          confirmBtn.className='spa-guest-confirm';
+          confirmBtn.className='spa-guest-confirm-toggle';
           confirmBtn.dataset.spaNoSubmit='true';
           confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
-          confirmBtn.textContent = confirmed ? 'Confirmed' : 'Confirm';
-          confirmBtn.classList.toggle('needs-confirm', !confirmed);
-          confirmBtn.setAttribute('aria-label', confirmed ? `Confirmed for ${guest.name}` : `Confirm ${guest.name}'s spa selections`);
+          confirmBtn.setAttribute('aria-label', confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`);
+          confirmBtn.innerHTML = checkSvg;
           confirmBtn.addEventListener('click',e=>{
             e.stopPropagation();
             setGuestConfirmed(guest.id, !confirmed);
           });
-          chip.appendChild(confirmBtn);
-        }else{
-          pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
+          wrapper.appendChild(confirmBtn);
         }
-        guestList.appendChild(chip);
+
+        guestList.appendChild(wrapper);
       });
-      const assignedCount = assigned.length;
-      linkInput.checked = linkGuests && assignedCount>1;
-      linkInput.disabled = assignedCount<=1;
-      if(linkInput.disabled){
-        linkInput.checked = false;
-      }
-      guestSyncRow.classList.toggle('disabled', linkInput.disabled);
-      if(outstanding.length){
+
+      if(assigned.length===0){
         guestHint.hidden=false;
-        guestHint.textContent=`Confirm selections for: ${outstanding.join(', ')}`;
+        guestHint.textContent='Select at least one guest to add a spa appointment.';
+        guestHint.classList.add('spa-helper-error');
+      }else if(confirmedCount>0 && confirmedCount<assigned.length){
+        guestHint.hidden=false;
+        const namesText = outstandingNames.length ? `Confirm selections for: ${outstandingNames.join(', ')}. ` : '';
+        guestHint.textContent=`${namesText}Confirm all guests or clear confirmations to apply to all.`.trim();
         guestHint.classList.add('spa-helper-error');
       }else{
         guestHint.hidden=true;
         guestHint.textContent='';
         guestHint.classList.remove('spa-helper-error');
       }
+
       updateConfirmState();
     }
 
     function includeGuest(id){
       if(!id || assignedSet.has(id)){
-        if(id && assignedSet.has(id) && !linkGuests){
+        if(id && assignedSet.has(id) && !inUniformMode()){
           setActiveGuest(id);
         }
         return;
       }
       assignedSet.add(id);
       const template = ensureTemplateSelection();
-      selections.set(id, { ...template, guestId: id });
+      const canonical = inUniformMode() ? (getCanonicalSelection() || template) : template;
+      const nextSelection = canonical ? { ...canonical, guestId: id } : { ...template, guestId: id };
+      selections.set(id, nextSelection);
       guestConfirmState.set(id, false);
       assignedIds = orderedAssigned();
-      if(linkGuests){
-        syncFrom(id, { includeTemplate:true });
+      if(inUniformMode()){
+        syncTemplateFromSourceId(id);
       }else{
         activeGuestId = id;
       }
@@ -1580,12 +1589,11 @@
       guestConfirmState.delete(id);
       const assigned = orderedAssigned();
       assignedIds = assigned;
-      if(!linkGuests){
-        if(assigned.length===0){
-          activeGuestId = null;
-        }else if(!assignedSet.has(activeGuestId)){
-          activeGuestId = assigned[0];
-        }
+      if(assigned.length===0){
+        activeGuestId = null;
+      }else if(activeGuestId && !assignedSet.has(activeGuestId)){
+        const fallback = assigned.find(gid => !guestConfirmState.get(gid)) || null;
+        activeGuestId = fallback;
       }
       updateGuestControls();
       refreshAllControls();
@@ -1593,34 +1601,23 @@
 
     function setGuestConfirmed(id, confirmed){
       if(!assignedSet.has(id)) return;
-      guestConfirmState.set(id, !!confirmed);
-      updateGuestControls();
-    }
-
-    function setLinkGuests(enabled){
-      const next = !!enabled;
-      if(next===linkGuests) return;
-      linkGuests = next;
-      const assigned = orderedAssigned();
-      if(linkGuests){
-        if(assigned.length){
-          const baseId = activeGuestId && assignedSet.has(activeGuestId) ? activeGuestId : assigned[0];
-          syncFrom(baseId, { includeTemplate:true });
-        }
-        activeGuestId = null;
-      }else if(assigned.length){
-        activeGuestId = activeGuestId && assignedSet.has(activeGuestId) ? activeGuestId : assigned[0];
+      const next = !!confirmed;
+      guestConfirmState.set(id, next);
+      if(next){
+        const fallback = orderedAssigned().find(gid => !guestConfirmState.get(gid));
+        activeGuestId = fallback || id;
+      }else{
+        activeGuestId = id;
       }
       updateGuestControls();
-      refreshAllControls();
+      updateConfirmState();
     }
 
     function setActiveGuest(id){
       if(!assignedSet.has(id)) return;
-      if(linkGuests && orderedAssigned().length>1){
-        setLinkGuests(false);
-      }
-      if(!linkGuests && activeGuestId===id) return;
+      if(inUniformMode()) return;
+      if(activeGuestId===id) return;
+      if(guestConfirmState.get(id)) return;
       activeGuestId = id;
       updateGuestControls();
       refreshAllControls();
@@ -1641,10 +1638,6 @@
         updateConfirmState();
       }
     }
-
-    linkInput.addEventListener('change',()=>{
-      setLinkGuests(linkInput.checked);
-    });
 
     const serviceSection=document.createElement('section');
     serviceSection.className='spa-section spa-section-services';
@@ -2606,26 +2599,54 @@
     refreshAllControls();
 
     function confirmSelection(){
-      if(orderedAssigned().length===0) return;
+      const assigned = orderedAssigned();
+      if(assigned.length===0) return;
       if(!areGuestsReady()){
         updateGuestControls();
         return;
       }
-      // Persist per-guest appointments so downstream rendering can collapse
-      // identical configurations into a single combined line when possible.
-      const appointments = orderedAssigned().map(id => {
-        const selection = selections.get(id);
-        return selection ? {
-          guestId: id,
-          serviceName: selection.serviceName,
-          serviceCategory: selection.serviceCategory,
-          durationMinutes: selection.durationMinutes,
-          start: selection.start,
-          end: addMinutesToTime(selection.start, selection.durationMinutes),
-          therapist: selection.therapist,
-          location: selection.location
-        } : null;
-      }).filter(Boolean);
+      const confirmedCount = countConfirmedGuests();
+      let appointments = [];
+      if(confirmedCount===0){
+        // Uniform mode: apply the active selection snapshot to every included guest
+        // so the downstream preview can collapse them into a combined line.
+        const canonical = getCanonicalSelection() || ensureTemplateSelection();
+        const base = canonical || ensureTemplateSelection();
+        appointments = assigned.map(id => {
+          const snapshot = {
+            ...base,
+            guestId: id
+          };
+          selections.set(id, { ...snapshot });
+          return {
+            guestId: id,
+            serviceName: snapshot.serviceName,
+            serviceCategory: snapshot.serviceCategory,
+            durationMinutes: snapshot.durationMinutes,
+            start: snapshot.start,
+            end: addMinutesToTime(snapshot.start, snapshot.durationMinutes),
+            therapist: snapshot.therapist,
+            location: snapshot.location
+          };
+        });
+        if(assigned.length){
+          syncTemplateFromSourceId(assigned[0]);
+        }
+      }else{
+        appointments = assigned.map(id => {
+          const selection = selections.get(id);
+          return selection ? {
+            guestId: id,
+            serviceName: selection.serviceName,
+            serviceCategory: selection.serviceCategory,
+            durationMinutes: selection.durationMinutes,
+            start: selection.start,
+            end: addMinutesToTime(selection.start, selection.durationMinutes),
+            therapist: selection.therapist,
+            location: selection.location
+          } : null;
+        }).filter(Boolean);
+      }
       upsertSpaEntry(targetDateKey, { id: existing?.id, appointments });
       markPreviewDirty();
       renderActivities();
