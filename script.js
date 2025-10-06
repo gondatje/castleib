@@ -22,6 +22,14 @@
     return `${h}:${pad(m)} ${meridiem}`;
   };
   const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
+  const minutesFromTime = hm => {
+    if(!hm) return null;
+    const { hour, minute } = parse24Time(hm || '00:00');
+    if(!Number.isFinite(hour) || !Number.isFinite(minute)){
+      return null;
+    }
+    return (hour * 60) + minute;
+  };
   const to24Time = ({ hour, minute, meridiem }) => {
     let h = Number(hour) || 0;
     const m = Number(minute) || 0;
@@ -598,6 +606,8 @@
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
     const spaEntries = getSpaEntries(dateK);
+    const spaOverlapById = computeSpaOverlapMap(spaEntries);
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
     const combined = baseList.map(row=>({kind:'activity', data: row}));
     if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
     // Inject saved SPA blocks alongside activities/dinner so the list remains time-ordered.
@@ -902,10 +912,37 @@
 
       body.appendChild(headline);
 
+      const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+      const firstAppointment = appointments[0] || null;
+      const therapistLabel = spaTherapistLabel(firstAppointment?.therapist);
+      const locationId = firstAppointment?.location || null;
+      const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
+      const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
+      const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
+      const singleAppointment = appointments.length===1;
+      const guestName = singleAppointment ? (guestLookup.get(firstAppointment?.guestId)?.name || '') : '';
+      // Surface therapist preference every time and append cabana/location and
+      // guest details per the established `time | service | therapist | cabana | guest`
+      // format the activities rail uses for spa rows.
+      const metaParts = [therapistLabel || spaTherapistLabel('no-preference')];
+      if(locationLabel){
+        metaParts.push(locationLabel);
+      }
+      if(guestName){
+        metaParts.push(guestName);
+      }
+      const metaRow=document.createElement('div');
+      metaRow.className='spa-meta';
+      const metaContent = metaParts.filter(Boolean).join(' | ');
+      metaRow.textContent = metaContent;
+      if(metaContent){
+        body.appendChild(metaRow);
+      }
+
       const tagWrap=document.createElement('div');
       tagWrap.className='tag-row';
 
-      const assignmentGuests = Array.from(entry.guestIds || []).map(id => state.guests.find(g=>g.id===id)).filter(Boolean);
+      const assignmentGuests = Array.from(entry.guestIds || []).map(id => guestLookup.get(id)).filter(Boolean);
       const plan = getAssignmentChipRenderPlan({ totalGuestsInStay: state.guests.length, assignedGuests: assignmentGuests });
       if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
         const pill = document.createElement('button');
@@ -1557,6 +1594,7 @@
           }
         });
         if(included){
+          wrapper.classList.add('has-confirm');
           pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
         }else{
           pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
@@ -1565,8 +1603,9 @@
         wrapper.appendChild(pill);
 
         if(included){
-          // The checkmark replaces the hover “X” affordance; it only appears when
-          // the chip is interactive (hover/focus) or once a guest is confirmed.
+          // The checkmark replaces the hover “X” affordance from the roster chips;
+          // keeping it inside the pill ensures the modal visuals stay pixel-identical
+          // while still exposing a separate button for confirmation.
           const confirmBtn=document.createElement('button');
           confirmBtn.type='button';
           confirmBtn.className='spa-guest-confirm-toggle';
@@ -2100,6 +2139,14 @@
     // of the previous scroll position.
     body.scrollTop = 0;
     dialog.scrollTop = 0;
+    requestAnimationFrame(()=>{
+      // Running the reset again on the next frame guards against any focus
+      // shifting that might try to restore the previous scroll offset.
+      body.scrollTop = 0;
+      dialog.scrollTop = 0;
+      body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+      dialog.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    });
 
     const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
     // Replace the AM/PM wheel with a segmented toggle so SPA flows keep the
@@ -2913,6 +2960,43 @@
     const trimmed = name.trim();
     return /s$/i.test(trimmed) ? trimmed : `${trimmed}s`;
   };
+
+  function computeSpaOverlapMap(entries){
+    // Detect overlapping appointments per instructions so the activities list can
+    // surface cabana choices whenever two different guests share the same spa
+    // window on a given day.
+    const overlapMap = new Map();
+    const windows = [];
+    (entries || []).forEach(entry => {
+      if(!entry || entry.type!=='spa' || !entry.id) return;
+      overlapMap.set(entry.id, false);
+      const apps = Array.isArray(entry.appointments) ? entry.appointments : [];
+      apps.forEach(app => {
+        if(!app) return;
+        const start = minutesFromTime(app.start);
+        const end = minutesFromTime(app.end);
+        if(start==null || end==null) return;
+        windows.push({
+          entryId: entry.id,
+          guestId: app.guestId || null,
+          start,
+          end
+        });
+      });
+    });
+    for(let i=0;i<windows.length;i+=1){
+      const a = windows[i];
+      for(let j=i+1;j<windows.length;j+=1){
+        const b = windows[j];
+        if(a.guestId && b.guestId && a.guestId===b.guestId) continue;
+        if(a.start < b.end && a.end > b.start){
+          if(overlapMap.has(a.entryId)) overlapMap.set(a.entryId, true);
+          if(overlapMap.has(b.entryId)) overlapMap.set(b.entryId, true);
+        }
+      }
+    }
+    return overlapMap;
+  }
 
   function buildSpaPreviewLines(entry){
     if(!entry || !Array.isArray(entry.appointments)) return [];
