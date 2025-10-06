@@ -111,28 +111,115 @@
   const defaultSpaStartTime = '14:00';
   const generateSpaEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `spa_${Date.now()}_${Math.random().toString(16).slice(2)}`);
 
+  const SPA_CATEGORY_BLUEPRINT = [
+    {
+      id: 'massages',
+      label: 'Massages',
+      match(entry){
+        return entry.category === 'Massages';
+      }
+    },
+    {
+      id: 'treatments',
+      label: 'Treatments',
+      subcategories: [
+        {
+          id: 'treatments-facials',
+          label: 'Facials',
+          match(entry){
+            return entry.category === 'Facials';
+          }
+        },
+        {
+          id: 'treatments-full-body',
+          label: 'Full Body',
+          match(entry){
+            return entry.category === 'Treatments';
+          }
+        }
+      ]
+    },
+    {
+      id: 'therapies',
+      label: 'Therapies',
+      match(entry){
+        return entry.category === 'Therapies';
+      }
+    },
+    {
+      id: 'intentional',
+      label: 'Intentional Wellness Sessions',
+      match(entry){
+        return entry.category === 'Intentional Wellness';
+      }
+    }
+  ];
+
   function buildSpaCatalog(dataset){
     const services = Array.isArray(dataset?.services) ? dataset.services : [];
-    const byCategory = new Map();
+    const entries = [];
     const byName = new Map();
+
     services.forEach(service => {
       const entry = {
         name: service.name,
         category: service.category,
         subcategory: service.subcategory,
         durations: Array.isArray(service.durations) ? service.durations.slice() : Array.isArray(service.durations_minutes) ? service.durations_minutes.slice() : [],
-        supportsInRoom: service.supportsInRoom ?? service.supports_in_room ?? null
+        supportsInRoom: service.supportsInRoom ?? service.supports_in_room ?? null,
+        displayCategoryId: null,
+        displayCategoryLabel: null,
+        displaySubcategoryId: null,
+        displaySubcategoryLabel: null
       };
+      entries.push(entry);
       byName.set(entry.name, entry);
-      if(!byCategory.has(entry.category)){
-        byCategory.set(entry.category, []);
-      }
-      byCategory.get(entry.category).push(entry);
     });
-    const categories = Array.from(byCategory.entries()).map(([category, list]) => ({
-      category,
-      services: list.slice().sort((a,b)=> a.name.localeCompare(b.name))
-    })).sort((a,b)=> a.category.localeCompare(b.category));
+
+    const categories = [];
+    SPA_CATEGORY_BLUEPRINT.forEach(categoryBlueprint => {
+      const category = {
+        id: categoryBlueprint.id,
+        label: categoryBlueprint.label,
+        services: [],
+        subcategories: []
+      };
+
+      if(Array.isArray(categoryBlueprint.subcategories) && categoryBlueprint.subcategories.length){
+        categoryBlueprint.subcategories.forEach(subBlueprint => {
+          const matched = entries.filter(entry => subBlueprint.match(entry));
+          if(matched.length === 0) return;
+          const subcategoryId = subBlueprint.id;
+          const subcategory = {
+            id: subcategoryId,
+            label: subBlueprint.label,
+            services: matched.slice().sort((a,b)=> a.name.localeCompare(b.name))
+          };
+          subcategory.services.forEach(entry => {
+            entry.displayCategoryId = categoryBlueprint.id;
+            entry.displayCategoryLabel = categoryBlueprint.label;
+            entry.displaySubcategoryId = subcategoryId;
+            entry.displaySubcategoryLabel = subBlueprint.label;
+          });
+          category.subcategories.push(subcategory);
+        });
+      }else{
+        const matched = entries.filter(entry => categoryBlueprint.match(entry));
+        if(matched.length === 0) return;
+        category.services = matched.slice().sort((a,b)=> a.name.localeCompare(b.name));
+        category.services.forEach(entry => {
+          entry.displayCategoryId = categoryBlueprint.id;
+          entry.displayCategoryLabel = categoryBlueprint.label;
+          entry.displaySubcategoryId = null;
+          entry.displaySubcategoryLabel = null;
+        });
+      }
+
+      if(category.services.length || category.subcategories.length){
+        categories.push(category);
+      }
+    });
+
     return { categories, byName };
   }
 
@@ -1311,12 +1398,16 @@
     header.appendChild(closeBtn);
     dialog.appendChild(header);
 
+    const body = document.createElement('div');
+    body.className='spa-body';
+    dialog.appendChild(body);
+
     // Compose the SPA flow left-to-right so each decision feeds the next stage:
     // service → duration → start time → therapist → location. Mutating one
     // step immediately cascades the data updates so the preview stays in sync.
     const layout=document.createElement('div');
     layout.className='spa-layout';
-    dialog.appendChild(layout);
+    body.appendChild(layout);
 
     const serviceSection=document.createElement('section');
     serviceSection.className='spa-section spa-section-services';
@@ -1325,33 +1416,274 @@
     serviceSection.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
-    serviceList.setAttribute('role','listbox');
+    serviceList.setAttribute('role','tree');
     serviceList.setAttribute('aria-label','Spa services');
     serviceSection.appendChild(serviceList);
 
-    catalog.categories.forEach(group => {
-      const cat=document.createElement('div');
-      cat.className='spa-service-category';
-      const catTitle=document.createElement('h4');
-      catTitle.textContent=group.category;
-      cat.appendChild(catTitle);
-      const list=document.createElement('div');
-      list.className='spa-service-options';
-      group.services.forEach(service => {
-        const option=document.createElement('button');
-        option.type='button';
-        option.className='spa-service-option';
-        option.dataset.serviceName = service.name;
-        option.setAttribute('role','option');
-        option.textContent = service.name;
-        option.addEventListener('click',()=>{
-          selectService(service.name);
-        });
-        list.appendChild(option);
+    // Category/subcategory accordions share a single state object so only one path
+    // stays open at a time. This keeps the vertical stack compact, aligns the
+    // hairline separators with the Activities column, and lets the scrollable
+    // services pane live entirely inside the modal body.
+    const cascadeState = {
+      expandedCategoryId: null,
+      expandedSubcategoryId: null
+    };
+    const categoryRows = new Map();
+    const categoryPanels = new Map();
+    const subcategoryRows = new Map();
+    const subcategoryPanels = new Map();
+    const serviceOptionButtons = new Map();
+
+    const chevronSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5.22 2.97a.75.75 0 0 0 0 1.06L9.19 8l-3.97 3.97a.75.75 0 1 0 1.06 1.06l4.5-4.5a.75.75 0 0 0 0-1.06l-4.5-4.5a.75.75 0 0 0-1.06 0Z" fill="currentColor"/></svg>';
+    const createChevron = () => {
+      const span=document.createElement('span');
+      span.className='spa-cascade-chevron';
+      span.innerHTML=chevronSvg;
+      span.setAttribute('aria-hidden','true');
+      return span;
+    };
+
+    const setPanelState = (panel, open) => {
+      if(!panel) return;
+      panel.dataset.open = open ? 'true' : 'false';
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    };
+
+    const applyCascadeState = () => {
+      const activeCategoryId = cascadeState.expandedCategoryId;
+      if(activeCategoryId && !categoryRows.has(activeCategoryId)){
+        cascadeState.expandedCategoryId = null;
+      }
+      const activeSubId = cascadeState.expandedSubcategoryId;
+      if(activeSubId && (!cascadeState.expandedCategoryId || !subcategoryPanels.has(`${cascadeState.expandedCategoryId}::${activeSubId}`))){
+        cascadeState.expandedSubcategoryId = null;
+      }
+
+      categoryRows.forEach((row, id) => {
+        const open = cascadeState.expandedCategoryId === id;
+        row.setAttribute('aria-expanded', open ? 'true' : 'false');
+        row.setAttribute('aria-label', `${open ? 'Collapse' : 'Open'} category: ${row.dataset.label}`);
+        row.classList.toggle('open', open);
+        setPanelState(categoryPanels.get(id), open);
+        if(!open && activeSubId && subcategoryPanels.has(`${id}::${activeSubId}`)){
+          cascadeState.expandedSubcategoryId = null;
+        }
       });
-      cat.appendChild(list);
-      serviceList.appendChild(cat);
+      subcategoryRows.forEach((row, key) => {
+        const catId = row.dataset.categoryId;
+        const subId = row.dataset.subcategoryId;
+        const categoryOpen = cascadeState.expandedCategoryId === catId;
+        const open = categoryOpen && cascadeState.expandedSubcategoryId === subId;
+        row.setAttribute('aria-expanded', open ? 'true' : 'false');
+        row.setAttribute('aria-label', `${open ? 'Collapse' : 'Open'} sub-category: ${row.dataset.label}`);
+        row.classList.toggle('open', open);
+        row.tabIndex = categoryOpen ? 0 : -1;
+        setPanelState(subcategoryPanels.get(key), open);
+      });
+      serviceOptionButtons.forEach(meta => {
+        const { button, categoryId, subcategoryId } = meta;
+        const categoryOpen = cascadeState.expandedCategoryId === categoryId;
+        const subOpen = subcategoryId ? cascadeState.expandedSubcategoryId === subcategoryId : true;
+        const visible = categoryOpen && subOpen;
+        button.tabIndex = visible ? 0 : -1;
+      });
+    };
+
+    const ensureCascadeForService = serviceName => {
+      const meta = catalog.byName.get(serviceName);
+      if(!meta) return;
+      cascadeState.expandedCategoryId = meta.displayCategoryId || cascadeState.expandedCategoryId;
+      if(meta.displaySubcategoryId){
+        cascadeState.expandedSubcategoryId = meta.displaySubcategoryId;
+      }else if(cascadeState.expandedCategoryId === meta.displayCategoryId){
+        cascadeState.expandedSubcategoryId = null;
+      }
+    };
+
+    catalog.categories.forEach(category => {
+      const categoryRow=document.createElement('button');
+      categoryRow.type='button';
+      categoryRow.className='spa-cascade-row spa-category-row';
+      categoryRow.dataset.label = category.label;
+      categoryRow.dataset.categoryId = category.id;
+      categoryRow.id = `spa-category-trigger-${category.id}`;
+      categoryRow.setAttribute('aria-expanded','false');
+      categoryRow.setAttribute('aria-controls', `spa-category-panel-${category.id}`);
+      categoryRow.setAttribute('aria-label',`Open category: ${category.label}`);
+      categoryRow.tabIndex = 0;
+      const categoryLabel=document.createElement('span');
+      categoryLabel.className='spa-cascade-label';
+      categoryLabel.textContent=category.label;
+      categoryRow.appendChild(categoryLabel);
+      categoryRow.appendChild(createChevron());
+      serviceList.appendChild(categoryRow);
+      categoryRows.set(category.id, categoryRow);
+
+      const categoryPanel=document.createElement('div');
+      categoryPanel.className='spa-cascade-panel spa-category-panel';
+      categoryPanel.id = `spa-category-panel-${category.id}`;
+      categoryPanel.setAttribute('role','group');
+      categoryPanel.dataset.categoryPanel = category.id;
+      const categoryPanelInner=document.createElement('div');
+      categoryPanelInner.className='spa-cascade-panel-inner';
+      categoryPanel.appendChild(categoryPanelInner);
+      serviceList.appendChild(categoryPanel);
+      categoryPanels.set(category.id, categoryPanel);
+
+      const expandCategory = () => {
+        const isOpen = cascadeState.expandedCategoryId === category.id;
+        cascadeState.expandedCategoryId = isOpen ? null : category.id;
+        if(isOpen){
+          cascadeState.expandedSubcategoryId = null;
+        }
+        applyCascadeState();
+      };
+
+      categoryRow.addEventListener('click', expandCategory);
+      categoryRow.addEventListener('keydown', e => {
+        if(e.key==='ArrowRight'){
+          e.preventDefault();
+          if(cascadeState.expandedCategoryId !== category.id){
+            cascadeState.expandedCategoryId = category.id;
+            applyCascadeState();
+          }else if(category.subcategories && category.subcategories.length){
+            const first = category.subcategories[0];
+            if(first){
+              cascadeState.expandedSubcategoryId = first.id;
+              applyCascadeState();
+              const key = `${category.id}::${first.id}`;
+              subcategoryRows.get(key)?.focus();
+            }
+          }else if(category.services.length){
+            const firstService = serviceOptionButtons.get(category.services[0].name);
+            firstService?.button.focus();
+          }
+        }
+        if(e.key==='ArrowLeft'){
+          e.preventDefault();
+          if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
+            cascadeState.expandedSubcategoryId = null;
+            applyCascadeState();
+          }else if(cascadeState.expandedCategoryId === category.id){
+            cascadeState.expandedCategoryId = null;
+            cascadeState.expandedSubcategoryId = null;
+            applyCascadeState();
+          }
+        }
+      });
+
+      if(category.subcategories && category.subcategories.length){
+        category.subcategories.forEach(subcategory => {
+          const subKey = `${category.id}::${subcategory.id}`;
+          const subRow=document.createElement('button');
+          subRow.type='button';
+          subRow.className='spa-cascade-row spa-subcategory-row';
+          subRow.dataset.categoryId = category.id;
+          subRow.dataset.subcategoryId = subcategory.id;
+          subRow.dataset.label = subcategory.label;
+          subRow.id = `spa-subcategory-trigger-${subcategory.id}`;
+          subRow.setAttribute('aria-expanded','false');
+          subRow.setAttribute('aria-controls',`spa-subcategory-panel-${subcategory.id}`);
+          subRow.setAttribute('aria-label',`Open sub-category: ${subcategory.label}`);
+          subRow.tabIndex = -1;
+          const subLabel=document.createElement('span');
+          subLabel.className='spa-cascade-label';
+          subLabel.textContent=subcategory.label;
+          subRow.appendChild(subLabel);
+          subRow.appendChild(createChevron());
+          categoryPanelInner.appendChild(subRow);
+          subcategoryRows.set(subKey, subRow);
+
+          const subPanel=document.createElement('div');
+          subPanel.className='spa-cascade-panel spa-subcategory-panel';
+          subPanel.id = `spa-subcategory-panel-${subcategory.id}`;
+          subPanel.setAttribute('role','group');
+          subPanel.dataset.subcategoryPanel = subcategory.id;
+          const subPanelInner=document.createElement('div');
+          subPanelInner.className='spa-cascade-panel-inner';
+          subPanel.appendChild(subPanelInner);
+          categoryPanelInner.appendChild(subPanel);
+          subcategoryPanels.set(subKey, subPanel);
+
+          const expandSub = () => {
+            const categoryOpen = cascadeState.expandedCategoryId === category.id;
+            const isOpen = categoryOpen && cascadeState.expandedSubcategoryId === subcategory.id;
+            cascadeState.expandedCategoryId = category.id;
+            cascadeState.expandedSubcategoryId = isOpen ? null : subcategory.id;
+            applyCascadeState();
+          };
+
+          subRow.addEventListener('click', expandSub);
+          subRow.addEventListener('keydown', e => {
+            if(e.key==='ArrowRight'){
+              e.preventDefault();
+              cascadeState.expandedCategoryId = category.id;
+              cascadeState.expandedSubcategoryId = subcategory.id;
+              applyCascadeState();
+              const firstService = subcategory.services[0];
+              if(firstService){
+                serviceOptionButtons.get(firstService.name)?.button.focus();
+              }
+            }
+            if(e.key==='ArrowLeft'){
+              e.preventDefault();
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+              categoryRow.focus();
+            }
+          });
+
+          subcategory.services.forEach(service => {
+            const option=document.createElement('button');
+            option.type='button';
+            option.className='spa-service-button';
+            option.dataset.serviceName = service.name;
+            option.dataset.categoryId = category.id;
+            option.dataset.subcategoryId = subcategory.id;
+            option.textContent=service.name;
+            option.setAttribute('aria-pressed','false');
+            option.setAttribute('aria-label',`Select service: ${service.name}`);
+            option.tabIndex = -1;
+            option.addEventListener('click',()=>{
+              selectService(service.name);
+            });
+            option.addEventListener('keydown', e => {
+              if(e.key==='ArrowLeft'){
+                e.preventDefault();
+                subRow.focus();
+              }
+            });
+            subPanelInner.appendChild(option);
+            serviceOptionButtons.set(service.name, { button: option, categoryId: category.id, subcategoryId: subcategory.id });
+          });
+        });
+      }else{
+        category.services.forEach(service => {
+          const option=document.createElement('button');
+          option.type='button';
+          option.className='spa-service-button';
+          option.dataset.serviceName = service.name;
+          option.dataset.categoryId = category.id;
+          option.textContent=service.name;
+          option.setAttribute('aria-pressed','false');
+          option.setAttribute('aria-label',`Select service: ${service.name}`);
+          option.tabIndex = -1;
+          option.addEventListener('click',()=>{
+            selectService(service.name);
+          });
+          option.addEventListener('keydown', e => {
+            if(e.key==='ArrowLeft'){
+              e.preventDefault();
+              categoryRow.focus();
+            }
+          });
+          categoryPanelInner.appendChild(option);
+          serviceOptionButtons.set(service.name, { button: option, categoryId: category.id, subcategoryId: null });
+        });
+      }
     });
+
+    applyCascadeState();
 
     layout.appendChild(serviceSection);
 
@@ -1486,7 +1818,7 @@
     guestHelper.className='spa-helper-text';
     guestSection.appendChild(guestHelper);
 
-    dialog.appendChild(guestSection);
+    body.appendChild(guestSection);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
@@ -1511,28 +1843,104 @@
     document.body.appendChild(overlay);
     document.body.classList.add('spa-lock');
 
+    const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
+    // Replace the AM/PM wheel with a segmented toggle so SPA flows keep the
+    // shared hour/minute physics while presenting a two-state, radiogroup-driven
+    // control for keyboard and screen reader users.
+    const MERIDIEM_VALUES = ['AM','PM'];
+    const meridiemButtons = new Map();
+    const syncMeridiemToggle = meridiem => {
+      const normalized = meridiem === 'PM' ? 'PM' : 'AM';
+      meridiemButtons.forEach((btn, value) => {
+        const selected = value === normalized;
+        btn.classList.toggle('selected', selected);
+        btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        btn.tabIndex = selected ? 0 : -1;
+      });
+    };
+
+    const handleTimeChange = value => {
+      const targets = resolveEditableTargets();
+      const nextStart = to24Time(value);
+      targets.forEach(id => {
+        const selection = getSelectionFor(id);
+        selection.start = nextStart;
+        // Duration drives end time: recompute whenever start shifts so preview stays live.
+        selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+      });
+      const sourceId = targets[0] || TEMPLATE_ID;
+      syncTemplateFromSourceId(sourceId);
+      refreshEndPreview();
+      syncMeridiemToggle(value.meridiem);
+    };
+
     const timePicker = createTimePicker ? createTimePicker({
       hourRange:[1,12],
       minuteStep:5,
       showAmPm:true,
-      defaultValue: from24Time(getCanonicalSelection()?.start || defaultSpaStartTime),
+      defaultValue: initialTimeValue,
       ariaLabels:{ hours:'Spa hour', minutes:'Spa minutes', meridiem:'AM or PM' },
-      onChange(value){
-        const targets = resolveEditableTargets();
-        const nextStart = to24Time(value);
-        targets.forEach(id => {
-          const selection = getSelectionFor(id);
-          selection.start = nextStart;
-          // Duration drives end time: recompute whenever start shifts so preview stays live.
-          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
-        });
-        const sourceId = targets[0] || TEMPLATE_ID;
-        syncTemplateFromSourceId(sourceId);
-        refreshEndPreview();
-      }
+      onChange: handleTimeChange
     }) : null;
+
+    const handleMeridiemInput = (value, { focus } = {}) => {
+      if(!timePicker) return;
+      const normalized = value === 'PM' ? 'PM' : 'AM';
+      if(typeof timePicker.setMeridiem === 'function'){
+        timePicker.setMeridiem(normalized);
+      }else{
+        timePicker.meridiemWheel?.setValue?.(normalized);
+      }
+      const snapshot = timePicker.getValue?.();
+      const active = snapshot?.meridiem || normalized;
+      syncMeridiemToggle(active);
+      if(focus){
+        const btn = meridiemButtons.get(active);
+        if(btn){
+          btn.focus();
+        }
+      }
+    };
+
     if(timePicker){
       timeContainer.appendChild(timePicker.element);
+      if(timePicker.meridiemWheel?.element){
+        timePicker.meridiemWheel.element.setAttribute('tabindex','-1');
+        const parent = timePicker.meridiemWheel.element.parentElement;
+        if(parent){
+          parent.setAttribute('aria-hidden','true');
+        }
+      }
+      const toggle=document.createElement('div');
+      toggle.className='spa-meridiem-toggle';
+      toggle.setAttribute('role','radiogroup');
+      toggle.setAttribute('aria-label','Select AM or PM');
+      MERIDIEM_VALUES.forEach(value => {
+        const radio=document.createElement('button');
+        radio.type='button';
+        radio.className='spa-meridiem-option';
+        radio.dataset.value = value;
+        radio.setAttribute('role','radio');
+        radio.setAttribute('aria-checked','false');
+        radio.tabIndex = -1;
+        radio.textContent = value;
+        radio.addEventListener('click',()=>{
+          handleMeridiemInput(value);
+        });
+        radio.addEventListener('keydown',e=>{
+          if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
+            e.preventDefault();
+            const direction = e.key==='ArrowLeft' ? -1 : 1;
+            const index = MERIDIEM_VALUES.indexOf(value);
+            const nextIndex = (index + direction + MERIDIEM_VALUES.length) % MERIDIEM_VALUES.length;
+            handleMeridiemInput(MERIDIEM_VALUES[nextIndex], { focus:true });
+          }
+        });
+        toggle.appendChild(radio);
+        meridiemButtons.set(value, radio);
+      });
+      timeContainer.appendChild(toggle);
+      syncMeridiemToggle(initialTimeValue.meridiem);
     }else{
       const fallback=document.createElement('div');
       fallback.className='time-picker-fallback';
@@ -1543,11 +1951,16 @@
     function refreshServiceOptions(){
       const selection = getCanonicalSelection();
       const activeName = selection?.serviceName || defaultService?.name || '';
-      serviceList.querySelectorAll('.spa-service-option').forEach(btn => {
-        const selected = btn.dataset.serviceName===activeName;
-        btn.classList.toggle('selected', selected);
-        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+      if(activeName){
+        ensureCascadeForService(activeName);
+      }
+      serviceOptionButtons.forEach(({ button }, name) => {
+        const selected = name===activeName;
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        button.setAttribute('aria-label', selected ? `Selected service: ${name}` : `Select service: ${name}`);
       });
+      applyCascadeState();
     }
 
     function refreshDurationOptions(){
@@ -1679,7 +2092,12 @@
       const { hour, minute, meridiem } = from24Time(selection.start);
       timePicker.hourWheel?.setValue?.(hour);
       timePicker.minuteWheel?.setValue?.(minute);
-      timePicker.meridiemWheel?.setValue?.(meridiem);
+      if(typeof timePicker.setMeridiem === 'function'){
+        timePicker.setMeridiem(meridiem);
+      }else{
+        timePicker.meridiemWheel?.setValue?.(meridiem);
+      }
+      syncMeridiemToggle(meridiem);
     }
 
     function refreshEndPreview(){

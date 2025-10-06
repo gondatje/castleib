@@ -134,7 +134,7 @@
     api.openSpaEditor({ mode:'edit', dateKey, entryId: entry.id });
     const doc = frame.contentWindow.document;
     await waitForSelector('.spa-overlay');
-    const cbdBtn = doc.querySelector('.spa-service-option[data-service-name="CBD Massage"]');
+    const cbdBtn = doc.querySelector('.spa-service-button[data-service-name="CBD Massage"]');
     cbdBtn?.click();
     await wait(200);
     const helper = doc.querySelector('.spa-helper-text');
