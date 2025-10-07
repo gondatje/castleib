@@ -788,6 +788,27 @@
     let currentMinute = initialMinute;
     let currentMeridiem = initialMeridiem;
 
+    const meridiemButtonMap = new Map();
+    let meridiemGroup = null;
+    const updateMeridiemButtons = () => {
+      if(!meridiemGroup) return;
+      const normalized = currentMeridiem;
+      let activeId = '';
+      meridiemButtonMap.forEach((btn, value) => {
+        const selected = value === normalized;
+        btn.classList.toggle('selected', selected);
+        btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        if(selected){
+          activeId = btn.id || '';
+        }
+      });
+      if(activeId){
+        meridiemGroup.setAttribute('aria-activedescendant', activeId);
+      }else{
+        meridiemGroup.removeAttribute('aria-activedescendant');
+      }
+    };
+
     const minuteDisabledChecker = value => disabledMinutes.has(value);
 
     // Shared markup + tokens ensure each consumer lands on identical visuals.
@@ -797,6 +818,49 @@
     const wheels = document.createElement('div');
     wheels.className = 'time-picker-wheels';
     root.appendChild(wheels);
+
+    // Column registry keeps ArrowLeft/ArrowRight navigation deterministic across
+    // the hour/minute/meridiem surfaces without touching the kinetic wheel
+    // physics that already handle ArrowUp/ArrowDown.
+    const columnFocusEntries = [];
+    const focusElement = (element, options = {}) => {
+      if(!element || typeof element.focus !== 'function'){ return; }
+      try{
+        element.focus({ preventScroll:true, ...options });
+      }catch(err){
+        element.focus();
+      }
+    };
+    const focusColumn = index => {
+      if(!columnFocusEntries.length) return;
+      const normalized = (index % columnFocusEntries.length + columnFocusEntries.length) % columnFocusEntries.length;
+      const entry = columnFocusEntries[normalized];
+      if(entry){ entry.focus(); }
+    };
+    const registerColumn = (element, focusFn) => {
+      if(!element) return -1;
+      const entry = {
+        element,
+        focus: () => {
+          if(typeof focusFn === 'function'){
+            focusFn();
+          }else{
+            focusElement(element);
+          }
+        }
+      };
+      columnFocusEntries.push(entry);
+      const columnIndex = columnFocusEntries.length - 1;
+      element.dataset.timePickerColumnIndex = String(columnIndex);
+      element.addEventListener('keydown', e => {
+        if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+          e.preventDefault();
+          const delta = e.key === 'ArrowLeft' ? -1 : 1;
+          focusColumn(columnIndex + delta);
+        }
+      });
+      return columnIndex;
+    };
 
     // Lock controller keeps a single column active so horizontal drags never move
     // multiple axes at once. Callers can pass their own lock when synchronising
@@ -846,7 +910,9 @@
     });
 
     hourColumn.appendChild(hourWheel.element);
+    registerColumn(hourWheel.element, () => hourWheel.focus({ preventScroll:true }));
     minuteColumn.appendChild(minuteWheel.element);
+    registerColumn(minuteWheel.element, () => minuteWheel.focus({ preventScroll:true }));
 
     let meridiemWheel = null;
     let staticMeridiem = null;
@@ -860,6 +926,7 @@
     const syncMeridiem = (value, { emitChange = true } = {}) => {
       const normalized = normalizeMeridiem(value);
       if(normalized === currentMeridiem){
+        updateMeridiemButtons();
         if(emitChange){
           onChange(getValue());
         }
@@ -878,24 +945,85 @@
       if(emitChange){
         onChange(getValue());
       }
+      updateMeridiemButtons();
       return normalized;
     };
 
     if(showAmPm){
+      // AM/PM renders as a segmented toggle so the column stays in the wheel
+      // stack but ArrowUp/Down/Space emit single, deterministic steps.
       const meridiemColumn = document.createElement('div');
       meridiemColumn.className = 'time-picker-column time-picker-meridiem';
       wheels.appendChild(meridiemColumn);
-      meridiemWheel = createWheel(meridiems, {
-        initial: initialMeridiem,
-        formatValue: formatMeridiem,
-        lockController: lock,
-        lockId: 'meridiem',
-        ariaLabel: ariaLabels.meridiem || 'AM or PM',
-        onChange(value){
+      const group = document.createElement('div');
+      group.className = 'time-picker-meridiem-toggle';
+      group.setAttribute('role','radiogroup');
+      group.setAttribute('aria-label', ariaLabels.meridiem || 'AM or PM');
+      group.tabIndex = 0;
+      meridiemColumn.appendChild(group);
+      meridiemGroup = group;
+      const meridiemIdPrefix = `time-picker-meridiem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const stepMeridiem = direction => {
+        if(!meridiems.length) return;
+        const index = meridiems.indexOf(currentMeridiem);
+        const nextIndex = (index + direction + meridiems.length) % meridiems.length;
+        const nextValue = meridiems[nextIndex];
+        syncMeridiem(nextValue);
+      };
+      const createOption = value => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'time-picker-meridiem-option';
+        button.dataset.value = value;
+        button.textContent = formatMeridiem(value);
+        button.setAttribute('role','radio');
+        button.setAttribute('aria-checked','false');
+        button.tabIndex = -1;
+        const optionId = `${meridiemIdPrefix}-${value.toLowerCase()}`;
+        button.id = optionId;
+        button.addEventListener('click', () => {
+          focusElement(group);
           syncMeridiem(value);
+        });
+        button.addEventListener('keydown', e => {
+          if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+            e.preventDefault();
+            const delta = e.key === 'ArrowUp' ? -1 : 1;
+            stepMeridiem(delta);
+            return;
+          }
+          if(e.key === 'ArrowLeft' || e.key === 'ArrowRight'){
+            e.preventDefault();
+            const columnIndex = Number(group.dataset.timePickerColumnIndex || 0);
+            const delta = e.key === 'ArrowLeft' ? -1 : 1;
+            focusColumn(columnIndex + delta);
+          }
+        });
+        meridiemButtonMap.set(value, button);
+        return button;
+      };
+      meridiems.forEach(value => {
+        group.appendChild(createOption(value));
+      });
+      group.addEventListener('keydown', e => {
+        if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+          e.preventDefault();
+          const delta = e.key === 'ArrowUp' ? -1 : 1;
+          stepMeridiem(delta);
+        }else if(e.key === ' ' || e.key === 'Spacebar' || e.key === 'Enter'){
+          e.preventDefault();
+          stepMeridiem(1);
         }
       });
-      meridiemColumn.appendChild(meridiemWheel.element);
+      registerColumn(group, () => focusElement(group));
+      meridiemWheel = {
+        element: group,
+        focus(options){ focusElement(group, options); },
+        setValue(value){ syncMeridiem(value, { emitChange: false }); },
+        step(direction){ stepMeridiem(direction); },
+        dispose(){ meridiemButtonMap.clear(); }
+      };
+      updateMeridiemButtons();
     }else if(staticMeridiemLabel){
       staticMeridiem = document.createElement('div');
       staticMeridiem.className = 'time-picker-meridiem-static';
