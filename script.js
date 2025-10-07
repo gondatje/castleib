@@ -1452,7 +1452,7 @@
     header.className='spa-header';
     const title=document.createElement('h2');
     title.className='spa-title';
-    title.textContent = mode==='edit' ? 'Edit Spa Appointment' : 'Add Spa Appointment';
+    title.textContent='SPA Appointment';
     const closeBtn=document.createElement('button');
     closeBtn.type='button';
     closeBtn.className='spa-close';
@@ -1475,24 +1475,20 @@
     body.appendChild(layout);
 
     const guestSection=document.createElement('section');
-    guestSection.className='spa-section spa-section-guests';
-    const guestCard=document.createElement('div');
-    guestCard.className='spa-block spa-guest-card';
+    guestSection.className='spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
     const guestHeading=document.createElement('h3');
     guestHeading.textContent='Guests';
-    guestCard.appendChild(guestHeading);
+    guestSection.appendChild(guestHeading);
     const guestList=document.createElement('div');
     guestList.className='spa-guest-list';
     guestList.setAttribute('role','group');
-    guestCard.appendChild(guestList);
+    guestSection.appendChild(guestList);
     const guestHint=document.createElement('p');
     guestHint.className='spa-helper-text spa-guest-hint';
     guestHint.id='spa-guest-hint';
     guestHint.setAttribute('aria-live','polite');
     guestHint.hidden=true;
-    guestCard.appendChild(guestHint);
-    guestSection.appendChild(guestCard);
-    layout.appendChild(guestSection);
+    guestSection.appendChild(guestHint);
 
     const buildGuestLabel = guest => guest.name;
 
@@ -1750,8 +1746,31 @@
     serviceList.className='spa-service-list';
     serviceList.setAttribute('role','tree');
     serviceList.setAttribute('aria-label','Spa services');
-    serviceCard.appendChild(serviceList);
+    const serviceScroll=document.createElement('div');
+    serviceScroll.className='spa-service-scroll';
+    serviceScroll.appendChild(serviceList);
+    serviceCard.appendChild(serviceScroll);
     serviceSection.appendChild(serviceCard);
+
+    // Auto-hide scrollbar: apply a class while the user scrolls or hovers so we
+    // can expose a thin thumb, then clear it after a short idle period.
+    let serviceScrollTimer=null;
+    const queueServiceScrollReset=()=>{
+      if(serviceScrollTimer) clearTimeout(serviceScrollTimer);
+      serviceScrollTimer=setTimeout(()=>{
+        serviceScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const activateServiceScroll=()=>{
+      serviceScroll.classList.add('is-scrolling');
+      queueServiceScrollReset();
+    };
+    serviceScroll.addEventListener('scroll', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('wheel', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('pointermove', activateServiceScroll);
+    serviceScroll.addEventListener('pointerdown', activateServiceScroll);
+    serviceScroll.addEventListener('pointerenter', activateServiceScroll);
+    serviceScroll.addEventListener('pointerleave', queueServiceScrollReset);
 
     // Category/subcategory accordions share a single state object so only one path
     // stays open at a time. This keeps the vertical stack compact, aligns the
@@ -2032,8 +2051,8 @@
     const detailsSection=document.createElement('section');
     detailsSection.className='spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
-    // The detail grid squeezes the remaining controls into two columns so the
-    // dialog fits within its fixed height without requiring a vertical scroll.
+    // 2×4 grid map: col1 rows 1-3 host duration/therapist/location, col2 rows 1-3
+    // hold the start time picker, and row 4 spans both columns for the guests.
     detailsGrid.className='spa-details-grid';
     detailsSection.appendChild(detailsGrid);
     layout.appendChild(detailsSection);
@@ -2129,6 +2148,7 @@
     locationGroup.appendChild(locationHelper);
     detailsGrid.appendChild(locationGroup);
     detailsGrid.appendChild(timeGroup);
+    detailsGrid.appendChild(guestSection);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
@@ -2150,7 +2170,10 @@
       removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove spa appointment</span>`;
       actions.appendChild(removeBtn);
     }
-    dialog.appendChild(actions);
+    // Floating action cluster: the container anchors the + pill to the modal's
+    // bottom-right corner while keeping the optional delete button alongside it,
+    // and the shared aria-label keeps the accessible add/update copy intact.
+    body.appendChild(actions);
 
     const previousFocus=document.activeElement;
 
