@@ -61,7 +61,7 @@
   // inside the fixed grid cell; downstream outputs continue to call the full
   // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
-  const formatDurationButtonLabel = minutes => String(minutes);
+  const formatDurationButtonLabel = minutes => minutes.toString();
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -535,7 +535,8 @@
 
   if(addSpaBtn){
     addSpaBtn.addEventListener('click',()=>{
-      openSpaEditor({ mode:'add', dateKey: keyDate(state.focus) });
+      const activeGuestsSnapshot = state.guests.filter(g=>g.active).map(g=>g.id);
+      openSpaEditor({ mode:'add', dateKey: keyDate(state.focus), guestIds: activeGuestsSnapshot });
     });
   }
 
@@ -623,6 +624,7 @@
     }
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
+    mergeSpaEntriesForDay(dateK);
     const spaEntries = getSpaEntries(dateK);
     const spaOverlapById = computeSpaOverlapMap(spaEntries);
     const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
@@ -937,8 +939,7 @@
       const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
       const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
       const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
-      const singleAppointment = appointments.length===1;
-      const guestName = singleAppointment ? (guestLookup.get(firstAppointment?.guestId)?.name || '') : '';
+      const guestNames = collectSpaGuestNames(entry, { guestLookup });
       // Surface therapist preference every time and append cabana/location and
       // guest details per the established `time | service | therapist | cabana | guest`
       // format the activities rail uses for spa rows.
@@ -946,8 +947,10 @@
       if(locationLabel){
         metaParts.push(locationLabel);
       }
-      if(guestName){
-        metaParts.push(guestName);
+      if(guestNames.length>1){
+        guestNames.forEach(name => metaParts.push(name));
+      }else if(guestNames.length===1){
+        metaParts.push(guestNames[0]);
       }
       const metaRow=document.createElement('div');
       metaRow.className='spa-meta';
@@ -960,62 +963,7 @@
       const tagWrap=document.createElement('div');
       tagWrap.className='tag-row';
 
-      const assignmentGuests = Array.from(entry.guestIds || []).map(id => guestLookup.get(id)).filter(Boolean);
-      const plan = getAssignmentChipRenderPlan({ totalGuestsInStay: state.guests.length, assignedGuests: assignmentGuests });
-      if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
-        const pill = document.createElement('button');
-        pill.type='button';
-        pill.className='tag-everyone';
-        pill.dataset.assignmentPill = plan.type;
-        pill.setAttribute('aria-haspopup','true');
-        pill.setAttribute('aria-expanded','false');
-        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
-        const label=document.createElement('span');
-        label.textContent = plan.pillLabel || '';
-        pill.appendChild(label);
-        const pop=document.createElement('div');
-        pop.className='popover';
-        pop.setAttribute('role','group');
-        pop.setAttribute('aria-label','Guests assigned');
-        plan.guests.forEach(guest => {
-          const chip=document.createElement('span');
-          chip.className='chip';
-          chip.style.borderColor = guest.color;
-          chip.style.color = guest.color;
-          chip.title = guest.name;
-          const initial=document.createElement('span');
-          initial.className='initial';
-          initial.textContent = guest.name.charAt(0).toUpperCase();
-          chip.appendChild(initial);
-          const x=document.createElement('span');
-          x.className='x';
-          x.textContent='×';
-          x.setAttribute('aria-hidden','true');
-          chip.appendChild(x);
-          pop.appendChild(chip);
-        });
-        pill.appendChild(pop);
-        attachGroupPillInteractions(pill);
-        tagWrap.appendChild(pill);
-      }else if(plan.type === AssignmentChipMode.INDIVIDUAL){
-        plan.guests.forEach(guest => {
-          const chip=document.createElement('span');
-          chip.className='chip';
-          chip.style.borderColor = guest.color;
-          chip.style.color = guest.color;
-          chip.title = guest.name;
-          const initial=document.createElement('span');
-          initial.className='initial';
-          initial.textContent = guest.name.charAt(0).toUpperCase();
-          chip.appendChild(initial);
-          const x=document.createElement('span');
-          x.className='x';
-          x.textContent='×';
-          x.setAttribute('aria-hidden','true');
-          chip.appendChild(x);
-          tagWrap.appendChild(chip);
-        });
-      }
+      renderSpaGuestChips(tagWrap, entry, dateK);
 
       const chip=document.createElement('button');
       chip.type='button';
@@ -1033,6 +981,100 @@
       body.appendChild(tagWrap);
       div.appendChild(body);
       activitiesEl.appendChild(div);
+    }
+
+    function renderSpaGuestChips(container, entry, dateK){
+      if(!container || !entry) return;
+      const guestIds = Array.from(entry.guestIds || []);
+      if(guestIds.length===0) return;
+      const idSet = new Set(guestIds);
+      const orderedGuests = [];
+      const seen = new Set();
+      state.guests.forEach(guest => {
+        if(idSet.has(guest.id) && !seen.has(guest.id)){
+          orderedGuests.push(guest);
+          seen.add(guest.id);
+        }
+      });
+      guestIds.forEach(id => {
+        if(!seen.has(id)){
+          const guest = guestLookup.get(id);
+          if(guest){
+            orderedGuests.push(guest);
+            seen.add(id);
+          }
+        }
+      });
+      if(orderedGuests.length===0) return;
+      const plan = getAssignmentChipRenderPlan({
+        totalGuestsInStay: state.guests.length,
+        assignedGuests: orderedGuests
+      });
+      if(plan.type === AssignmentChipMode.NONE || plan.guests.length===0){
+        return;
+      }
+      if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
+        const pill = document.createElement('button');
+        pill.type='button';
+        pill.className='tag-everyone';
+        pill.dataset.assignmentPill = plan.type;
+        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
+        pill.setAttribute('aria-haspopup','true');
+        pill.setAttribute('aria-expanded','false');
+        pill.dataset.pressExempt='true';
+        pill.addEventListener('pointerdown', e=> e.stopPropagation());
+        const label=document.createElement('span');
+        label.textContent = plan.pillLabel || '';
+        pill.appendChild(label);
+        const pop=document.createElement('div');
+        pop.className='popover';
+        pop.setAttribute('role','group');
+        pop.setAttribute('aria-label','Guests assigned');
+        plan.guests.forEach(guest => {
+          pop.appendChild(createSpaAssignmentChip(guest, entry, dateK));
+        });
+        pill.appendChild(pop);
+        attachGroupPillInteractions(pill);
+        container.appendChild(pill);
+        return;
+      }
+      plan.guests.forEach(guest => {
+        container.appendChild(createSpaAssignmentChip(guest, entry, dateK));
+      });
+    }
+
+    function createSpaAssignmentChip(guest, entry, dateK){
+      if(!guest) return document.createElement('span');
+      const chip=document.createElement('span');
+      chip.className='chip';
+      chip.style.borderColor = guest.color;
+      chip.style.color = guest.color;
+      chip.title = guest.name;
+      const initial=document.createElement('span');
+      initial.className='initial';
+      initial.textContent = guest.name.charAt(0).toUpperCase();
+      chip.appendChild(initial);
+      const removeBtn=document.createElement('button');
+      removeBtn.className='x';
+      removeBtn.type='button';
+      removeBtn.dataset.pressExempt='true';
+      removeBtn.setAttribute('aria-label', `Remove ${guest.name}`);
+      removeBtn.title=`Remove ${guest.name}`;
+      removeBtn.textContent='×';
+      removeBtn.addEventListener('pointerdown', e=> e.stopPropagation());
+      removeBtn.addEventListener('click', event => {
+        event.stopPropagation();
+        if(removeSpaGuestFromEntry(dateK, entry?.id, guest.id)){
+          // Inline removal only peels a single guest off the merged row; the
+          // modal exposes a dedicated destructive control when the entire
+          // appointment should be cleared.
+          markPreviewDirty();
+          renderActivities();
+          renderPreview();
+        }
+      });
+      chip.appendChild(removeBtn);
+      return chip;
     }
 
     function summarizeSpaTitle(entry){
@@ -1276,19 +1318,43 @@
     document.body.classList.remove('spa-lock');
   }
 
-  function openSpaEditor({mode='add', dateKey, entryId}={}){
+  function openSpaEditor({mode='add', dateKey, entryId, guestIds}={}){
     if(state.dataStatus!=='ready' || !state.spaCatalog || state.spaCatalog.categories.length===0) return;
     closeSpaEditor();
     const targetDateKey = dateKey || keyDate(state.focus);
     const existing = entryId ? getSpaEntry(targetDateKey, entryId) : null;
     const catalog = state.spaCatalog;
+    const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const normalizeGuestIds = ids => {
+      const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      const requestedSet = new Set(requested);
+      const seen = new Set();
+      const normalized = [];
+      state.guests.forEach(guest => {
+        if(requestedSet.has(guest.id) && !seen.has(guest.id)){
+          seen.add(guest.id);
+          normalized.push(guest.id);
+        }
+      });
+      requested.forEach(id => {
+        if(!seen.has(id) && stayGuestLookup.has(id)){
+          seen.add(id);
+          normalized.push(id);
+        }
+      });
+      return normalized;
+    };
+    const existingGuestIds = existing?.appointments ? existing.appointments.map(app => app.guestId) : [];
+    // Capture the guest roster snapshot when the modal opens so the create flow
+    // mirrors the exact toggle state at click time while edits always surface
+    // every guest already represented on the activities row.
+    const modalGuestIds = existing
+      ? normalizeGuestIds(existingGuestIds)
+      : normalizeGuestIds(Array.isArray(guestIds) ? guestIds : state.guests.filter(g=>g.active).map(g=>g.id));
+    const modalGuestSet = new Set(modalGuestIds);
     const findService = name => catalog.byName.get(name) || (catalog.categories[0]?.services[0] || null);
-
-    const orderedGuests = () => state.guests.map(g=>g.id);
-    let assignedIds = existing ? Array.from(existing.guestIds || []) : state.guests.filter(g=>g.active).map(g=>g.id);
-    if(assignedIds.length===0){
-      assignedIds = orderedGuests();
-    }
+    const orderedGuests = () => modalGuestIds.slice();
+    let assignedIds = modalGuestIds.slice();
     const assignedSet = new Set(assignedIds);
     // Guest confirmation state mirrors the pill UX: included guests start pending
     // until their selections are locked via the checkmark control.
@@ -1362,7 +1428,7 @@
 
     let activeGuestId = assignedIds[0] || null;
 
-    const orderedAssigned = () => state.guests.map(g=>g.id).filter(id => assignedSet.has(id));
+    const orderedAssigned = () => orderedGuests().filter(id => assignedSet.has(id));
 
     const countConfirmedGuests = () => orderedAssigned().filter(id => guestConfirmState.get(id)).length;
 
@@ -1511,7 +1577,10 @@
     // explicitly unconfirms them.
     function updateGuestControls(){
       guestList.innerHTML='';
-      const singleGuestRoster = state.guests.length===1;
+      const visibleIds = orderedGuests();
+      const visibleGuests = visibleIds.map(id => stayGuestLookup.get(id)).filter(Boolean);
+      const singleGuestStay = state.guests.length===1;
+      const singleGuestRoster = singleGuestStay && state.guests[0] && modalGuestSet.has(state.guests[0].id);
       if(singleGuestRoster && state.guests[0]){
         assignedSet.add(state.guests[0].id);
       }
@@ -1520,12 +1589,12 @@
       const confirmedCount = countConfirmedGuests();
       const outstandingIds = confirmedCount>0 ? assigned.filter(id => !guestConfirmState.get(id)) : [];
       const outstandingNames = outstandingIds.map(id => {
-        const entry = state.guests.find(g => g.id===id);
+        const entry = stayGuestLookup.get(id);
         return entry ? entry.name : '';
       }).filter(Boolean);
       const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
 
-      guestHeading.textContent = singleGuestRoster ? 'Guest' : 'Guests';
+      guestHeading.textContent = visibleIds.length===1 ? 'Guest' : 'Guests';
 
       if(singleGuestRoster){
         const solo = state.guests[0];
@@ -1560,7 +1629,15 @@
         return;
       }
 
-      state.guests.forEach(guest => {
+      if(visibleGuests.length===0){
+        guestHint.hidden=false;
+        guestHint.textContent='No guests were selected when the spa modal opened. Close the modal and toggle guest pills on to add them.';
+        guestHint.classList.add('spa-helper-error');
+        updateConfirmState();
+        return;
+      }
+
+      visibleGuests.forEach(guest => {
         const included = assignedSet.has(guest.id);
         const confirmed = !!guestConfirmState.get(guest.id);
         // Mirror the roster chips: reuse the shared guest-pill markup (and
@@ -1660,7 +1737,10 @@
     }
 
     function includeGuest(id){
-      if(!id || assignedSet.has(id)){
+      if(!id || !modalGuestSet.has(id)){
+        return;
+      }
+      if(assignedSet.has(id)){
         if(id && assignedSet.has(id) && !inUniformMode()){
           setActiveGuest(id);
         }
@@ -2184,6 +2264,8 @@
     actions.appendChild(confirmBtn);
     let removeBtn=null;
     if(mode==='edit' && existing){
+      // Editing exposes a destructive control that clears the entire merged
+      // appointment; inline chips remain responsible for single-guest removals.
       removeBtn=document.createElement('button');
       removeBtn.type='button';
       removeBtn.className='spa-remove';
@@ -2947,6 +3029,7 @@
           day.splice(i,1);
         }
       }
+      mergeSpaEntriesForDay(key);
       if(day.length===0){
         purgeKeys.push(key);
       }
@@ -2997,6 +3080,68 @@
     entry.end = maxEnd;
   }
 
+  const spaAppointmentKey = app => {
+    if(!app) return null;
+    const safe = value => value ?? '';
+    return [
+      safe(app.serviceName),
+      safe(app.serviceCategory),
+      safe(app.durationMinutes),
+      safe(app.start),
+      safe(app.end),
+      safe(app.therapist),
+      safe(app.location)
+    ].join('|');
+  };
+
+  function mergeSpaEntriesForDay(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const spaEntries = day.filter(entry => entry.type==='spa');
+    if(spaEntries.length < 2) return;
+
+    const primaryByKey = new Map();
+    const removals = new Set();
+
+    spaEntries.forEach(entry => {
+      if(!entry.appointments) entry.appointments = [];
+      entry.appointments = entry.appointments.filter(app => app && app.guestId);
+    });
+
+    spaEntries.forEach(entry => {
+      if(removals.has(entry)) return;
+      if(entry.appointments.length===0) return;
+      const keys = entry.appointments.map(spaAppointmentKey).filter(Boolean);
+      if(keys.length===0) return;
+      const canonical = keys[0];
+      const uniform = keys.every(key => key===canonical);
+      if(!uniform){
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      if(!primaryByKey.has(canonical)){
+        primaryByKey.set(canonical, entry);
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      const primary = primaryByKey.get(canonical);
+      const existingIds = new Set(Array.from(primary.guestIds || []));
+      entry.appointments.forEach(app => {
+        if(!app || !app.guestId) return;
+        if(existingIds.has(app.guestId)) return;
+        primary.appointments.push({ ...app });
+        existingIds.add(app.guestId);
+      });
+      recomputeSpaEntrySummary(primary);
+      removals.add(entry);
+    });
+
+    if(removals.size>0){
+      state.schedule[dateK] = day.filter(entry => !removals.has(entry));
+      sortDayEntries(dateK);
+    }
+  }
+
   function getSpaEntries(dateK){
     const day = state.schedule[dateK];
     if(!day) return [];
@@ -3020,6 +3165,7 @@
     target.appointments = entry.appointments.map(app => ({ ...app }));
     recomputeSpaEntrySummary(target);
     sortDayEntries(dateK);
+    mergeSpaEntriesForDay(dateK);
     return target;
   }
 
@@ -3031,6 +3177,25 @@
       day.splice(idx,1);
       if(day.length===0) delete state.schedule[dateK];
     }
+  }
+
+  function removeSpaGuestFromEntry(dateK, entryId, guestId){
+    if(!dateK || !entryId || !guestId) return false;
+    const entry = getSpaEntry(dateK, entryId);
+    if(!entry) return false;
+    const before = Array.isArray(entry.appointments) ? entry.appointments.length : 0;
+    entry.appointments = (Array.isArray(entry.appointments) ? entry.appointments : []).filter(app => app && app.guestId !== guestId);
+    if(entry.appointments.length === before){
+      return false;
+    }
+    if(entry.appointments.length === 0){
+      removeSpaEntry(dateK, entryId);
+    }else{
+      recomputeSpaEntrySummary(entry);
+    }
+    mergeSpaEntriesForDay(dateK);
+    sortDayEntries(dateK);
+    return true;
   }
 
   const spaTherapistLabel = id => (SPA_THERAPIST_OPTIONS.find(opt => opt.id===id)?.label) || 'No Preference';
@@ -3078,6 +3243,49 @@
     return overlapMap;
   }
 
+  function collectSpaGuestNames(entry, options){
+    if(!entry) return [];
+    const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+    if(appointments.length===0) return [];
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const names = [];
+    const seen = new Set();
+    appointments.forEach(app => {
+      if(!app || !app.guestId) return;
+      const guest = lookup.get(app.guestId);
+      const raw = (guest?.name || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      names.push(raw);
+    });
+    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+    return names;
+  }
+
+  function buildGuestNameListFromIds(ids, options){
+    if(!Array.isArray(ids) || ids.length===0) return [];
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const names = [];
+    const seen = new Set();
+    ids.forEach(id => {
+      const guest = lookup.get(id);
+      const raw = (guest?.name || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      names.push(raw);
+    });
+    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+    return names;
+  }
+
   function buildSpaPreviewLines(entry){
     if(!entry || !Array.isArray(entry.appointments)) return [];
     const appointments = entry.appointments.slice();
@@ -3088,11 +3296,14 @@
     const lines = [];
     if(everyoneMatches){
       // When every guest shares the same configuration, pluralise the service label
-      // and omit the guest tags so the preview mirrors the shared experience.
+      // and append the same guest label string the activities row surfaces so the
+      // preview mirrors the shared experience copy.
       const serviceTitle = `${formatDurationLabel(base.durationMinutes)} ${pluralizeServiceTitle(base.serviceName)}`;
       const therapist = spaTherapistLabel(base.therapist);
       const location = spaLocationLabel(base.location);
-      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}`);
+      const guestNames = collectSpaGuestNames(entry, { guestLookup });
+      const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
+      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
       return lines;
     }
     const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
@@ -3133,6 +3344,7 @@
       return;
     }
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
 
     const makeEl = (tag, className, text, options)=>{
       const el=document.createElement(tag);
@@ -3219,9 +3431,11 @@
         }
         const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
         if(!isDinner && ids.length===0) return;
-        const everyone = isDinner || (ids.length===state.guests.length);
-        const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
-        const tag = everyone ? '' : names.map(n=>` | ${escapeHtml(n)}`).join('');
+        // Dinner always applies to every guest on the stay, so the preview skips
+        // individual name tags to avoid implying it can be scoped per person.
+        const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, { guestLookup });
+        if(!isDinner && guestNames.length===0) return;
+        const tag = (!isDinner && guestNames.length) ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
         const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
         const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
         let timeSegment = '';
