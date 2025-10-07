@@ -57,7 +57,11 @@
     const nextMinute = normalized % 60;
     return `${pad(nextHour)}:${pad(nextMinute)}`;
   };
+  // Duration buttons show compact numerals so the three-option case still fits
+  // inside the fixed grid cell; downstream outputs continue to call the full
+  // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
+  const formatDurationButtonLabel = minutes => String(minutes);
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -1452,7 +1456,7 @@
     header.className='spa-header';
     const title=document.createElement('h2');
     title.className='spa-title';
-    title.textContent = mode==='edit' ? 'Edit Spa Appointment' : 'Add Spa Appointment';
+    title.textContent='SPA Appointment';
     const closeBtn=document.createElement('button');
     closeBtn.type='button';
     closeBtn.className='spa-close';
@@ -1475,24 +1479,20 @@
     body.appendChild(layout);
 
     const guestSection=document.createElement('section');
-    guestSection.className='spa-section spa-section-guests';
-    const guestCard=document.createElement('div');
-    guestCard.className='spa-block spa-guest-card';
+    guestSection.className='spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
     const guestHeading=document.createElement('h3');
     guestHeading.textContent='Guests';
-    guestCard.appendChild(guestHeading);
+    guestSection.appendChild(guestHeading);
     const guestList=document.createElement('div');
     guestList.className='spa-guest-list';
     guestList.setAttribute('role','group');
-    guestCard.appendChild(guestList);
+    guestSection.appendChild(guestList);
     const guestHint=document.createElement('p');
     guestHint.className='spa-helper-text spa-guest-hint';
     guestHint.id='spa-guest-hint';
     guestHint.setAttribute('aria-live','polite');
     guestHint.hidden=true;
-    guestCard.appendChild(guestHint);
-    guestSection.appendChild(guestCard);
-    layout.appendChild(guestSection);
+    guestSection.appendChild(guestHint);
 
     const buildGuestLabel = guest => guest.name;
 
@@ -1750,8 +1750,31 @@
     serviceList.className='spa-service-list';
     serviceList.setAttribute('role','tree');
     serviceList.setAttribute('aria-label','Spa services');
-    serviceCard.appendChild(serviceList);
+    const serviceScroll=document.createElement('div');
+    serviceScroll.className='spa-service-scroll';
+    serviceScroll.appendChild(serviceList);
+    serviceCard.appendChild(serviceScroll);
     serviceSection.appendChild(serviceCard);
+
+    // Auto-hide scrollbar: apply a class while the user scrolls or hovers so we
+    // can expose a thin thumb, then clear it after a short idle period.
+    let serviceScrollTimer=null;
+    const queueServiceScrollReset=()=>{
+      if(serviceScrollTimer) clearTimeout(serviceScrollTimer);
+      serviceScrollTimer=setTimeout(()=>{
+        serviceScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const activateServiceScroll=()=>{
+      serviceScroll.classList.add('is-scrolling');
+      queueServiceScrollReset();
+    };
+    serviceScroll.addEventListener('scroll', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('wheel', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('pointermove', activateServiceScroll);
+    serviceScroll.addEventListener('pointerdown', activateServiceScroll);
+    serviceScroll.addEventListener('pointerenter', activateServiceScroll);
+    serviceScroll.addEventListener('pointerleave', queueServiceScrollReset);
 
     // Category/subcategory accordions share a single state object so only one path
     // stays open at a time. This keeps the vertical stack compact, aligns the
@@ -2032,10 +2055,20 @@
     const detailsSection=document.createElement('section');
     detailsSection.className='spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
-    // The detail grid squeezes the remaining controls into two columns so the
-    // dialog fits within its fixed height without requiring a vertical scroll.
+    // Right-half layout: the grid owns two column subgrids stacked above the
+    // full-width guests row. Column 1 (therapist/location) splits its height
+    // 50/50, while column 2 (start time/duration) reserves roughly 3/4 for the
+    // picker and 1/4 for duration so the controls stay proportionally balanced.
     detailsGrid.className='spa-details-grid';
     detailsSection.appendChild(detailsGrid);
+
+    const primaryColumn=document.createElement('div');
+    primaryColumn.className='spa-detail-column spa-detail-column-primary';
+    detailsGrid.appendChild(primaryColumn);
+
+    const secondaryColumn=document.createElement('div');
+    secondaryColumn.className='spa-detail-column spa-detail-column-secondary';
+    detailsGrid.appendChild(secondaryColumn);
     layout.appendChild(detailsSection);
 
     const durationGroup=document.createElement('div');
@@ -2048,7 +2081,6 @@
     durationList.setAttribute('role','radiogroup');
     durationList.setAttribute('aria-label','Duration');
     durationGroup.appendChild(durationList);
-    detailsGrid.appendChild(durationGroup);
 
     const timeGroup=document.createElement('div');
     timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
@@ -2103,7 +2135,6 @@
       therapistList.appendChild(btn);
     });
     therapistGroup.appendChild(therapistList);
-    detailsGrid.appendChild(therapistGroup);
 
     const locationGroup=document.createElement('div');
     locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
@@ -2124,11 +2155,20 @@
       locationList.appendChild(btn);
     });
     const locationHelper=document.createElement('p');
-    locationHelper.className='spa-helper-text';
+    locationHelper.className='spa-helper-text sr-only';
+    locationHelper.id='spa-location-inroom-helper';
+    locationHelper.setAttribute('aria-live','polite');
+    // Keep the helper text sr-only so the gating reason is announced for assistive
+    // tech without reserving vertical space, preventing layout shifts when
+    // availability toggles.
+    locationList.setAttribute('aria-describedby', locationHelper.id);
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
-    detailsGrid.appendChild(locationGroup);
-    detailsGrid.appendChild(timeGroup);
+    secondaryColumn.appendChild(timeGroup);
+    secondaryColumn.appendChild(durationGroup);
+    primaryColumn.appendChild(therapistGroup);
+    primaryColumn.appendChild(locationGroup);
+    detailsGrid.appendChild(guestSection);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
@@ -2150,7 +2190,10 @@
       removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove spa appointment</span>`;
       actions.appendChild(removeBtn);
     }
-    dialog.appendChild(actions);
+    // Floating action cluster: the container anchors the + pill to the modal's
+    // bottom-right corner while keeping the optional delete button alongside it,
+    // and the shared aria-label keeps the accessible add/update copy intact.
+    body.appendChild(actions);
 
     const previousFocus=document.activeElement;
 
@@ -2513,7 +2556,10 @@
         btn.type='button';
         btn.className='spa-radio';
         btn.dataset.value=String(minutes);
-        btn.textContent=formatDurationLabel(minutes);
+        // Buttons surface numerals only while the aria-label keeps the
+        // descriptive "-Minute" phrasing for assistive tech parity.
+        btn.textContent=formatDurationButtonLabel(minutes);
+        btn.setAttribute('aria-label', formatDurationLabel(minutes));
         const selected = selection?.durationMinutes===minutes;
         btn.classList.toggle('selected', selected);
         btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
@@ -2542,6 +2588,8 @@
         btn.setAttribute('aria-pressed', selection?.location===value ? 'true' : 'false');
         btn.disabled = disabled;
       });
+      // The helper content remains present for screen readers only; visually the
+      // layout stays fixed because the element never takes up space.
       if(!supportsInRoom){
         locationHelper.textContent='In-Room service is unavailable for this treatment.';
       }else{
@@ -2694,6 +2742,8 @@
       // Location gating mirrors the data model: if the current service blocks in-room,
       // surface the helper text and ignore attempts to re-enable the option.
       if(id==='in-room' && canonicalService?.supportsInRoom===false){
+        // Surface the same helper copy for assistive tech without revealing
+        // a visual banner so the modal never jumps.
         locationHelper.textContent='In-Room service is unavailable for this treatment.';
         return;
       }

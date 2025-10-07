@@ -561,9 +561,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   }
 }
 /*
- * Cap the dialog height with viewport units (dvh/svh fallbacks) so it never
- * exceeds the available vertical space; the shared overlay gutter covers the
- * safe-area breathing room so header/actions always stay accessible.
+ * Clamp the dialog to a viewport-aware block size so every open uses the same
+ * frame. The min/max pairing keeps the sheet feeling anchored while the
+ * overlay gutter + viewport units ensure it still respects safe areas.
  */
 .spa-dialog{
   background:#fff;
@@ -577,17 +577,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   flex-direction:column;
   gap:24px;
   overflow:hidden;
+  height:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
+  block-size:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
   max-height:calc(100vh - 2*var(--spa-viewport-gutter));
   max-block-size:min(90vh, calc(100vh - 2*var(--spa-viewport-gutter)));
 }
 @supports (height:100svh){
   .spa-dialog{
+    height:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
+    block-size:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
     max-height:calc(100svh - 2*var(--spa-viewport-gutter));
     max-block-size:min(90svh, calc(100svh - 2*var(--spa-viewport-gutter)));
   }
 }
 @supports (height:100dvh){
   .spa-dialog{
+    height:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
+    block-size:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
     max-height:calc(100dvh - 2*var(--spa-viewport-gutter));
     max-block-size:min(90dvh, calc(100dvh - 2*var(--spa-viewport-gutter)));
   }
@@ -597,12 +603,14 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
  * the services list handles any overflow; the shell itself no longer scrolls.
  */
 .spa-body{
+  position:relative;
   display:flex;
   flex-direction:column;
   gap:24px;
   flex:1 1 auto;
   overflow:hidden;
   min-height:0;
+  padding-block-end:calc(88px + env(safe-area-inset-bottom));
 }
 .spa-header,
 .spa-actions{
@@ -611,23 +619,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .spa-title{margin:0;font-size:22px;font-weight:600;letter-spacing:.01em;}
 .spa-close{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:#f1f5f9;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;color:var(--muted);cursor:pointer;}
+/*
+ * The layout grid flexes to fill the fixed dialog height so the service column
+ * can own all vertical overflow without forcing the shell to resize.
+ */
 .spa-layout{
   display:grid;
-  grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);
-  grid-template-rows:auto auto;
-  grid-template-areas:
-    "services details"
-    "services guests";
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:24px;
-  align-items:start;
+  align-items:stretch;
+  min-height:0;
+  flex:1 1 auto;
+  grid-auto-rows:1fr;
 }
-.spa-section{display:flex;flex-direction:column;gap:16px;}
+.spa-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
-.spa-section-services{grid-area:services;}
-.spa-section-details{grid-area:details;}
-.spa-section-guests{grid-area:guests;}
-.spa-section-services{flex:1 1 auto;min-block-size:0;max-block-size:100%;overflow:auto;padding-inline-end:4px;scrollbar-gutter:stable;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
-.spa-guest-card{gap:14px;}
+.spa-section-services{min-block-size:0;}
+.spa-guest-card{grid-area:guests;gap:14px;}
 .spa-guest-list{display:flex;flex-wrap:wrap;gap:12px;}
 .spa-guest-chip{position:relative;display:inline-flex;align-items:center;}
 .spa-guest-chip.has-confirm .guest-pill{padding-inline-end:42px;}
@@ -655,8 +663,13 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .spa-guest-hint{margin-top:-4px;}
 .spa-helper-error{color:var(--brand);font-weight:600;}
-.spa-service-card{gap:16px;}
+.spa-service-card{display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;overflow:hidden;}
 .spa-service-list{display:flex;flex-direction:column;border:1px solid var(--activity-divider);border-radius:18px;background:var(--surface);overflow:hidden;box-shadow:0 1px 0 rgba(15,23,42,.02);}
+.spa-service-scroll{min-height:0;overflow:auto;padding-inline-end:6px;scrollbar-gutter:stable;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.spa-service-scroll::-webkit-scrollbar{width:0;height:0;}
+.spa-service-scroll.is-scrolling,.spa-service-scroll:hover{scrollbar-width:thin;}
+.spa-service-scroll.is-scrolling::-webkit-scrollbar,.spa-service-scroll:hover::-webkit-scrollbar{width:6px;height:6px;}
+.spa-service-scroll.is-scrolling::-webkit-scrollbar-thumb,.spa-service-scroll:hover::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 48%,transparent);border-radius:999px;}
 .spa-cascade-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:14px 20px;border:0;background:transparent;font:inherit;font-size:15px;color:var(--ink);cursor:pointer;text-align:left;transition:background-color .18s ease,color .18s ease;}
 .spa-category-row{font-weight:600;}
 .spa-subcategory-row{padding-inline-start:32px;font-weight:500;}
@@ -685,14 +698,52 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   .spa-cascade-panel{transition:none;}
   .spa-cascade-chevron{transition:none;}
 }
+@media(prefers-reduced-motion:reduce){
+  .spa-confirm,
+  .spa-remove{transition:none;}
+}
 .spa-block{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:18px;background:var(--panel);border:1px solid var(--border-hairline);}
-.spa-details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto auto;gap:16px;}
-.spa-detail-card{min-height:0;}
-.spa-detail-card-duration{grid-area:1 / 1 / 2 / 2;}
-.spa-detail-card-therapist{grid-area:1 / 2 / 2 / 3;}
-.spa-detail-card-location{grid-area:2 / 1 / 3 / 2;}
-.spa-detail-card-time{grid-area:2 / 2 / 3 / 3;}
-.spa-duration-list,.spa-radio-list{display:flex;flex-wrap:wrap;gap:10px;}
+.spa-details-grid{
+  /*
+   * Right-hand controls: two equal columns host subgrids above a shared guests
+   * row so proportions stay consistent regardless of content length.
+   */
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:16px;
+  min-height:0;
+}
+.spa-detail-column{
+  display:grid;
+  gap:16px;
+  min-height:0;
+}
+.spa-detail-column-primary{
+  grid-column:1;
+  grid-row:1;
+  grid-template-rows:repeat(2,minmax(0,1fr));
+}
+.spa-detail-column-secondary{
+  grid-column:2;
+  grid-row:1;
+  grid-template-rows:3fr 1fr;
+}
+.spa-detail-card{display:flex;flex-direction:column;gap:12px;min-height:0;height:100%;}
+.spa-detail-card-guests{grid-column:1/-1;grid-row:2;}
+.spa-radio-list{display:flex;flex-wrap:wrap;gap:10px;}
+/*
+ * The duration row always reserves space for the three-option case so the
+ * modal frame never needs to grow when Castle Hot Springs exposes its third
+ * length.
+ */
+.spa-duration-list{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(64px,1fr));
+  grid-auto-rows:minmax(44px,auto);
+  gap:10px;
+  align-content:start;
+}
 .spa-radio{border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--ink);padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease;}
 .spa-radio.selected{border-color:var(--brand);color:var(--brand);box-shadow:0 10px 20px rgba(42,107,255,.16);}
 .spa-radio:focus{outline:2px solid var(--brand);outline-offset:2px;}
@@ -716,30 +767,74 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-end-time-value{font-size:14px;color:var(--muted);font-weight:500;}
 .spa-time-hint{margin-top:-6px;font-size:12px;text-align:center;color:var(--brand);}
 .spa-helper-text{margin:0;font-size:13px;color:var(--muted);}
-.spa-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:8px;}
-.spa-confirm{border-radius:999px;border:none;background:var(--brand);color:#fff;padding:10px 24px;font-weight:600;font-size:15px;cursor:pointer;box-shadow:0 16px 34px rgba(42,107,255,.26);transition:box-shadow .18s ease,transform .18s ease;}
+.spa-actions{
+  position:absolute;
+  inset-inline-end:calc(24px + env(safe-area-inset-right));
+  inset-block-end:calc(24px + env(safe-area-inset-bottom));
+  display:flex;
+  gap:12px;
+  align-items:flex-end;
+  pointer-events:none;
+  z-index:2;
+}
+.spa-actions > *{pointer-events:auto;}
+.spa-confirm{
+  width:60px;
+  height:60px;
+  min-width:60px;
+  min-height:60px;
+  border-radius:999px;
+  border:none;
+  background:var(--brand);
+  color:#fff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:600;
+  font-size:28px;
+  line-height:1;
+  cursor:pointer;
+  box-shadow:0 20px 38px rgba(42,107,255,.28);
+  transition:box-shadow .2s ease,transform .2s ease;
+}
+.spa-confirm span[aria-hidden="true"]{display:block;line-height:1;font-size:28px;}
 .spa-confirm:focus{outline:2px solid #fff;outline-offset:3px;}
+.spa-confirm:hover{box-shadow:0 24px 46px rgba(42,107,255,.3);}
 .spa-confirm:active{transform:translateY(1px);}
 .spa-confirm:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
-.spa-remove{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0;}
+.spa-remove{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface,#fff);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 10px 20px rgba(15,23,42,.12);transition:box-shadow .2s ease,transform .2s ease;}
 .spa-remove svg{width:18px;height:18px;}
 .spa-remove:focus{outline:2px solid var(--brand);outline-offset:2px;}
+.spa-remove:hover{box-shadow:0 12px 24px rgba(15,23,42,.16);}
+.spa-remove:active{transform:translateY(1px);}
 body.spa-lock{overflow:hidden;}
 @media (max-width:1100px){
   .spa-dialog{max-width:980px;}
-  .spa-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
 }
 @media (max-width:920px){
-  .spa-dialog{max-width:720px;}
-  .spa-layout{grid-template-columns:1fr;grid-template-areas:"guests" "services" "details";}
-  .spa-section-services,.spa-section-details,.spa-section-guests{grid-area:auto;}
-  .spa-details-grid{grid-template-columns:1fr;}
+  .spa-dialog{max-width:760px;}
+  .spa-layout{grid-template-columns:1fr;grid-template-rows:auto;grid-auto-rows:auto;gap:20px;}
+  .spa-details-grid{
+    grid-template-columns:1fr;
+    grid-template-rows:auto;
+  }
+  .spa-detail-column{
+    grid-column:1;
+    grid-row:auto;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .spa-detail-card-guests{grid-column:1;grid-row:auto;}
+  .spa-body{padding-block-end:calc(96px + env(safe-area-inset-bottom));}
 }
 @media (max-width:720px){
   .spa-dialog{padding:18px;gap:18px;}
   .spa-service-button{padding:10px 16px 10px 44px;}
   .spa-block{padding:16px;}
-  .spa-actions{flex-wrap:wrap;justify-content:flex-start;}
+  .spa-actions{inset-inline-end:calc(16px + env(safe-area-inset-right));inset-block-end:calc(20px + env(safe-area-inset-bottom));}
+  .spa-confirm{width:56px;height:56px;min-width:56px;min-height:56px;font-size:26px;}
+  .spa-confirm span[aria-hidden="true"]{font-size:26px;}
 }
 .demo-page{background:var(--bg);padding:24px;}
 .demo-container{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:24px;}
