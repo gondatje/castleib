@@ -561,9 +561,9 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   }
 }
 /*
- * Cap the dialog height with viewport units (dvh/svh fallbacks) so it never
- * exceeds the available vertical space; the shared overlay gutter covers the
- * safe-area breathing room so header/actions always stay accessible.
+ * Clamp the dialog to a viewport-aware block size so every open uses the same
+ * frame. The min/max pairing keeps the sheet feeling anchored while the
+ * overlay gutter + viewport units ensure it still respects safe areas.
  */
 .spa-dialog{
   background:#fff;
@@ -577,17 +577,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   flex-direction:column;
   gap:24px;
   overflow:hidden;
+  height:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
+  block-size:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
   max-height:calc(100vh - 2*var(--spa-viewport-gutter));
   max-block-size:min(90vh, calc(100vh - 2*var(--spa-viewport-gutter)));
 }
 @supports (height:100svh){
   .spa-dialog{
+    height:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
+    block-size:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
     max-height:calc(100svh - 2*var(--spa-viewport-gutter));
     max-block-size:min(90svh, calc(100svh - 2*var(--spa-viewport-gutter)));
   }
 }
 @supports (height:100dvh){
   .spa-dialog{
+    height:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
+    block-size:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
     max-height:calc(100dvh - 2*var(--spa-viewport-gutter));
     max-block-size:min(90dvh, calc(100dvh - 2*var(--spa-viewport-gutter)));
   }
@@ -613,12 +619,18 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .spa-title{margin:0;font-size:22px;font-weight:600;letter-spacing:.01em;}
 .spa-close{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:#f1f5f9;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;color:var(--muted);cursor:pointer;}
+/*
+ * The layout grid flexes to fill the fixed dialog height so the service column
+ * can own all vertical overflow without forcing the shell to resize.
+ */
 .spa-layout{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:24px;
   align-items:stretch;
   min-height:0;
+  flex:1 1 auto;
+  grid-auto-rows:1fr;
 }
 .spa-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
@@ -789,7 +801,7 @@ body.spa-lock{overflow:hidden;}
 }
 @media (max-width:920px){
   .spa-dialog{max-width:760px;}
-  .spa-layout{grid-template-columns:1fr;gap:20px;}
+  .spa-layout{grid-template-columns:1fr;grid-template-rows:auto;grid-auto-rows:auto;gap:20px;}
   .spa-details-grid{
     grid-template-columns:1fr;
     grid-template-rows:auto;
