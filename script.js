@@ -3428,23 +3428,15 @@
       );
 
       const checkoutLine = () => {
-        // The arrival/departure subtitles live inside a bold container, so the parenthetical inherits the heavy weight.
-        // Building the node tree manually lets us wrap the time (including parentheses)
-        // in a scoped span that forces font-weight: 400.
         const row = makeEl('div', 'email-activity');
-        row.appendChild(makeEl('strong', undefined, fmt12('11:00')));
-        row.appendChild(document.createTextNode(' Check-Out | Welcome to stay on property until '));
-        // Parentheses previously came from the template literal around fmt12(); removing them here keeps the
-        // scoped font-weight styling while limiting the change to this specific time string.
+        row.appendChild(document.createTextNode(`${fmt12('11:00')} Check-Out | Welcome to stay on property until `));
         const stayWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('13:00'));
         row.appendChild(stayWindow);
         return row;
       };
       const checkinLine = () => {
         const row = makeEl('div', 'email-activity');
-        row.appendChild(makeEl('strong', undefined, fmt12('16:00')));
-        row.appendChild(document.createTextNode(' Guaranteed Check-In | Welcome to arrive as early as '));
-        // Apply the same scoped span so the early-arrival window stays regular weight without reinstating parentheses.
+        row.appendChild(document.createTextNode(`${fmt12('16:00')} Guaranteed Check-In | Welcome to arrive as early as `));
         const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('12:00'));
         row.appendChild(arrivalWindow);
         return row;
@@ -3487,8 +3479,8 @@
         const tag = (!isDinner && guestNames.length)
           ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}`
           : '';
-        const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
-        const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
+        const startTime = it.start ? escapeHtml(fmt12(it.start)) : '';
+        const endTime = it.end ? escapeHtml(fmt12(it.end)) : '';
         let timeSegment = '';
         if(startTime && endTime){
           timeSegment = `${startTime} - ${endTime}`;
