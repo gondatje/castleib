@@ -939,10 +939,14 @@
       const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
       const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
       const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
-      const guestNames = collectSpaGuestNames(entry, { guestLookup });
+      const guestNames = collectSpaGuestNames(entry, {
+        guestLookup,
+        totalGuestsInStay: state.guests.length
+      });
       // Surface therapist preference every time and append cabana/location and
       // guest details per the established `time | service | therapist | cabana | guest`
-      // format the activities rail uses for spa rows.
+      // format the activities rail uses for spa rows. The shared helper above
+      // also hides the redundant guest tags when every guest is assigned.
       const metaParts = [therapistLabel || spaTherapistLabel('no-preference')];
       if(locationLabel){
         metaParts.push(locationLabel);
@@ -3243,47 +3247,79 @@
     return overlapMap;
   }
 
-  function collectSpaGuestNames(entry, options){
-    if(!entry) return [];
-    const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
-    if(appointments.length===0) return [];
+  function normalizeGuestIdCollection(value){
+    if(Array.isArray(value)){
+      return value.slice();
+    }
+    if(value instanceof Set){
+      return Array.from(value);
+    }
+    return [];
+  }
+
+  // Shared guest-label helper consumed by the activities rail and the email
+  // preview. It centralises the "all guests" detection so both surfaces drop
+  // redundant pipe-delimited name tags while keeping edit chips intact.
+  function buildAssignedGuestNames(inputIds, options){
+    const ids = normalizeGuestIdCollection(inputIds);
+    if(ids.length===0) return [];
+    const totalGuestsInStay = Number.isFinite(options?.totalGuestsInStay)
+      ? options.totalGuestsInStay
+      : state.guests.length;
+    const uniqueIds = [];
+    const seenIds = new Set();
+    ids.forEach(id => {
+      if(!id) return;
+      if(seenIds.has(id)) return;
+      seenIds.add(id);
+      uniqueIds.push(id);
+    });
+    // Shared rule: when every guest on the stay is assigned, downstream callers
+    // skip rendering pipe-delimited labels so the activities list and preview
+    // both drop the redundant "everyone" name tags.
+    if(totalGuestsInStay > 0 && uniqueIds.length === totalGuestsInStay){
+      return [];
+    }
     const lookup = options?.guestLookup instanceof Map
       ? options.guestLookup
       : new Map(state.guests.map(g=>[g.id,g]));
     const names = [];
-    const seen = new Set();
-    appointments.forEach(app => {
-      if(!app || !app.guestId) return;
-      const guest = lookup.get(app.guestId);
+    const seenNames = new Set();
+    uniqueIds.forEach(id => {
+      const guest = lookup.get(id);
       const raw = (guest?.name || '').trim();
       if(!raw) return;
       const key = raw.toLowerCase();
-      if(seen.has(key)) return;
-      seen.add(key);
+      if(seenNames.has(key)) return;
+      seenNames.add(key);
       names.push(raw);
     });
     names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
     return names;
   }
 
-  function buildGuestNameListFromIds(ids, options){
-    if(!Array.isArray(ids) || ids.length===0) return [];
+  function collectSpaGuestNames(entry, options){
+    if(!entry) return [];
     const lookup = options?.guestLookup instanceof Map
       ? options.guestLookup
       : new Map(state.guests.map(g=>[g.id,g]));
-    const names = [];
-    const seen = new Set();
-    ids.forEach(id => {
-      const guest = lookup.get(id);
-      const raw = (guest?.name || '').trim();
-      if(!raw) return;
-      const key = raw.toLowerCase();
-      if(seen.has(key)) return;
-      seen.add(key);
-      names.push(raw);
+    const assignedIds = normalizeGuestIdCollection(entry?.guestIds);
+    const fallbackIds = [];
+    if(assignedIds.length===0){
+      const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+      appointments.forEach(app => {
+        if(!app || !app.guestId) return;
+        fallbackIds.push(app.guestId);
+      });
+    }
+    return buildAssignedGuestNames(assignedIds.length ? assignedIds : fallbackIds, {
+      guestLookup: lookup,
+      totalGuestsInStay: options?.totalGuestsInStay
     });
-    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
-    return names;
+  }
+
+  function buildGuestNameListFromIds(ids, options){
+    return buildAssignedGuestNames(ids, options);
   }
 
   function buildSpaPreviewLines(entry){
@@ -3301,7 +3337,10 @@
       const serviceTitle = `${formatDurationLabel(base.durationMinutes)} ${pluralizeServiceTitle(base.serviceName)}`;
       const therapist = spaTherapistLabel(base.therapist);
       const location = spaLocationLabel(base.location);
-      const guestNames = collectSpaGuestNames(entry, { guestLookup });
+      const guestNames = collectSpaGuestNames(entry, {
+        guestLookup,
+        totalGuestsInStay: state.guests.length
+      });
       const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
       lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
       return lines;
@@ -3433,9 +3472,21 @@
         if(!isDinner && ids.length===0) return;
         // Dinner always applies to every guest on the stay, so the preview skips
         // individual name tags to avoid implying it can be scoped per person.
-        const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, { guestLookup });
-        if(!isDinner && guestNames.length===0) return;
-        const tag = (!isDinner && guestNames.length) ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
+        const totalGuestsInStay = state.guests.length;
+        // Shared label helper mirrors the activities rail: if every guest is
+        // assigned we still render the activity but skip the pipe-delimited
+        // names so the preview and row stay in sync.
+        const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, {
+          guestLookup,
+          totalGuestsInStay
+        });
+        const assignmentCoversAll = !isDinner
+          && totalGuestsInStay > 0
+          && ids.length === totalGuestsInStay;
+        if(!isDinner && guestNames.length===0 && !assignmentCoversAll) return;
+        const tag = (!isDinner && guestNames.length)
+          ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}`
+          : '';
         const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
         const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
         let timeSegment = '';
