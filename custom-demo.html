@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Custom Activity Builder Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .custom-demo-container{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:24px;}
+    .custom-demo-header h1{margin:0;font-size:30px;letter-spacing:.01em;}
+    .custom-demo-header p{margin:6px 0 0;font-size:15px;color:var(--muted);max-width:760px;}
+    .custom-demo-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+    .custom-demo-actions button{border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:10px 18px;font-weight:600;font-size:14px;cursor:pointer;transition:box-shadow .16s ease,transform .16s ease;}
+    .custom-demo-actions button:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 10px 20px rgba(42,107,255,.2);}
+    .custom-demo-actions button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+    .custom-demo-status{margin:0;font-size:14px;color:var(--muted);}
+    .custom-demo-frame{width:100%;height:720px;border:1px solid var(--border);border-radius:22px;box-shadow:0 20px 40px rgba(12,18,32,.22);overflow:hidden;background:#fff;}
+    @media (max-width:900px){.custom-demo-frame{height:640px;}}
+  </style>
+</head>
+<body class="demo-page">
+  <div class="custom-demo-container">
+    <header class="custom-demo-header">
+      <h1>Custom Activity Builder Demo</h1>
+      <p>Use the quick actions below to populate the itinerary builder with guests and add the two required Custom activity scenarios. Each step updates the embedded builder so you can verify chronological sorting, chips, and preview output.</p>
+    </header>
+    <section class="custom-demo-actions">
+      <button id="customDemoReset" type="button">1. Reset stay for October 20</button>
+      <button id="customDemoFreeText" type="button">2. Add free-text custom (start only)</button>
+      <button id="customDemoExisting" type="button">3. Add catalog-based custom with location</button>
+      <p id="customDemoStatus" class="custom-demo-status" aria-live="polite">Load the builder, then run the steps in order.</p>
+    </section>
+    <iframe id="customDemoFrame" class="custom-demo-frame" src="index.html" title="Custom activity demo"></iframe>
+  </div>
+  <script src="custom-demo.js"></script>
+</body>
+</html>
