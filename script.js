@@ -1249,7 +1249,8 @@
     if(!addCustomBtn) return;
     const enabled = state.dataStatus==='ready';
     addCustomBtn.disabled = !enabled;
-    addCustomBtn.setAttribute('aria-pressed','false');
+    const hasEntries = enabled ? getCustomEntries(keyDate(state.focus)).length>0 : false;
+    addCustomBtn.setAttribute('aria-pressed', hasEntries ? 'true' : 'false');
   }
 
   function closeDinnerPicker({returnFocus=false}={}){
