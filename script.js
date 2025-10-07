@@ -114,6 +114,7 @@
   const spaIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="spa-icon"><path fill="currentColor" d="M12 2c-.4 0-.78.2-1 .53C9.5 4.63 6 10.22 6 13.5 6 17.64 8.86 20 12 20s6-2.36 6-6.5c0-3.28-3.5-8.87-5-10.97A1.2 1.2 0 0 0 12 2Zm0 16c-2.37 0-4-1.4-4-4.5 0-1.58 1.57-4.68 4-8.08 2.43 3.4 4 6.5 4 8.08 0 3.1-1.63 4.5-4 4.5Zm-5.5 1a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5Z"/></svg>';
   const customSetStartSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.16 4.6c1.114.734 1.84 1.979 1.84 3.394 0 0 0 0 0 .006 0-1.415.726-2.66 1.825-3.384.573-.385.984-.939 1.17-1.589l-5.995-.02c.191.67.603 1.225 1.15 1.594Zm5.02 1.46c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-8v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813C9.64 5.794 9.062 6.761 8.999 7.865Z"/></svg>';
   const customSetEndSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.18 6.06c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-1s-1.62-3.5-3-3.5-3 3.5-3 3.5h-1v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813-.88.607-1.458 1.574-1.521 2.678Z"/></svg>';
+  const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3.75 13.78 8.2l4.72.39c.6.05.84.83.39 1.23l-3.58 3.12 1.08 4.57c.14.59-.51 1.05-1.05.74L12 15.97l-3.34 1.98c-.54.31-1.19-.15-1.05-.74l1.08-4.57-3.58-3.12c-.45-.39-.21-1.18.39-1.23l4.72-.39L12 3.75Z"/></svg>';
   const customEditSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
@@ -1083,7 +1084,9 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='dinner-chip custom-chip';
-      chip.innerHTML = `<span class="chip-icon custom-chip-label">Custom</span><span class="chip-pencil custom-chip-pencil">${customEditSvg}</span><span class="sr-only">Edit custom activity</span>`;
+      // Default state shows the bespoke icon; hover/focus swap to the pencil so
+      // the affordance mirrors dinner/spa chips.
+      chip.innerHTML = `<span class="chip-icon custom-chip-icon">${customChipIconSvg}</span><span class="chip-pencil">${customEditSvg}</span><span class="sr-only">Edit custom activity</span>`;
       chip.dataset.pressExempt='true';
       chip.setAttribute('aria-label','Edit custom activity');
       chip.title='Edit custom activity';
@@ -3203,6 +3206,8 @@
     dialog.appendChild(header);
 
     const body=document.createElement('div');
+    // Keep scrolling inside the content wrapper so the header/footer stay
+    // pinned while the dialog respects the viewport-safe max height.
     body.className='custom-body';
     dialog.appendChild(body);
 
@@ -3319,13 +3324,19 @@
     const setStartBtn=document.createElement('button');
     setStartBtn.type='button';
     setStartBtn.className='custom-time-action';
-    setStartBtn.innerHTML = `<span class="custom-time-icon">${customSetStartSvg}</span><span>Set start time</span>`;
+    setStartBtn.setAttribute('aria-label','Set start time');
+    setStartBtn.title='Set start time';
+    // Icon-only affordance keeps the control compact while the aria-label
+    // surfaces the accessible name after dropping the text caption.
+    setStartBtn.innerHTML = `<span class="custom-time-icon">${customSetStartSvg}</span>`;
     pickerActions.appendChild(setStartBtn);
 
     const setEndBtn=document.createElement('button');
     setEndBtn.type='button';
     setEndBtn.className='custom-time-action';
-    setEndBtn.innerHTML = `<span class="custom-time-icon">${customSetEndSvg}</span><span>Set end time</span>`;
+    setEndBtn.setAttribute('aria-label','Set end time');
+    setEndBtn.title='Set end time';
+    setEndBtn.innerHTML = `<span class="custom-time-icon">${customSetEndSvg}</span>`;
     pickerActions.appendChild(setEndBtn);
 
     timeSection.appendChild(pickerActions);
@@ -3394,6 +3405,12 @@
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
     document.body.classList.add('custom-lock');
+    body.scrollTop = 0;
+    body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    requestAnimationFrame(()=>{
+      body.scrollTop = 0;
+      body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    });
 
     const updateGuestSummary=()=>{
       const names=[];
