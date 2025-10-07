@@ -2051,10 +2051,20 @@
     const detailsSection=document.createElement('section');
     detailsSection.className='spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
-    // 2×4 grid map: col1 rows 1-3 host duration/therapist/location, col2 rows 1-3
-    // hold the start time picker, and row 4 spans both columns for the guests.
+    // Right-half layout: the grid owns two column subgrids stacked above the
+    // full-width guests row. Column 1 (therapist/location) splits its height
+    // 50/50, while column 2 (start time/duration) reserves roughly 3/4 for the
+    // picker and 1/4 for duration so the controls stay proportionally balanced.
     detailsGrid.className='spa-details-grid';
     detailsSection.appendChild(detailsGrid);
+
+    const primaryColumn=document.createElement('div');
+    primaryColumn.className='spa-detail-column spa-detail-column-primary';
+    detailsGrid.appendChild(primaryColumn);
+
+    const secondaryColumn=document.createElement('div');
+    secondaryColumn.className='spa-detail-column spa-detail-column-secondary';
+    detailsGrid.appendChild(secondaryColumn);
     layout.appendChild(detailsSection);
 
     const durationGroup=document.createElement('div');
@@ -2067,7 +2077,6 @@
     durationList.setAttribute('role','radiogroup');
     durationList.setAttribute('aria-label','Duration');
     durationGroup.appendChild(durationList);
-    detailsGrid.appendChild(durationGroup);
 
     const timeGroup=document.createElement('div');
     timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
@@ -2122,7 +2131,6 @@
       therapistList.appendChild(btn);
     });
     therapistGroup.appendChild(therapistList);
-    detailsGrid.appendChild(therapistGroup);
 
     const locationGroup=document.createElement('div');
     locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
@@ -2146,8 +2154,10 @@
     locationHelper.className='spa-helper-text';
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
-    detailsGrid.appendChild(locationGroup);
-    detailsGrid.appendChild(timeGroup);
+    secondaryColumn.appendChild(timeGroup);
+    secondaryColumn.appendChild(durationGroup);
+    primaryColumn.appendChild(therapistGroup);
+    primaryColumn.appendChild(locationGroup);
     detailsGrid.appendChild(guestSection);
 
     const actions=document.createElement('div');

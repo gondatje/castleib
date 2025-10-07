@@ -692,22 +692,33 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .spa-block{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:18px;background:var(--panel);border:1px solid var(--border-hairline);}
 .spa-details-grid{
+  /*
+   * Right-hand controls: two equal columns host subgrids above a shared guests
+   * row so proportions stay consistent regardless of content length.
+   */
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-template-rows:repeat(4,minmax(0,1fr));
-  grid-template-areas:
-    "duration time"
-    "therapist time"
-    "location time"
-    "guests guests";
+  grid-template-rows:minmax(0,1fr) auto;
   gap:16px;
   min-height:0;
 }
+.spa-detail-column{
+  display:grid;
+  gap:16px;
+  min-height:0;
+}
+.spa-detail-column-primary{
+  grid-column:1;
+  grid-row:1;
+  grid-template-rows:repeat(2,minmax(0,1fr));
+}
+.spa-detail-column-secondary{
+  grid-column:2;
+  grid-row:1;
+  grid-template-rows:3fr 1fr;
+}
 .spa-detail-card{display:flex;flex-direction:column;gap:12px;min-height:0;height:100%;}
-.spa-detail-card-duration{grid-area:duration;}
-.spa-detail-card-therapist{grid-area:therapist;}
-.spa-detail-card-location{grid-area:location;}
-.spa-detail-card-time{grid-area:time;}
+.spa-detail-card-guests{grid-column:1/-1;grid-row:2;}
 .spa-duration-list,.spa-radio-list{display:flex;flex-wrap:wrap;gap:10px;}
 .spa-radio{border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--ink);padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease;}
 .spa-radio.selected{border-color:var(--brand);color:var(--brand);box-shadow:0 10px 20px rgba(42,107,255,.16);}
@@ -782,13 +793,15 @@ body.spa-lock{overflow:hidden;}
   .spa-details-grid{
     grid-template-columns:1fr;
     grid-template-rows:auto;
-    grid-template-areas:
-      "duration"
-      "therapist"
-      "location"
-      "time"
-      "guests";
   }
+  .spa-detail-column{
+    grid-column:1;
+    grid-row:auto;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .spa-detail-card-guests{grid-column:1;grid-row:auto;}
   .spa-body{padding-block-end:calc(96px + env(safe-area-inset-bottom));}
 }
 @media (max-width:720px){
