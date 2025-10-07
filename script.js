@@ -294,7 +294,32 @@
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
+  // Make the calendar grid itself keyboard focusable so the arrow key handler can
+  // run without stealing focus from other widgets. The tabIndex pairs with the
+  // existing ARIA role/label to expose the grid to assistive tech.
+  calGrid.tabIndex = 0;
   calGrid.addEventListener('keydown',e=>{
+    // Scope arrow-key navigation to the grid container so modals, inputs, and
+    // other regions keep their native key handling.
+    if(e.target===calGrid){
+      const { key } = e;
+      if(key==='ArrowLeft' || key==='ArrowRight' || key==='ArrowUp' || key==='ArrowDown'){
+        e.preventDefault();
+        if(key==='ArrowLeft'){
+          goToPrevDay();
+        }else if(key==='ArrowRight'){
+          goToNextDay();
+        }else if(key==='ArrowUp'){
+          shiftFocusByWeeks(-1);
+        }else if(key==='ArrowDown'){
+          shiftFocusByWeeks(1);
+        }
+        // Keep focus anchored on the grid between renders so repeat presses
+        // continue to drive the calendar.
+        focusCalendarGrid();
+      }
+      return;
+    }
     if(e.target.tagName==='BUTTON' && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
       e.preventDefault();
       e.target.click();
@@ -3515,13 +3540,26 @@
   }
 
   // ---------- Nav + Stay ----------
+  function updateFocusByDays(days){
+    const d=new Date(state.focus);
+    d.setDate(d.getDate()+days);
+    state.focus=zero(d);
+    renderAll();
+  }
+  function goToPrevDay(){ updateFocusByDays(-1); }
+  function goToNextDay(){ updateFocusByDays(1); }
+  function shiftFocusByWeeks(weeks){ updateFocusByDays(weeks*7); }
+  function focusCalendarGrid(){
+    focusWithoutScroll(calGrid);
+  }
+
   $('#mPrev').onclick=()=>{ const d=new Date(state.focus); d.setMonth(d.getMonth()-1); state.focus=zero(d); renderAll(); };
   $('#mNext').onclick=()=>{ const d=new Date(state.focus); d.setMonth(d.getMonth()+1); state.focus=zero(d); renderAll(); };
   $('#yPrev').onclick=()=>{ const d=new Date(state.focus); d.setFullYear(d.getFullYear()-1); state.focus=zero(d); renderAll(); };
   $('#yNext').onclick=()=>{ const d=new Date(state.focus); d.setFullYear(d.getFullYear()+1); state.focus=zero(d); renderAll(); };
   $('#btnToday').onclick=()=>{ state.focus=zero(new Date()); renderAll(); };
-  $('#prevDay').onclick=()=>{ const d=new Date(state.focus); d.setDate(d.getDate()-1); state.focus=zero(d); renderAll(); };
-  $('#nextDay').onclick=()=>{ const d=new Date(state.focus); d.setDate(d.getDate()+1); state.focus=zero(d); renderAll(); };
+  $('#prevDay').onclick=()=>{ goToPrevDay(); };
+  $('#nextDay').onclick=()=>{ goToNextDay(); };
 
   function setArrival(){
     const nextArrival = zero(state.focus);
