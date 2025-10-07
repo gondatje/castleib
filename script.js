@@ -623,6 +623,7 @@
     }
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
+    mergeSpaEntriesForDay(dateK);
     const spaEntries = getSpaEntries(dateK);
     const spaOverlapById = computeSpaOverlapMap(spaEntries);
     const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
@@ -937,8 +938,9 @@
       const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
       const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
       const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
-      const singleAppointment = appointments.length===1;
-      const guestName = singleAppointment ? (guestLookup.get(firstAppointment?.guestId)?.name || '') : '';
+      const guestNames = appointments
+        .map(app => guestLookup.get(app?.guestId)?.name || '')
+        .filter(name => name);
       // Surface therapist preference every time and append cabana/location and
       // guest details per the established `time | service | therapist | cabana | guest`
       // format the activities rail uses for spa rows.
@@ -946,8 +948,10 @@
       if(locationLabel){
         metaParts.push(locationLabel);
       }
-      if(guestName){
-        metaParts.push(guestName);
+      if(guestNames.length>1){
+        guestNames.forEach(name => metaParts.push(name));
+      }else if(guestNames.length===1){
+        metaParts.push(guestNames[0]);
       }
       const metaRow=document.createElement('div');
       metaRow.className='spa-meta';
@@ -2947,6 +2951,7 @@
           day.splice(i,1);
         }
       }
+      mergeSpaEntriesForDay(key);
       if(day.length===0){
         purgeKeys.push(key);
       }
@@ -2997,6 +3002,68 @@
     entry.end = maxEnd;
   }
 
+  const spaAppointmentKey = app => {
+    if(!app) return null;
+    const safe = value => value ?? '';
+    return [
+      safe(app.serviceName),
+      safe(app.serviceCategory),
+      safe(app.durationMinutes),
+      safe(app.start),
+      safe(app.end),
+      safe(app.therapist),
+      safe(app.location)
+    ].join('|');
+  };
+
+  function mergeSpaEntriesForDay(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const spaEntries = day.filter(entry => entry.type==='spa');
+    if(spaEntries.length < 2) return;
+
+    const primaryByKey = new Map();
+    const removals = new Set();
+
+    spaEntries.forEach(entry => {
+      if(!entry.appointments) entry.appointments = [];
+      entry.appointments = entry.appointments.filter(app => app && app.guestId);
+    });
+
+    spaEntries.forEach(entry => {
+      if(removals.has(entry)) return;
+      if(entry.appointments.length===0) return;
+      const keys = entry.appointments.map(spaAppointmentKey).filter(Boolean);
+      if(keys.length===0) return;
+      const canonical = keys[0];
+      const uniform = keys.every(key => key===canonical);
+      if(!uniform){
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      if(!primaryByKey.has(canonical)){
+        primaryByKey.set(canonical, entry);
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      const primary = primaryByKey.get(canonical);
+      const existingIds = new Set(Array.from(primary.guestIds || []));
+      entry.appointments.forEach(app => {
+        if(!app || !app.guestId) return;
+        if(existingIds.has(app.guestId)) return;
+        primary.appointments.push({ ...app });
+        existingIds.add(app.guestId);
+      });
+      recomputeSpaEntrySummary(primary);
+      removals.add(entry);
+    });
+
+    if(removals.size>0){
+      state.schedule[dateK] = day.filter(entry => !removals.has(entry));
+      sortDayEntries(dateK);
+    }
+  }
+
   function getSpaEntries(dateK){
     const day = state.schedule[dateK];
     if(!day) return [];
@@ -3020,6 +3087,7 @@
     target.appointments = entry.appointments.map(app => ({ ...app }));
     recomputeSpaEntrySummary(target);
     sortDayEntries(dateK);
+    mergeSpaEntriesForDay(dateK);
     return target;
   }
 
