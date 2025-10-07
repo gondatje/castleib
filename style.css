@@ -501,6 +501,47 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .dinner-chip:focus .chip-icon{opacity:0;}
 .dinner-chip:focus .chip-pencil{opacity:1;}
 /*
+ * Spa chips mirror the dinner/custom affordance stack so the new glyph renders
+ * immediately and the pencil fades in on intent without shifting layout.
+ */
+.chip--spa{
+  inline-size:var(--chip-size,26px);
+  block-size:var(--chip-size,26px);
+  border-radius:50%;
+  border:1px solid var(--chipBorder);
+  background:#fff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--ink);
+  position:relative;
+  padding:0;
+  cursor:pointer;
+  transition:box-shadow .2s ease,transform .2s ease;
+}
+.chip--spa:focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+  box-shadow:0 4px 12px rgba(12,18,32,.16);
+  transform:translateY(-1px);
+}
+.chip--spa .icon{
+  position:absolute;
+  inline-size:1em;
+  block-size:1em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:opacity 120ms ease-out;
+}
+.chip--spa .icon svg{width:1em;height:1em;display:block;}
+.chip--spa .icon-spa{opacity:1;}
+.chip--spa .icon-pencil{opacity:0;}
+.chip--spa:hover .icon-spa,
+.chip--spa:focus-visible .icon-spa{opacity:0;}
+.chip--spa:hover .icon-pencil,
+.chip--spa:focus-visible .icon-pencil{opacity:1;}
+/*
  * Custom activity chips layer the slider + pencil icons so the default glyph
  * remains visible until hover or keyboard focus swaps in the edit affordance.
  * The pill dimensions are pinned to the shared chip token so row height stays fixed.
