@@ -1085,11 +1085,10 @@
 
       const chip=document.createElement('button');
       chip.type='button';
-      chip.className='dinner-chip custom-chip';
-      // Default state shows the circular custom icon; CSS swaps in the pencil
-      // on hover or :focus-visible so keyboard users see the edit affordance
-      // without changing the pill's shared sizing.
-      chip.innerHTML = `<span class="chip-icon custom-chip-icon">${customChipIconSvg}</span><span class="chip-pencil">${customEditSvg}</span><span class="sr-only">Edit custom activity</span>`;
+      chip.className='chip chip--custom';
+      // Layer both icons so the default slider glyph renders immediately and we
+      // can flip to the pencil via hover/:focus-visible without resizing the pill.
+      chip.innerHTML = `<span class="icon icon-custom" aria-hidden="true">${customChipIconSvg}</span><span class="icon icon-pencil" aria-hidden="true">${customEditSvg}</span>`;
       chip.dataset.pressExempt='true';
       chip.setAttribute('aria-label','Edit custom activity');
       chip.title='Edit custom activity';

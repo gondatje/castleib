@@ -37,6 +37,7 @@
   --ink:var(--text-primary);
   --muted:var(--text-muted);
   --border:#e2e8f0;
+  --chip-size:26px;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -405,7 +406,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .email .email-empty{margin:12px 0 0;font-size:15px;color:var(--muted)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 
-.chip{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font-weight:500;border:1px solid currentColor;background:#fff;user-select:none;position:relative;}
+.chip{width:var(--chip-size,26px);height:var(--chip-size,26px);border-radius:50%;display:inline-grid;place-items:center;font-weight:500;border:1px solid currentColor;background:#fff;user-select:none;position:relative;}
 .chip .initial{position:relative;z-index:1;font-size:13px;line-height:1;color:currentColor;transition:opacity .16s ease;font-weight:400;letter-spacing:0;}
 .chip .x{position:absolute;top:50%;left:50%;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:#fff;border:1px solid var(--border);padding:0;cursor:pointer;color:var(--ink);z-index:2;transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity .16s ease;}
 @media(hover:hover){.chip:hover .initial,.chip:focus-within .initial{opacity:0;}.chip:hover .x,.chip:focus-within .x{opacity:1;pointer-events:auto;}}
@@ -500,15 +501,47 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .dinner-chip:focus .chip-icon{opacity:0;}
 .dinner-chip:focus .chip-pencil{opacity:1;}
 /*
-  Custom chips keep the same pill dimensions as dinner/spa chips by sharing the
-  .dinner-chip shell. We only override the icon swap behavior so the slider
-  glyph shows by default and the pencil appears on hover or keyboard focus.
-*/
-.custom-chip .chip-icon{opacity:1;}
-.custom-chip .chip-pencil{opacity:0;}
-@media(hover:hover){.custom-chip:hover .chip-icon{opacity:0;}.custom-chip:hover .chip-pencil{opacity:1;}}
-.custom-chip:focus-visible .chip-icon{opacity:0;}
-.custom-chip:focus-visible .chip-pencil{opacity:1;}
+ * Custom activity chips layer the slider + pencil icons so the default glyph
+ * remains visible until hover or keyboard focus swaps in the edit affordance.
+ * The pill dimensions are pinned to the shared chip token so row height stays fixed.
+ */
+.chip--custom{
+  position:relative;
+  inline-size:var(--chip-size,26px);
+  block-size:var(--chip-size,26px);
+  border-radius:50%;
+  border:1px solid var(--chipBorder);
+  background:#fff;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--brand);
+  padding:0;
+  cursor:pointer;
+  transition:box-shadow .2s ease,transform .2s ease;
+}
+.chip--custom:focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+  box-shadow:0 4px 12px rgba(12,18,32,.16);
+  transform:translateY(-1px);
+}
+.chip--custom .icon{
+  position:absolute;
+  inline-size:1em;
+  block-size:1em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:opacity 120ms ease-out;
+}
+.chip--custom .icon svg{width:16px;height:16px;display:block;}
+.chip--custom .icon-custom{opacity:1;}
+.chip--custom .icon-pencil{opacity:0;}
+.chip--custom:hover .icon-custom,
+.chip--custom:focus-visible .icon-custom{opacity:0;}
+.chip--custom:hover .icon-pencil,
+.chip--custom:focus-visible .icon-pencil{opacity:1;}
 .dinner-icon{display:block;}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 .dinner-overlay{position:fixed;inset:0;background:rgba(12,18,32,.46);display:flex;align-items:center;justify-content:center;padding:24px;z-index:2000;}
@@ -831,9 +864,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-remove:hover{box-shadow:0 12px 24px rgba(15,23,42,.16);}
 .spa-remove:active{transform:translateY(1px);}
 body.spa-lock{overflow:hidden;}
-.custom-chip{color:var(--brand);}
-body[data-theme='dark'] .custom-chip{color:var(--chipText);}
-.custom-chip .chip-icon svg{width:16px;height:16px;display:block;}
+body[data-theme='dark'] .chip--custom{color:var(--chipText);}
 .custom-overlay{position:fixed;inset:0;background:rgba(12,18,32,.46);display:flex;align-items:center;justify-content:center;padding:clamp(24px,7dvh,72px) clamp(16px,5vw,64px);z-index:2200;overflow:auto;box-sizing:border-box;}
 .custom-dialog{width:min(680px,100%);max-width:720px;max-height:calc(100dvh - 2 * clamp(24px,7dvh,72px));background:var(--surface,#fff);border-radius:26px;border:1px solid var(--border);box-shadow:0 28px 56px rgba(12,18,32,.22);display:flex;flex-direction:column;overflow:hidden;}
 .custom-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:32px clamp(24px,4vw,40px) 24px;border-bottom:1px solid var(--border-hairline);flex-shrink:0;background:var(--surface,#fff);}
