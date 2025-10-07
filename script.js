@@ -112,6 +112,9 @@
 
   const dinnerIconSvg = `<svg viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon"><path fill="currentColor" d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"></path></svg>`;
   const spaIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="spa-icon"><path fill="currentColor" d="M12 2c-.4 0-.78.2-1 .53C9.5 4.63 6 10.22 6 13.5 6 17.64 8.86 20 12 20s6-2.36 6-6.5c0-3.28-3.5-8.87-5-10.97A1.2 1.2 0 0 0 12 2Zm0 16c-2.37 0-4-1.4-4-4.5 0-1.58 1.57-4.68 4-8.08 2.43 3.4 4 6.5 4 8.08 0 3.1-1.63 4.5-4 4.5Zm-5.5 1a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5Z"/></svg>';
+  const customSetStartSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.16 4.6c1.114.734 1.84 1.979 1.84 3.394 0 0 0 0 0 .006 0-1.415.726-2.66 1.825-3.384.573-.385.984-.939 1.17-1.589l-5.995-.02c.191.67.603 1.225 1.15 1.594Zm5.02 1.46c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-8v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813C9.64 5.794 9.062 6.761 8.999 7.865Z"/></svg>';
+  const customSetEndSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.18 6.06c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-1s-1.62-3.5-3-3.5-3 3.5-3 3.5h-1v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813-.88.607-1.458 1.574-1.521 2.678Z"/></svg>';
+  const customEditSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
   const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
@@ -257,6 +260,44 @@
     return { categories, byName };
   }
 
+  // Surface curated activity titles/locations so the custom builder can pull
+  // from the authoritative dataset without mutating it. This lets us mirror
+  // the “pick an existing activity” UX and feed the location select with
+  // known venues pulled from CHSDataLayer metadata.
+  function buildCustomCatalog(activitiesDataset){
+    const titleMap = new Map();
+    const locationSet = new Set();
+    const seasons = Array.isArray(activitiesDataset?.seasons) ? activitiesDataset.seasons : [];
+    const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+    seasons.forEach(season => {
+      dayKeys.forEach(dayKey => {
+        const rows = (window.CHSDataLayer && typeof window.CHSDataLayer.getActivitiesForSeasonDay === 'function')
+          ? window.CHSDataLayer.getActivitiesForSeasonDay(season.name, dayKey)
+          : [];
+        rows.forEach(row => {
+          if(!row || !row.title) return;
+          if(!titleMap.has(row.title)){
+            titleMap.set(row.title, { title: row.title, location: null });
+          }
+          const meta = (window.CHSDataLayer && typeof window.CHSDataLayer.getActivityMetadata === 'function')
+            ? window.CHSDataLayer.getActivityMetadata({ season: season.name, day: dayKey, title: row.title, start: row.start })
+            : null;
+          const location = (meta?.location || '').trim();
+          if(location){
+            locationSet.add(location);
+            const existing = titleMap.get(row.title);
+            if(existing && !existing.location){
+              existing.location = location;
+            }
+          }
+        });
+      });
+    });
+    const titles = Array.from(titleMap.values()).sort((a,b)=> a.title.localeCompare(b.title));
+    const locations = Array.from(locationSet.values()).sort((a,b)=> a.localeCompare(b));
+    return { titles, locations };
+  }
+
   const TimePickerKit = window.TimePickerKit || {};
   const { createTimePicker } = TimePickerKit;
 
@@ -277,7 +318,8 @@
     userEdited: '',
     previewDirty: true,
     previewFrozen: false,
-    spaCatalog: null
+    spaCatalog: null,
+    customCatalog: { titles: [], locations: [] }
   };
 
   // ---------- DOM ----------
@@ -291,6 +333,7 @@
   const copyBtn=$('#copy');
   const addDinnerBtn=$('#addDinner');
   const addSpaBtn=$('#addSpa');
+  const addCustomBtn=$('#addCustom');
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
@@ -324,6 +367,7 @@
       const spaDataset = window.CHSDataLayer.getSpaDataset();
       state.data = { activities: activitiesDataset, spa: spaDataset };
       state.spaCatalog = buildSpaCatalog(spaDataset);
+      state.customCatalog = buildCustomCatalog(activitiesDataset);
       state.dataStatus = 'ready';
       ensureFocusInSeason();
       // Wait for the rest of this module to register helpers (e.g. toggleIcons) before rendering.
@@ -469,6 +513,7 @@
   function renderGuests(){
     syncDinnerGuests();
     syncSpaGuests();
+    syncCustomGuests();
     guestsEl.innerHTML='';
     state.guests.forEach((g,ix)=>{
       const b=document.createElement('button');
@@ -540,6 +585,13 @@
     });
   }
 
+  if(addCustomBtn){
+    addCustomBtn.addEventListener('click',()=>{
+      const activeGuestsSnapshot = state.guests.filter(g=>g.active).map(g=>g.id);
+      openCustomBuilder({ mode:'add', dateKey: keyDate(state.focus), guestIds: activeGuestsSnapshot });
+    });
+  }
+
   renderAll();
 
   function updateToggleAllButton(){
@@ -592,6 +644,7 @@
 
     updateAddDinnerButton();
     updateAddSpaButton();
+    updateAddCustomButton();
 
     const weekKey = weekdayKey(state.focus);
     let season = null;
@@ -626,12 +679,14 @@
     const dinnerEntry = getDinnerEntry(dateK);
     mergeSpaEntriesForDay(dateK);
     const spaEntries = getSpaEntries(dateK);
+    const customEntries = getCustomEntries(dateK);
     const spaOverlapById = computeSpaOverlapMap(spaEntries);
     const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
     const combined = baseList.map(row=>({kind:'activity', data: row}));
     if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
     // Inject saved SPA blocks alongside activities/dinner so the list remains time-ordered.
     spaEntries.forEach(entry => combined.push({ kind:'spa', data: entry }));
+    customEntries.forEach(entry => combined.push({ kind:'custom', data: entry }));
     combined.sort((a,b)=>{
       const resolveStart = item => {
         if(item.kind==='activity') return item.data.start || '';
@@ -650,6 +705,10 @@
       }
       if(item.kind==='spa'){
         renderSpa(item.data);
+        return;
+      }
+      if(item.kind==='custom'){
+        renderCustom(item.data);
         return;
       }
       const row = item.data;
@@ -987,6 +1046,56 @@
       activitiesEl.appendChild(div);
     }
 
+    function renderCustom(entry){
+      if(!entry) return;
+      const div=document.createElement('div');
+      div.className='activity-row custom-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      const startLabel = entry.start ? fmt12(entry.start) : '';
+      const endLabel = entry.end ? fmt12(entry.end) : '';
+      time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = entry.title || 'Custom Activity';
+      headline.appendChild(title);
+
+      body.appendChild(headline);
+
+      const tagWrap=document.createElement('div');
+      tagWrap.className='tag-row';
+
+      const guestIds = Array.isArray(entry.guestIds) ? entry.guestIds : Array.from(entry.guestIds || []);
+      if(state.guests.length>0){
+        // Reuse the shared assignment renderer so Both/Everyone chips stay in sync
+        // with the core guest logic after save.
+        renderAssignments(tagWrap, entry, guestIds, dateK);
+      }
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='dinner-chip custom-chip';
+      chip.innerHTML = `<span class="chip-icon custom-chip-label">Custom</span><span class="chip-pencil custom-chip-pencil">${customEditSvg}</span><span class="sr-only">Edit custom activity</span>`;
+      chip.dataset.pressExempt='true';
+      chip.setAttribute('aria-label','Edit custom activity');
+      chip.title='Edit custom activity';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
+      chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
+      tagWrap.appendChild(chip);
+
+      body.appendChild(tagWrap);
+      div.appendChild(body);
+      activitiesEl.appendChild(div);
+    }
+
     function renderSpaGuestChips(container, entry, dateK){
       if(!container || !entry) return;
       const guestIds = Array.from(entry.guestIds || []);
@@ -1097,6 +1206,7 @@
 
   let dinnerDialog = null;
   let spaDialog = null;
+  let customDialog = null;
 
   function updateAddDinnerButton(){
     if(!addDinnerBtn) return;
@@ -1112,6 +1222,14 @@
     addSpaBtn.disabled = !enabled;
     const hasEntry = enabled ? getSpaEntries(keyDate(state.focus)).length>0 : false;
     addSpaBtn.setAttribute('aria-pressed', hasEntry ? 'true' : 'false');
+  }
+
+  function updateAddCustomButton(){
+    if(!addCustomBtn) return;
+    const enabled = state.dataStatus==='ready';
+    addCustomBtn.disabled = !enabled;
+    const hasEntry = enabled ? getCustomEntries(keyDate(state.focus)).length>0 : false;
+    addCustomBtn.setAttribute('aria-pressed', hasEntry ? 'true' : 'false');
   }
 
   function closeDinnerPicker({returnFocus=false}={}){
@@ -2988,6 +3106,572 @@
     },0);
   }
 
+  function closeCustomBuilder({returnFocus=false}={}){
+    if(!customDialog) return;
+    const { overlay, previousFocus, cleanup } = customDialog;
+    overlay.remove();
+    if(typeof cleanup === 'function') cleanup();
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    customDialog = null;
+    document.body.classList.remove('custom-lock');
+  }
+
+  // Custom builder surfaces the dual title inputs (free text vs catalog) and
+  // funnels start/end selection through the shared time picker kit so physics
+  // stay consistent with dinner/spa flows.
+  function openCustomBuilder({mode='add', dateKey, entryId, guestIds}={}){
+    if(state.dataStatus!=='ready') return;
+    closeCustomBuilder();
+
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = entryId ? getCustomEntry(targetDateKey, entryId) : null;
+    const previousFocus = document.activeElement;
+    const catalog = state.customCatalog || { titles: [], locations: [] };
+    const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const normalizeGuestIds = ids => {
+      const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      const requestedSet = new Set(requested);
+      const seen = new Set();
+      const normalized = [];
+      state.guests.forEach(guest => {
+        if(requestedSet.has(guest.id) && !seen.has(guest.id)){
+          seen.add(guest.id);
+          normalized.push(guest.id);
+        }
+      });
+      requested.forEach(id => {
+        if(!seen.has(id) && stayGuestLookup.has(id)){
+          seen.add(id);
+          normalized.push(id);
+        }
+      });
+      return normalized;
+    };
+
+    const defaultActiveIds = state.guests.filter(g=>g.active).map(g=>g.id);
+    const requestedIds = existing
+      ? Array.from(existing.guestIds || [])
+      : (Array.isArray(guestIds) ? guestIds : defaultActiveIds);
+    let modalGuestIds = normalizeGuestIds(requestedIds);
+    if(modalGuestIds.length===0){
+      modalGuestIds = normalizeGuestIds(defaultActiveIds);
+    }
+    // Guest assignments reuse the same chip helpers as the activities rail, so
+    // we only need to capture the IDs once here before the chips handle any
+    // inline removals after save.
+
+    const initialTitle = existing?.title || '';
+    const matchingActivity = catalog.titles.find(opt => opt.title === initialTitle) || null;
+    let titleMode = matchingActivity ? 'existing' : 'free';
+    let selectedActivity = matchingActivity;
+    let freeTitleValue = initialTitle;
+    let locationValue = existing?.location || selectedActivity?.location || '';
+    let locationManual = Boolean(existing?.location);
+    let startValue = existing?.start || '';
+    let endValue = existing?.end || '';
+    let currentTimeError = '';
+    const initialPickerValue = startValue ? from24Time(startValue) : { hour:9, minute:0, meridiem:'AM' };
+    let currentPickerValue = initialPickerValue;
+
+    const overlay=document.createElement('div');
+    overlay.className='custom-overlay';
+
+    const dialog=document.createElement('div');
+    dialog.className='custom-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+    dialog.setAttribute('aria-labelledby','custom-dialog-title');
+
+    const header=document.createElement('div');
+    header.className='custom-header';
+    const title=document.createElement('h2');
+    title.className='custom-heading';
+    title.id='custom-dialog-title';
+    title.textContent = existing ? 'Edit custom activity' : 'New custom activity';
+    header.appendChild(title);
+
+    const closeBtn=document.createElement('button');
+    closeBtn.type='button';
+    closeBtn.className='custom-close';
+    closeBtn.setAttribute('aria-label','Cancel custom activity');
+    closeBtn.textContent='×';
+    closeBtn.addEventListener('click',()=> closeCustomBuilder({returnFocus:true}));
+    header.appendChild(closeBtn);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    body.className='custom-body';
+    dialog.appendChild(body);
+
+    const titleSection=document.createElement('section');
+    titleSection.className='custom-section custom-section-title';
+    const titleHeading=document.createElement('h3');
+    titleHeading.textContent='Title';
+    titleSection.appendChild(titleHeading);
+
+    const toggleGroup=document.createElement('div');
+    toggleGroup.className='custom-title-toggle-group';
+
+    const freeToggle=document.createElement('button');
+    freeToggle.type='button';
+    freeToggle.className='custom-title-toggle';
+    freeToggle.dataset.mode='free';
+    freeToggle.textContent='Type a title';
+    toggleGroup.appendChild(freeToggle);
+
+    const existingToggle=document.createElement('button');
+    existingToggle.type='button';
+    existingToggle.className='custom-title-toggle';
+    existingToggle.dataset.mode='existing';
+    existingToggle.textContent='Choose existing';
+    if(!catalog.titles.length){ existingToggle.disabled = true; }
+    toggleGroup.appendChild(existingToggle);
+
+    titleSection.appendChild(toggleGroup);
+
+    const freePane=document.createElement('div');
+    freePane.className='custom-title-pane';
+    const freeInput=document.createElement('input');
+    freeInput.type='text';
+    freeInput.className='custom-title-input';
+    freeInput.placeholder='Name this activity';
+    freeInput.value = freeTitleValue;
+    freePane.appendChild(freeInput);
+
+    const existingPane=document.createElement('div');
+    existingPane.className='custom-title-pane';
+    const existingInput=document.createElement('input');
+    existingInput.type='search';
+    existingInput.className='custom-title-input';
+    existingInput.placeholder='Search activities';
+    const datalistId = `custom-activities-${Date.now()}`;
+    existingInput.setAttribute('list', datalistId);
+    existingInput.value = selectedActivity ? selectedActivity.title : '';
+    existingPane.appendChild(existingInput);
+
+    const datalist=document.createElement('datalist');
+    datalist.id=datalistId;
+    catalog.titles.forEach(opt=>{
+      const option=document.createElement('option');
+      option.value = opt.title;
+      datalist.appendChild(option);
+    });
+    dialog.appendChild(datalist);
+
+    titleSection.appendChild(freePane);
+    titleSection.appendChild(existingPane);
+    body.appendChild(titleSection);
+
+    const timeSection=document.createElement('section');
+    timeSection.className='custom-section custom-section-time';
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Time';
+    timeSection.appendChild(timeHeading);
+
+    const timeSummary=document.createElement('div');
+    timeSummary.className='custom-time-summary';
+
+    const startPill=document.createElement('div');
+    startPill.className='custom-time-pill';
+    const startLabel=document.createElement('span');
+    startLabel.className='custom-time-pill-label';
+    startLabel.textContent='Start';
+    const startValueNode=document.createElement('span');
+    startValueNode.className='custom-time-value';
+    startPill.appendChild(startLabel);
+    startPill.appendChild(startValueNode);
+    timeSummary.appendChild(startPill);
+
+    const endPill=document.createElement('div');
+    endPill.className='custom-time-pill optional';
+    const endLabel=document.createElement('span');
+    endLabel.className='custom-time-pill-label';
+    endLabel.textContent='End';
+    const endValueNode=document.createElement('span');
+    endValueNode.className='custom-time-value';
+    const clearEndBtn=document.createElement('button');
+    clearEndBtn.type='button';
+    clearEndBtn.className='custom-clear-end';
+    clearEndBtn.textContent='Clear';
+    clearEndBtn.addEventListener('click',()=>{
+      endValue='';
+      updateEndDisplay();
+      setTimeError('');
+      refreshSaveState();
+    });
+    endPill.appendChild(endLabel);
+    endPill.appendChild(endValueNode);
+    endPill.appendChild(clearEndBtn);
+    timeSummary.appendChild(endPill);
+
+    timeSection.appendChild(timeSummary);
+
+    const pickerContainer=document.createElement('div');
+    pickerContainer.className='custom-picker';
+    timeSection.appendChild(pickerContainer);
+
+    const pickerActions=document.createElement('div');
+    pickerActions.className='custom-picker-actions';
+
+    const setStartBtn=document.createElement('button');
+    setStartBtn.type='button';
+    setStartBtn.className='custom-time-action';
+    setStartBtn.innerHTML = `<span class="custom-time-icon">${customSetStartSvg}</span><span>Set start time</span>`;
+    pickerActions.appendChild(setStartBtn);
+
+    const setEndBtn=document.createElement('button');
+    setEndBtn.type='button';
+    setEndBtn.className='custom-time-action';
+    setEndBtn.innerHTML = `<span class="custom-time-icon">${customSetEndSvg}</span><span>Set end time</span>`;
+    pickerActions.appendChild(setEndBtn);
+
+    timeSection.appendChild(pickerActions);
+
+    const timeError=document.createElement('p');
+    timeError.className='custom-time-error';
+    timeError.hidden=true;
+    timeSection.appendChild(timeError);
+
+    body.appendChild(timeSection);
+
+    const locationSection=document.createElement('section');
+    locationSection.className='custom-section custom-section-location';
+    const locationHeading=document.createElement('h3');
+    locationHeading.textContent='Location (optional)';
+    locationSection.appendChild(locationHeading);
+    // Location list is sourced from the CHS activities metadata so preview copy
+    // and in-app chips both draw from the same canonical venue names.
+    const locationSelect=document.createElement('select');
+    locationSelect.className='custom-location-select';
+    const emptyOption=document.createElement('option');
+    emptyOption.value='';
+    emptyOption.textContent='No location';
+    locationSelect.appendChild(emptyOption);
+    catalog.locations.forEach(loc=>{
+      const opt=document.createElement('option');
+      opt.value=loc;
+      opt.textContent=loc;
+      locationSelect.appendChild(opt);
+    });
+    locationSelect.value = locationValue || '';
+    locationSelect.addEventListener('change',()=>{
+      locationManual = true;
+      locationValue = locationSelect.value;
+    });
+    locationSection.appendChild(locationSelect);
+    body.appendChild(locationSection);
+
+    const guestSection=document.createElement('section');
+    guestSection.className='custom-section custom-section-guests';
+    const guestHeading=document.createElement('h3');
+    guestHeading.textContent='Guests';
+    guestSection.appendChild(guestHeading);
+    const guestSummary=document.createElement('p');
+    guestSummary.className='custom-guest-summary';
+    guestSection.appendChild(guestSummary);
+    body.appendChild(guestSection);
+
+    const actions=document.createElement('div');
+    actions.className='custom-actions';
+    const saveBtn=document.createElement('button');
+    saveBtn.type='button';
+    saveBtn.className='custom-save';
+    saveBtn.textContent='Save';
+    actions.appendChild(saveBtn);
+    let deleteBtn=null;
+    if(existing){
+      deleteBtn=document.createElement('button');
+      deleteBtn.type='button';
+      deleteBtn.className='custom-delete';
+      deleteBtn.textContent='Delete';
+      actions.appendChild(deleteBtn);
+    }
+    dialog.appendChild(actions);
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('custom-lock');
+
+    const updateGuestSummary=()=>{
+      const names=[];
+      const seen=new Set();
+      modalGuestIds.forEach(id=>{
+        if(seen.has(id)) return;
+        seen.add(id);
+        const guest=stayGuestLookup.get(id);
+        if(guest?.name){
+          names.push(guest.name);
+        }
+      });
+      if(names.length){
+        guestSummary.textContent = `Guests: ${names.join(', ')}`;
+        guestSummary.dataset.empty='false';
+      }else{
+        guestSummary.textContent = 'Guests: None selected (toggle guest pills before saving).';
+        guestSummary.dataset.empty='true';
+      }
+    };
+
+    const updateStartDisplay=()=>{
+      if(startValue){
+        startValueNode.textContent = fmt12(startValue);
+        startPill.dataset.empty='false';
+      }else{
+        startValueNode.textContent = 'Set start';
+        startPill.dataset.empty='true';
+      }
+    };
+
+    const updateEndDisplay=()=>{
+      if(endValue){
+        endValueNode.textContent = fmt12(endValue);
+        endPill.dataset.empty='false';
+        clearEndBtn.disabled=false;
+      }else{
+        endValueNode.textContent = 'Optional';
+        endPill.dataset.empty='true';
+        clearEndBtn.disabled=true;
+      }
+    };
+
+    const setTimeError=message=>{
+      currentTimeError = message ? String(message) : '';
+      if(currentTimeError){
+        timeError.textContent = currentTimeError;
+        timeError.hidden=false;
+      }else{
+        timeError.textContent='';
+        timeError.hidden=true;
+      }
+    };
+
+    const resolveTitle=()=>{
+      if(titleMode==='existing'){
+        return selectedActivity?.title || '';
+      }
+      return freeTitleValue.trim();
+    };
+
+    const refreshSaveState=()=>{
+      const titleValue = resolveTitle();
+      const titleValid = titleValue.length>0 && (titleMode==='free' || !!selectedActivity);
+      const startValid = !!startValue;
+      const guestsValid = modalGuestIds.length>0;
+      freeInput.setAttribute('aria-invalid', titleMode==='free' && !titleValid ? 'true' : 'false');
+      existingInput.setAttribute('aria-invalid', titleMode==='existing' && !selectedActivity ? 'true' : 'false');
+      saveBtn.disabled = !(titleValid && startValid && guestsValid && !currentTimeError);
+    };
+
+    const applyActivitySelection=value=>{
+      const trimmed=(value||'').trim();
+      if(!trimmed){
+        selectedActivity = null;
+      }else{
+        const match = catalog.titles.find(opt => opt.title.toLowerCase() === trimmed.toLowerCase()) || null;
+        selectedActivity = match;
+      }
+      if(selectedActivity && !locationManual && selectedActivity.location){
+        locationValue = selectedActivity.location;
+        locationSelect.value = selectedActivity.location;
+      }
+      refreshSaveState();
+    };
+
+    freeInput.addEventListener('input',()=>{
+      freeTitleValue = freeInput.value;
+      refreshSaveState();
+    });
+
+    existingInput.addEventListener('input',()=>{
+      applyActivitySelection(existingInput.value);
+    });
+
+    const setTitleMode=mode=>{
+      titleMode = (mode==='existing' && !existingToggle.disabled) ? 'existing' : 'free';
+      freePane.hidden = titleMode!=='free';
+      existingPane.hidden = titleMode!=='existing';
+      freeToggle.classList.toggle('selected', titleMode==='free');
+      existingToggle.classList.toggle('selected', titleMode==='existing');
+      freeToggle.setAttribute('aria-pressed', titleMode==='free' ? 'true' : 'false');
+      existingToggle.setAttribute('aria-pressed', titleMode==='existing' ? 'true' : 'false');
+      refreshSaveState();
+      if(titleMode==='free'){
+        requestAnimationFrame(()=> freeInput.focus());
+      }else{
+        requestAnimationFrame(()=> existingInput.focus());
+      }
+    };
+
+    freeToggle.addEventListener('click',()=> setTitleMode('free'));
+    existingToggle.addEventListener('click',()=> setTitleMode('existing'));
+
+    const applyStartValue=()=>{
+      const snapshot = currentPickerValue || (typeof timePicker?.getValue==='function' ? timePicker.getValue() : null);
+      if(!snapshot) return;
+      startValue = to24Time(snapshot);
+      updateStartDisplay();
+      if(endValue && minutesFromTime(endValue) <= minutesFromTime(startValue)){
+        setTimeError('End time must be after the start time.');
+      }else{
+        setTimeError('');
+      }
+      refreshSaveState();
+    };
+
+    const applyEndValue=()=>{
+      if(!startValue){
+        setTimeError('Set a start time before choosing an end time.');
+        refreshSaveState();
+        return;
+      }
+      const snapshot = currentPickerValue || (typeof timePicker?.getValue==='function' ? timePicker.getValue() : null);
+      if(!snapshot) return;
+      const candidate = to24Time(snapshot);
+      if(minutesFromTime(candidate) <= minutesFromTime(startValue)){
+        setTimeError('End time must be after the start time.');
+        endValue = candidate;
+      }else{
+        endValue = candidate;
+        setTimeError('');
+      }
+      updateEndDisplay();
+      refreshSaveState();
+    };
+
+    setStartBtn.addEventListener('click', applyStartValue);
+    setEndBtn.addEventListener('click', applyEndValue);
+
+    let timePicker=null;
+    if(typeof createTimePicker === 'function'){
+      // Reuse the shared time picker so visuals + physics remain identical to
+      // dinner/spa flows.
+      timePicker = createTimePicker({
+        hourRange:[1,12],
+        minuteStep:5,
+        showAmPm:true,
+        defaultValue: initialPickerValue,
+        ariaLabels:{ hours:'Hour', minutes:'Minutes', meridiem:'AM or PM' },
+        onChange:value=>{ currentPickerValue = value; }
+      });
+    }
+
+    if(timePicker){
+      pickerContainer.appendChild(timePicker.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='custom-picker-fallback';
+      fallback.textContent='Time picker unavailable.';
+      pickerContainer.appendChild(fallback);
+    }
+
+    const handleSave=()=>{
+      const titleValue = resolveTitle();
+      if(!titleValue || !startValue || modalGuestIds.length===0 || currentTimeError){
+        refreshSaveState();
+        return;
+      }
+      const payload = {
+        id: existing?.id,
+        title: titleValue,
+        start: startValue,
+        end: endValue || '',
+        location: locationValue,
+        guestIds: modalGuestIds.slice()
+      };
+      upsertCustomEntry(targetDateKey, payload);
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeCustomBuilder({returnFocus:true});
+    };
+
+    saveBtn.addEventListener('click', handleSave);
+
+    if(deleteBtn && existing){
+      deleteBtn.addEventListener('click',()=>{
+        removeCustomEntry(targetDateKey, existing.id);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeCustomBuilder({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click',event=>{
+      if(event.target===overlay){
+        closeCustomBuilder({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown=event=>{
+      if(event.key==='Escape'){
+        event.preventDefault();
+        closeCustomBuilder({returnFocus:true});
+        return;
+      }
+      if((event.key==='Enter' || event.key==='Return') && event.target && event.target.tagName!=='BUTTON'){
+        event.preventDefault();
+        handleSave();
+        return;
+      }
+      if(event.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,select,input,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first=focusable[0];
+        const last=focusable[focusable.length-1];
+        if(event.shiftKey){
+          if(document.activeElement===first){
+            event.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    updateGuestSummary();
+    updateStartDisplay();
+    updateEndDisplay();
+    setTimeError('');
+    setTitleMode(titleMode);
+    refreshSaveState();
+
+    const focusInitial=()=>{
+      if(titleMode==='free'){
+        freeInput.focus();
+        return;
+      }
+      if(titleMode==='existing' && !existingToggle.disabled){
+        existingInput.focus();
+        return;
+      }
+      if(timePicker?.focus){
+        timePicker.focus({ preventScroll:true });
+      }
+    };
+
+    setTimeout(focusInitial,0);
+
+    customDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        timePicker?.dispose?.();
+        dialog.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+  }
+
   function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
   function sortDayEntries(dateK){
     const day = state.schedule[dateK];
@@ -2997,6 +3681,56 @@
       const sb = b.start || '';
       return sa.localeCompare(sb);
     });
+  }
+
+  const generateCustomEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `custom_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+  function getCustomEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return [];
+    return day.filter(entry => entry.type==='custom');
+  }
+
+  function getCustomEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry => entry.type==='custom' && entry.id===entryId) || null;
+  }
+
+  // Custom entries sit inside the same day array as preset activities, so we
+  // reuse the shared sorter after every save to keep chronological insertion in
+  // lockstep with the existing row renderer.
+  function upsertCustomEntry(dateK, config){
+    if(!dateK || !config) return null;
+    const title = (config.title || '').trim();
+    const start = (config.start || '').trim();
+    const end = (config.end || '').trim();
+    const location = (config.location || '').trim();
+    const guestIds = Array.isArray(config.guestIds) ? config.guestIds.filter(Boolean) : [];
+    const day = getOrCreateDay(dateK);
+    const existingId = config.id || null;
+    let entry = existingId ? day.find(item => item.type==='custom' && item.id===existingId) : null;
+    if(!entry){
+      entry = { type:'custom', id: existingId || generateCustomEntryId(), title:'', start:'', end:null, location:null, guestIds:new Set() };
+      day.push(entry);
+    }
+    entry.title = title;
+    entry.start = start;
+    entry.end = end ? end : null;
+    entry.location = location ? location : null;
+    entry.guestIds = new Set(guestIds);
+    sortDayEntries(dateK);
+    return entry;
+  }
+
+  function removeCustomEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry => entry.type==='custom' && entry.id===entryId);
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
   }
 
   function getDinnerEntry(dateK){
@@ -3034,6 +3768,31 @@
         }
       }
       mergeSpaEntriesForDay(key);
+      if(day.length===0){
+        purgeKeys.push(key);
+      }
+    }
+    purgeKeys.forEach(key => delete state.schedule[key]);
+  }
+
+  function syncCustomGuests(){
+    const activeIds = new Set(state.guests.map(g=>g.id));
+    const purgeKeys = [];
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      for(let i = day.length - 1; i >= 0; i--){
+        const entry = day[i];
+        if(!entry || entry.type!=='custom') continue;
+        const ids = entry.guestIds instanceof Set
+          ? Array.from(entry.guestIds)
+          : Array.isArray(entry.guestIds) ? entry.guestIds.slice() : [];
+        const filtered = ids.filter(id => activeIds.has(id));
+        entry.guestIds = new Set(filtered);
+        if(entry.guestIds.size===0){
+          day.splice(i,1);
+        }
+      }
       if(day.length===0){
         purgeKeys.push(key);
       }
@@ -3480,9 +4239,6 @@
           && totalGuestsInStay > 0
           && ids.length === totalGuestsInStay;
         if(!isDinner && guestNames.length===0 && !assignmentCoversAll) return;
-        const tag = (!isDinner && guestNames.length)
-          ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}`
-          : '';
         const startTime = it.start ? escapeHtml(fmt12(it.start)) : '';
         const endTime = it.end ? escapeHtml(fmt12(it.end)) : '';
         let timeSegment = '';
@@ -3496,11 +4252,22 @@
         // Wrap generic itinerary times so we can remove bold styling without affecting other text.
         const timeMarkup = timeSegment ? `<span class="email-activity-time">${timeSegment}</span>` : '';
         const title = escapeHtml(it.title||'');
+        const segments = [];
+        if(timeMarkup) segments.push(timeMarkup);
+        if(title) segments.push(title);
+        if(it.type==='custom' && it.location){
+          segments.push(escapeHtml(it.location));
+        }
+        let lineMarkup = segments.join(' | ');
+        if(!isDinner && guestNames.length){
+          const guestSegment = guestNames.map(name => escapeHtml(name)).join(' | ');
+          lineMarkup = lineMarkup ? `${lineMarkup} | ${guestSegment}` : guestSegment;
+        }
         daySection.appendChild(
           makeEl(
             'div',
             'email-activity',
-            `${timeMarkup}${timeMarkup && title ? ' | ' : ''}${title}${tag}`,
+            lineMarkup,
             {html:true}
           )
         );
@@ -3703,6 +4470,33 @@
       setDeparture,
       openSpaEditor,
       openDinnerPicker,
+      openCustomBuilder,
+      createCustomEntry(config = {}){
+        const key = config.dateKey || (config.date instanceof Date ? keyDate(zero(config.date)) : keyDate(state.focus));
+        const guestIds = Array.isArray(config.guestIds)
+          ? config.guestIds.filter(Boolean)
+          : state.guests.map(g=>g.id);
+        upsertCustomEntry(key, {
+          id: config.id,
+          title: config.title || '',
+          start: config.start || '09:00',
+          end: config.end || '',
+          location: config.location || '',
+          guestIds
+        });
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+      },
+      deleteCustomEntry(config = {}){
+        const key = config.dateKey || (config.date instanceof Date ? keyDate(zero(config.date)) : keyDate(state.focus));
+        if(config.entryId){
+          removeCustomEntry(key, config.entryId);
+          markPreviewDirty();
+          renderActivities();
+          renderPreview();
+        }
+      },
       focusDate(date){
         if(!(date instanceof Date)) return;
         state.focus = zero(date);
