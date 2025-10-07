@@ -3342,7 +3342,9 @@
         totalGuestsInStay: state.guests.length
       });
       const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
-      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
+      const timeRange = `<span class="email-activity-time">${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))}</span>`;
+      // Wrap the spa time range so we can normalize its weight in the preview email.
+      lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
       return lines;
     }
     const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
@@ -3354,7 +3356,9 @@
       const therapist = spaTherapistLabel(app.therapist);
       const location = spaLocationLabel(app.location);
       const guestLabel = guest ? ` | ${escapeHtml(guest.name)}` : '';
-      lines.push(`${escapeHtml(fmt12(app.start))} – ${escapeHtml(fmt12(app.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
+      const timeRange = `<span class="email-activity-time">${escapeHtml(fmt12(app.start))} – ${escapeHtml(fmt12(app.end))}</span>`;
+      // Wrap the per-guest spa time so its font weight matches the rest of the itinerary line.
+      lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
     });
     return lines;
   }
@@ -3489,12 +3493,14 @@
         }else if(endTime){
           timeSegment = endTime;
         }
+        // Wrap generic itinerary times so we can remove bold styling without affecting other text.
+        const timeMarkup = timeSegment ? `<span class="email-activity-time">${timeSegment}</span>` : '';
         const title = escapeHtml(it.title||'');
         daySection.appendChild(
           makeEl(
             'div',
             'email-activity',
-            `${timeSegment}${timeSegment && title ? ' | ' : ''}${title}${tag}`,
+            `${timeMarkup}${timeMarkup && title ? ' | ' : ''}${title}${tag}`,
             {html:true}
           )
         );
