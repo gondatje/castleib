@@ -939,17 +939,7 @@
       const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
       const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
       const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
-      const guestNames = [];
-      const seenGuestNames = new Set();
-      appointments.forEach(app => {
-        const raw = (guestLookup.get(app?.guestId)?.name || '').trim();
-        if(!raw) return;
-        const key = raw.toLowerCase();
-        if(seenGuestNames.has(key)) return;
-        seenGuestNames.add(key);
-        guestNames.push(raw);
-      });
-      guestNames.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+      const guestNames = collectSpaGuestNames(entry, { guestLookup });
       // Surface therapist preference every time and append cabana/location and
       // guest details per the established `time | service | therapist | cabana | guest`
       // format the activities rail uses for spa rows.
@@ -3253,6 +3243,49 @@
     return overlapMap;
   }
 
+  function collectSpaGuestNames(entry, options){
+    if(!entry) return [];
+    const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+    if(appointments.length===0) return [];
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const names = [];
+    const seen = new Set();
+    appointments.forEach(app => {
+      if(!app || !app.guestId) return;
+      const guest = lookup.get(app.guestId);
+      const raw = (guest?.name || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      names.push(raw);
+    });
+    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+    return names;
+  }
+
+  function buildGuestNameListFromIds(ids, options){
+    if(!Array.isArray(ids) || ids.length===0) return [];
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const names = [];
+    const seen = new Set();
+    ids.forEach(id => {
+      const guest = lookup.get(id);
+      const raw = (guest?.name || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      if(seen.has(key)) return;
+      seen.add(key);
+      names.push(raw);
+    });
+    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+    return names;
+  }
+
   function buildSpaPreviewLines(entry){
     if(!entry || !Array.isArray(entry.appointments)) return [];
     const appointments = entry.appointments.slice();
@@ -3263,11 +3296,14 @@
     const lines = [];
     if(everyoneMatches){
       // When every guest shares the same configuration, pluralise the service label
-      // and omit the guest tags so the preview mirrors the shared experience.
+      // and append the same guest label string the activities row surfaces so the
+      // preview mirrors the shared experience copy.
       const serviceTitle = `${formatDurationLabel(base.durationMinutes)} ${pluralizeServiceTitle(base.serviceName)}`;
       const therapist = spaTherapistLabel(base.therapist);
       const location = spaLocationLabel(base.location);
-      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}`);
+      const guestNames = collectSpaGuestNames(entry, { guestLookup });
+      const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
+      lines.push(`${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
       return lines;
     }
     const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
@@ -3308,6 +3344,7 @@
       return;
     }
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
 
     const makeEl = (tag, className, text, options)=>{
       const el=document.createElement(tag);
@@ -3394,9 +3431,9 @@
         }
         const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
         if(!isDinner && ids.length===0) return;
-        const everyone = isDinner || (ids.length===state.guests.length);
-        const names = ids.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
-        const tag = everyone ? '' : names.map(n=>` | ${escapeHtml(n)}`).join('');
+        const guestNames = buildGuestNameListFromIds(ids, { guestLookup });
+        if(!isDinner && guestNames.length===0) return;
+        const tag = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
         const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
         const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
         let timeSegment = '';
