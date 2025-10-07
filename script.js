@@ -3431,9 +3431,11 @@
         }
         const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
         if(!isDinner && ids.length===0) return;
-        const guestNames = buildGuestNameListFromIds(ids, { guestLookup });
+        // Dinner always applies to every guest on the stay, so the preview skips
+        // individual name tags to avoid implying it can be scoped per person.
+        const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, { guestLookup });
         if(!isDinner && guestNames.length===0) return;
-        const tag = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
+        const tag = (!isDinner && guestNames.length) ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
         const startTime = it.start ? `<strong>${escapeHtml(fmt12(it.start))}</strong>` : '';
         const endTime = it.end ? `<strong>${escapeHtml(fmt12(it.end))}</strong>` : '';
         let timeSegment = '';
