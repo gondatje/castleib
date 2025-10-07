@@ -61,7 +61,7 @@
   // inside the fixed grid cell; downstream outputs continue to call the full
   // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
-  const formatDurationButtonLabel = minutes => String(minutes);
+  const formatDurationButtonLabel = minutes => minutes.toString();
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
