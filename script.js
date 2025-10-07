@@ -2151,7 +2151,13 @@
       locationList.appendChild(btn);
     });
     const locationHelper=document.createElement('p');
-    locationHelper.className='spa-helper-text';
+    locationHelper.className='spa-helper-text sr-only';
+    locationHelper.id='spa-location-inroom-helper';
+    locationHelper.setAttribute('aria-live','polite');
+    // Keep the helper text sr-only so the gating reason is announced for assistive
+    // tech without reserving vertical space, preventing layout shifts when
+    // availability toggles.
+    locationList.setAttribute('aria-describedby', locationHelper.id);
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
     secondaryColumn.appendChild(timeGroup);
@@ -2575,6 +2581,8 @@
         btn.setAttribute('aria-pressed', selection?.location===value ? 'true' : 'false');
         btn.disabled = disabled;
       });
+      // The helper content remains present for screen readers only; visually the
+      // layout stays fixed because the element never takes up space.
       if(!supportsInRoom){
         locationHelper.textContent='In-Room service is unavailable for this treatment.';
       }else{
@@ -2727,6 +2735,8 @@
       // Location gating mirrors the data model: if the current service blocks in-room,
       // surface the helper text and ignore attempts to re-enable the option.
       if(id==='in-room' && canonicalService?.supportsInRoom===false){
+        // Surface the same helper copy for assistive tech without revealing
+        // a visual banner so the modal never jumps.
         locationHelper.textContent='In-Room service is unavailable for this treatment.';
         return;
       }
