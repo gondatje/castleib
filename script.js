@@ -14,8 +14,22 @@
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-  const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
+  const fmt12 = hm => {
+    let [h, m] = hm.split(':').map(Number);
+    const isAm = h < 12;
+    h = ((h + 11) % 12) + 1;
+    const meridiem = isAm ? 'AM' : 'PM';
+    return `${h}:${pad(m)} ${meridiem}`;
+  };
   const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
+  const minutesFromTime = hm => {
+    if(!hm) return null;
+    const { hour, minute } = parse24Time(hm || '00:00');
+    if(!Number.isFinite(hour) || !Number.isFinite(minute)){
+      return null;
+    }
+    return (hour * 60) + minute;
+  };
   const to24Time = ({ hour, minute, meridiem }) => {
     let h = Number(hour) || 0;
     const m = Number(minute) || 0;
@@ -45,6 +59,20 @@
   };
   const formatDurationLabel = minutes => `${minutes}-Minute`;
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  // Utility focus helper so we can safely focus elements without the browser
+  // restoring a previous scroll position. Safari will throw if it doesn't
+  // support the options bag, so we fall back to a plain focus when needed.
+  const focusWithoutScroll = element => {
+    if(!element || typeof element.focus !== 'function'){
+      return;
+    }
+    try{
+      element.focus({ preventScroll:true });
+    }catch(err){
+      element.focus();
+    }
+  };
 
   // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
   // the UI continues to render individual chips if the helper fails to load in a dev sandbox.
@@ -82,6 +110,7 @@
   const spaIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="spa-icon"><path fill="currentColor" d="M12 2c-.4 0-.78.2-1 .53C9.5 4.63 6 10.22 6 13.5 6 17.64 8.86 20 12 20s6-2.36 6-6.5c0-3.28-3.5-8.87-5-10.97A1.2 1.2 0 0 0 12 2Zm0 16c-2.37 0-4-1.4-4-4.5 0-1.58 1.57-4.68 4-8.08 2.43 3.4 4 6.5 4 8.08 0 3.1-1.63 4.5-4 4.5Zm-5.5 1a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5Z"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
+  const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
 
   const dinnerMinutes = [0,15,30,45];
   const dinnerHours = [5,6,7,8];
@@ -105,6 +134,7 @@
   const SPA_LOCATION_OPTIONS = [
     { id: 'same-cabana', label: 'Same Cabana' },
     { id: 'separate-cabanas', label: 'Separate Cabanas' },
+    { id: 'couples-massage', label: 'Couple’s Massage' },
     { id: 'in-room', label: 'In-Room' }
   ];
 
@@ -590,6 +620,8 @@
     const dateK = keyDate(state.focus);
     const dinnerEntry = getDinnerEntry(dateK);
     const spaEntries = getSpaEntries(dateK);
+    const spaOverlapById = computeSpaOverlapMap(spaEntries);
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
     const combined = baseList.map(row=>({kind:'activity', data: row}));
     if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
     // Inject saved SPA blocks alongside activities/dinner so the list remains time-ordered.
@@ -894,10 +926,37 @@
 
       body.appendChild(headline);
 
+      const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+      const firstAppointment = appointments[0] || null;
+      const therapistLabel = spaTherapistLabel(firstAppointment?.therapist);
+      const locationId = firstAppointment?.location || null;
+      const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
+      const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
+      const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
+      const singleAppointment = appointments.length===1;
+      const guestName = singleAppointment ? (guestLookup.get(firstAppointment?.guestId)?.name || '') : '';
+      // Surface therapist preference every time and append cabana/location and
+      // guest details per the established `time | service | therapist | cabana | guest`
+      // format the activities rail uses for spa rows.
+      const metaParts = [therapistLabel || spaTherapistLabel('no-preference')];
+      if(locationLabel){
+        metaParts.push(locationLabel);
+      }
+      if(guestName){
+        metaParts.push(guestName);
+      }
+      const metaRow=document.createElement('div');
+      metaRow.className='spa-meta';
+      const metaContent = metaParts.filter(Boolean).join(' | ');
+      metaRow.textContent = metaContent;
+      if(metaContent){
+        body.appendChild(metaRow);
+      }
+
       const tagWrap=document.createElement('div');
       tagWrap.className='tag-row';
 
-      const assignmentGuests = Array.from(entry.guestIds || []).map(id => state.guests.find(g=>g.id===id)).filter(Boolean);
+      const assignmentGuests = Array.from(entry.guestIds || []).map(id => guestLookup.get(id)).filter(Boolean);
       const plan = getAssignmentChipRenderPlan({ totalGuestsInStay: state.guests.length, assignedGuests: assignmentGuests });
       if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
         const pill = document.createElement('button');
@@ -1193,7 +1252,11 @@
     };
 
     setTimeout(()=>{
-      timePicker?.focus?.();
+      if(timePicker?.focus){
+        // Explicitly focus the picker without scrolling so the sheet stays
+        // anchored at the top when it first opens.
+        timePicker.focus({ preventScroll:true });
+      }
     },0);
   }
 
@@ -1223,6 +1286,12 @@
       assignedIds = orderedGuests();
     }
     const assignedSet = new Set(assignedIds);
+    // Guest confirmation state mirrors the pill UX: included guests start pending
+    // until their selections are locked via the checkmark control.
+    const guestConfirmState = new Map();
+    assignedIds.forEach(id => {
+      guestConfirmState.set(id, !!existing);
+    });
 
     const defaultService = (()=>{
       if(existing && existing.appointments?.length){
@@ -1287,23 +1356,19 @@
       selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
     }
 
-    const identical = (()=>{
-      const values = Array.from(selections.values());
-      if(values.length<=2){
-        // When only the template exists (no guests yet) treat the flow as linked so
-        // the duration/time controls stay in sync once guests are added.
-        return true;
-      }
-      const comparable = values.filter(sel => sel.guestId!==TEMPLATE_ID);
-      if(comparable.length<=1) return true;
-      const [first] = comparable;
-      return comparable.every(sel => sel.serviceName===first.serviceName && sel.durationMinutes===first.durationMinutes && sel.start===first.start && sel.end===first.end && sel.therapist===first.therapist && sel.location===first.location);
-    })();
-
-    let linkGuests = identical || !existing;
     let activeGuestId = assignedIds[0] || null;
 
     const orderedAssigned = () => state.guests.map(g=>g.id).filter(id => assignedSet.has(id));
+
+    const countConfirmedGuests = () => orderedAssigned().filter(id => guestConfirmState.get(id)).length;
+
+    const inUniformMode = () => {
+      const assigned = orderedAssigned();
+      if(assigned.length===0){
+        return true;
+      }
+      return countConfirmedGuests() === 0;
+    };
 
     const ensureTemplateSelection = () => {
       if(!selections.has(TEMPLATE_ID)){
@@ -1325,14 +1390,25 @@
         ensureTemplateSelection();
         return [TEMPLATE_ID];
       }
-      if(linkGuests){
+      if(inUniformMode()){
+        activeGuestId = null;
         return assigned;
       }
-      if(activeGuestId && assignedSet.has(activeGuestId)){
-        return [activeGuestId];
+      let target = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+      if(target && guestConfirmState.get(target)){
+        target = null;
       }
-      activeGuestId = assigned[0];
-      return [activeGuestId];
+      if(!target){
+        target = assigned.find(id => !guestConfirmState.get(id)) || null;
+      }
+      if(target){
+        activeGuestId = target;
+        if(guestConfirmState.get(target)){
+          return [];
+        }
+        return [target];
+      }
+      return [];
     };
 
     const getSelectionFor = (id, fallbackService) => {
@@ -1352,30 +1428,19 @@
       if(assigned.length===0){
         return ensureTemplateSelection();
       }
-      if(linkGuests){
+      if(inUniformMode()){
         const baseId = assigned[0];
         return selections.get(baseId) || ensureTemplateSelection();
       }
-      if(activeGuestId && assignedSet.has(activeGuestId)){
-        return selections.get(activeGuestId) || ensureTemplateSelection();
+      let targetId = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+      if(!targetId){
+        targetId = assigned.find(id => !guestConfirmState.get(id)) || assigned[0];
       }
-      const fallbackId = assigned[0];
-      activeGuestId = fallbackId;
-      return selections.get(fallbackId) || ensureTemplateSelection();
-    };
-
-    const syncFrom = (sourceId, { includeTemplate=false }={}) => {
-      const base = selections.get(sourceId);
-      if(!base){
-        return;
+      if(targetId){
+        activeGuestId = targetId;
+        return selections.get(targetId) || ensureTemplateSelection();
       }
-      orderedAssigned().forEach(id => {
-        if(id===sourceId) return;
-        selections.set(id, { ...base, guestId: id });
-      });
-      if(includeTemplate){
-        syncTemplateFromSourceId(sourceId);
-      }
+      return ensureTemplateSelection();
     };
 
     const overlay = document.createElement('div');
@@ -1409,16 +1474,284 @@
     layout.className='spa-layout';
     body.appendChild(layout);
 
+    const guestSection=document.createElement('section');
+    guestSection.className='spa-section spa-section-guests';
+    const guestCard=document.createElement('div');
+    guestCard.className='spa-block spa-guest-card';
+    const guestHeading=document.createElement('h3');
+    guestHeading.textContent='Guests';
+    guestCard.appendChild(guestHeading);
+    const guestList=document.createElement('div');
+    guestList.className='spa-guest-list';
+    guestList.setAttribute('role','group');
+    guestCard.appendChild(guestList);
+    const guestHint=document.createElement('p');
+    guestHint.className='spa-helper-text spa-guest-hint';
+    guestHint.id='spa-guest-hint';
+    guestHint.setAttribute('aria-live','polite');
+    guestHint.hidden=true;
+    guestCard.appendChild(guestHint);
+    guestSection.appendChild(guestCard);
+    layout.appendChild(guestSection);
+
+    const buildGuestLabel = guest => guest.name;
+
+    // Submit remains enabled for the uniform fast-path (no confirmations) and only
+    // re-locks when the user starts confirming individual guests.
+    function areGuestsReady(){
+      const assigned = orderedAssigned();
+      if(assigned.length===0) return false;
+      const confirmedCount = countConfirmedGuests();
+      if(confirmedCount===0) return true;
+      return confirmedCount===assigned.length;
+    }
+
+    // Modal pills reuse the roster styling so guests remain familiar. A guest is
+    // editable until confirmed; once confirmed they are locked until the user
+    // explicitly unconfirms them.
+    function updateGuestControls(){
+      guestList.innerHTML='';
+      const singleGuestRoster = state.guests.length===1;
+      if(singleGuestRoster && state.guests[0]){
+        assignedSet.add(state.guests[0].id);
+      }
+      const assigned = orderedAssigned();
+      const uniform = inUniformMode();
+      const confirmedCount = countConfirmedGuests();
+      const outstandingIds = confirmedCount>0 ? assigned.filter(id => !guestConfirmState.get(id)) : [];
+      const outstandingNames = outstandingIds.map(id => {
+        const entry = state.guests.find(g => g.id===id);
+        return entry ? entry.name : '';
+      }).filter(Boolean);
+      const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+
+      guestHeading.textContent = singleGuestRoster ? 'Guest' : 'Guests';
+
+      if(singleGuestRoster){
+        const solo = state.guests[0];
+        if(solo){
+          const wrapper=document.createElement('div');
+          wrapper.className='spa-guest-chip spa-guest-chip-static included';
+          wrapper.dataset.guestId = solo.id;
+          // Single-guest stays render the pill as a static name tag so the
+          // inline experience matches the roster while skipping the confirm
+          // workflow entirely.
+          const pill=document.createElement('span');
+          pill.className='guest-pill spa-guest-pill spa-guest-pill-static';
+          pill.style.setProperty('--pillColor', solo.color);
+          if(solo.primary){
+            const star=document.createElement('span');
+            star.className='star';
+            star.textContent='★';
+            star.setAttribute('aria-hidden','true');
+            pill.appendChild(star);
+          }
+          const labelSpan=document.createElement('span');
+          labelSpan.className='label';
+          labelSpan.textContent=buildGuestLabel(solo);
+          pill.appendChild(labelSpan);
+          wrapper.appendChild(pill);
+          guestList.appendChild(wrapper);
+        }
+        guestHint.hidden=true;
+        guestHint.textContent='';
+        guestHint.classList.remove('spa-helper-error');
+        updateConfirmState();
+        return;
+      }
+
+      state.guests.forEach(guest => {
+        const included = assignedSet.has(guest.id);
+        const confirmed = !!guestConfirmState.get(guest.id);
+        // Mirror the roster chips: reuse the shared guest-pill markup (and
+        // color token) so the modal visuals stay 1:1 with the main rail.
+        const wrapper=document.createElement('div');
+        wrapper.className='spa-guest-chip';
+        wrapper.dataset.guestId = guest.id;
+        if(included) wrapper.classList.add('included');
+        if(included && confirmed) wrapper.classList.add('confirmed');
+        if(included && !confirmed && !uniform) wrapper.classList.add('needs-confirm');
+        if(included && activeId===guest.id){
+          wrapper.classList.add('active');
+        }
+
+        const pill=document.createElement('button');
+        pill.type='button';
+        pill.className='guest-pill spa-guest-pill';
+        // Reuse the roster palette so the modal pills stay color-synced with the
+        // main guest chips.
+        pill.style.setProperty('--pillColor', guest.color);
+        pill.setAttribute('aria-pressed', included ? 'true' : 'false');
+        pill.classList.toggle('active', included);
+        if(guest.primary){
+          const star=document.createElement('span');
+          star.className='star';
+          star.textContent='★';
+          star.setAttribute('aria-hidden','true');
+          pill.appendChild(star);
+        }
+        const labelSpan=document.createElement('span');
+        labelSpan.className='label';
+        labelSpan.textContent=buildGuestLabel(guest);
+        pill.appendChild(labelSpan);
+
+        pill.addEventListener('click',()=>{
+          if(!included){
+            includeGuest(guest.id);
+            return;
+          }
+          if(uniform){
+            return;
+          }
+          setActiveGuest(guest.id);
+        });
+        pill.addEventListener('keydown',e=>{
+          if(!included && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
+            e.preventDefault();
+            includeGuest(guest.id);
+          }
+        });
+        if(included){
+          wrapper.classList.add('has-confirm');
+          pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
+        }else{
+          pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
+        }
+
+        wrapper.appendChild(pill);
+
+        if(included){
+          // The checkmark replaces the hover “X” affordance from the roster chips;
+          // keeping it inside the pill ensures the modal visuals stay pixel-identical
+          // while still exposing a separate button for confirmation.
+          const confirmBtn=document.createElement('button');
+          confirmBtn.type='button';
+          confirmBtn.className='spa-guest-confirm-toggle';
+          confirmBtn.dataset.spaNoSubmit='true';
+          confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
+          confirmBtn.setAttribute('aria-label', confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`);
+          confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">${confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`}</span>`;
+          confirmBtn.addEventListener('click',e=>{
+            e.stopPropagation();
+            setGuestConfirmed(guest.id, !confirmed);
+          });
+          wrapper.appendChild(confirmBtn);
+        }
+
+        guestList.appendChild(wrapper);
+      });
+
+      if(assigned.length===0){
+        guestHint.hidden=false;
+        guestHint.textContent='Select at least one guest to add a spa appointment.';
+        guestHint.classList.add('spa-helper-error');
+      }else if(confirmedCount>0 && confirmedCount<assigned.length){
+        guestHint.hidden=false;
+        const namesText = outstandingNames.length ? `Confirm selections for: ${outstandingNames.join(', ')}. ` : '';
+        guestHint.textContent=`${namesText}Confirm all guests or clear confirmations to apply to all.`.trim();
+        guestHint.classList.add('spa-helper-error');
+      }else{
+        guestHint.hidden=true;
+        guestHint.textContent='';
+        guestHint.classList.remove('spa-helper-error');
+      }
+
+      updateConfirmState();
+    }
+
+    function includeGuest(id){
+      if(!id || assignedSet.has(id)){
+        if(id && assignedSet.has(id) && !inUniformMode()){
+          setActiveGuest(id);
+        }
+        return;
+      }
+      assignedSet.add(id);
+      const template = ensureTemplateSelection();
+      const canonical = inUniformMode() ? (getCanonicalSelection() || template) : template;
+      const nextSelection = canonical ? { ...canonical, guestId: id } : { ...template, guestId: id };
+      selections.set(id, nextSelection);
+      guestConfirmState.set(id, false);
+      assignedIds = orderedAssigned();
+      if(inUniformMode()){
+        syncTemplateFromSourceId(id);
+      }else{
+        activeGuestId = id;
+      }
+      updateGuestControls();
+      refreshAllControls();
+    }
+
+    function removeGuest(id){
+      if(!assignedSet.has(id)) return;
+      assignedSet.delete(id);
+      selections.delete(id);
+      guestConfirmState.delete(id);
+      const assigned = orderedAssigned();
+      assignedIds = assigned;
+      if(assigned.length===0){
+        activeGuestId = null;
+      }else if(activeGuestId && !assignedSet.has(activeGuestId)){
+        const fallback = assigned.find(gid => !guestConfirmState.get(gid)) || null;
+        activeGuestId = fallback;
+      }
+      updateGuestControls();
+      refreshAllControls();
+    }
+
+    function setGuestConfirmed(id, confirmed){
+      if(!assignedSet.has(id)) return;
+      const next = !!confirmed;
+      guestConfirmState.set(id, next);
+      if(next){
+        const fallback = orderedAssigned().find(gid => !guestConfirmState.get(gid));
+        activeGuestId = fallback || id;
+      }else{
+        activeGuestId = id;
+      }
+      updateGuestControls();
+      updateConfirmState();
+    }
+
+    function setActiveGuest(id){
+      if(!assignedSet.has(id)) return;
+      if(inUniformMode()) return;
+      if(activeGuestId===id) return;
+      if(guestConfirmState.get(id)) return;
+      activeGuestId = id;
+      updateGuestControls();
+      refreshAllControls();
+    }
+
+    function markGuestsDirty(ids){
+      let touched=false;
+      ids.forEach(targetId => {
+        if(targetId===TEMPLATE_ID) return;
+        if(guestConfirmState.get(targetId)){
+          guestConfirmState.set(targetId, false);
+          touched=true;
+        }
+      });
+      if(touched){
+        updateGuestControls();
+      }else{
+        updateConfirmState();
+      }
+    }
+
     const serviceSection=document.createElement('section');
     serviceSection.className='spa-section spa-section-services';
+    const serviceCard=document.createElement('div');
+    serviceCard.className='spa-block spa-service-card';
     const serviceHeading=document.createElement('h3');
     serviceHeading.textContent='Service';
-    serviceSection.appendChild(serviceHeading);
+    serviceCard.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
     serviceList.setAttribute('role','tree');
     serviceList.setAttribute('aria-label','Spa services');
-    serviceSection.appendChild(serviceList);
+    serviceCard.appendChild(serviceList);
+    serviceSection.appendChild(serviceCard);
 
     // Category/subcategory accordions share a single state object so only one path
     // stays open at a time. This keeps the vertical stack compact, aligns the
@@ -1433,6 +1766,7 @@
     const subcategoryRows = new Map();
     const subcategoryPanels = new Map();
     const serviceOptionButtons = new Map();
+    let cascadeUserNavigated = false;
 
     const chevronSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5.22 2.97a.75.75 0 0 0 0 1.06L9.19 8l-3.97 3.97a.75.75 0 1 0 1.06 1.06l4.5-4.5a.75.75 0 0 0 0-1.06l-4.5-4.5a.75.75 0 0 0-1.06 0Z" fill="currentColor"/></svg>';
     const createChevron = () => {
@@ -1490,6 +1824,7 @@
     };
 
     const ensureCascadeForService = serviceName => {
+      if(!cascadeUserNavigated) return;
       const meta = catalog.byName.get(serviceName);
       if(!meta) return;
       cascadeState.expandedCategoryId = meta.displayCategoryId || cascadeState.expandedCategoryId;
@@ -1531,6 +1866,7 @@
       categoryPanels.set(category.id, categoryPanel);
 
       const expandCategory = () => {
+        cascadeUserNavigated = true;
         const isOpen = cascadeState.expandedCategoryId === category.id;
         cascadeState.expandedCategoryId = isOpen ? null : category.id;
         if(isOpen){
@@ -1544,11 +1880,13 @@
         if(e.key==='ArrowRight'){
           e.preventDefault();
           if(cascadeState.expandedCategoryId !== category.id){
+            cascadeUserNavigated = true;
             cascadeState.expandedCategoryId = category.id;
             applyCascadeState();
           }else if(category.subcategories && category.subcategories.length){
             const first = category.subcategories[0];
             if(first){
+              cascadeUserNavigated = true;
               cascadeState.expandedSubcategoryId = first.id;
               applyCascadeState();
               const key = `${category.id}::${first.id}`;
@@ -1559,17 +1897,17 @@
             firstService?.button.focus();
           }
         }
-        if(e.key==='ArrowLeft'){
-          e.preventDefault();
-          if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
-            cascadeState.expandedSubcategoryId = null;
-            applyCascadeState();
-          }else if(cascadeState.expandedCategoryId === category.id){
-            cascadeState.expandedCategoryId = null;
-            cascadeState.expandedSubcategoryId = null;
-            applyCascadeState();
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }else if(cascadeState.expandedCategoryId === category.id){
+              cascadeState.expandedCategoryId = null;
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }
           }
-        }
       });
 
       if(category.subcategories && category.subcategories.length){
@@ -1606,6 +1944,7 @@
           subcategoryPanels.set(subKey, subPanel);
 
           const expandSub = () => {
+            cascadeUserNavigated = true;
             const categoryOpen = cascadeState.expandedCategoryId === category.id;
             const isOpen = categoryOpen && cascadeState.expandedSubcategoryId === subcategory.id;
             cascadeState.expandedCategoryId = category.id;
@@ -1619,6 +1958,7 @@
               e.preventDefault();
               cascadeState.expandedCategoryId = category.id;
               cascadeState.expandedSubcategoryId = subcategory.id;
+              cascadeUserNavigated = true;
               applyCascadeState();
               const firstService = subcategory.services[0];
               if(firstService){
@@ -1645,6 +1985,7 @@
             option.setAttribute('aria-label',`Select service: ${service.name}`);
             option.tabIndex = -1;
             option.addEventListener('click',()=>{
+              cascadeUserNavigated = true;
               selectService(service.name);
             });
             option.addEventListener('keydown', e => {
@@ -1669,6 +2010,7 @@
           option.setAttribute('aria-label',`Select service: ${service.name}`);
           option.tabIndex = -1;
           option.addEventListener('click',()=>{
+            cascadeUserNavigated = true;
             selectService(service.name);
           });
           option.addEventListener('keydown', e => {
@@ -1689,10 +2031,15 @@
 
     const detailsSection=document.createElement('section');
     detailsSection.className='spa-section spa-section-details';
+    const detailsGrid=document.createElement('div');
+    // The detail grid squeezes the remaining controls into two columns so the
+    // dialog fits within its fixed height without requiring a vertical scroll.
+    detailsGrid.className='spa-details-grid';
+    detailsSection.appendChild(detailsGrid);
     layout.appendChild(detailsSection);
 
     const durationGroup=document.createElement('div');
-    durationGroup.className='spa-block';
+    durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
     durationGroup.appendChild(durationHeading);
@@ -1701,10 +2048,10 @@
     durationList.setAttribute('role','radiogroup');
     durationList.setAttribute('aria-label','Duration');
     durationGroup.appendChild(durationList);
-    detailsSection.appendChild(durationGroup);
+    detailsGrid.appendChild(durationGroup);
 
     const timeGroup=document.createElement('div');
-    timeGroup.className='spa-block';
+    timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Start Time';
     timeGroup.appendChild(timeHeading);
@@ -1714,11 +2061,31 @@
     const endPreview=document.createElement('div');
     endPreview.className='spa-end-preview';
     endPreview.setAttribute('aria-live','polite');
+    const startTimeDisplay=document.createElement('button');
+    startTimeDisplay.type='button';
+    startTimeDisplay.className='spa-start-time-display';
+    startTimeDisplay.setAttribute('aria-label','Edit start time manually');
+    const timeSeparator=document.createElement('span');
+    timeSeparator.className='spa-time-separator';
+    timeSeparator.textContent='–';
+    const endTimeValue=document.createElement('span');
+    endTimeValue.className='spa-end-time-value';
+    endPreview.appendChild(startTimeDisplay);
+    endPreview.appendChild(timeSeparator);
+    endPreview.appendChild(endTimeValue);
     timeGroup.appendChild(endPreview);
-    detailsSection.appendChild(timeGroup);
+    const timeHint=document.createElement('p');
+    timeHint.className='spa-helper-text spa-time-hint';
+    timeHint.id='spa-time-hint';
+    timeHint.hidden=true;
+    startTimeDisplay.setAttribute('aria-describedby', timeHint.id);
+    timeGroup.appendChild(timeHint);
+
+    let startTimeInput=null;
+    let startTimeEditing=false;
 
     const therapistGroup=document.createElement('div');
-    therapistGroup.className='spa-block';
+    therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
     therapistGroup.appendChild(therapistHeading);
@@ -1736,10 +2103,10 @@
       therapistList.appendChild(btn);
     });
     therapistGroup.appendChild(therapistList);
-    detailsSection.appendChild(therapistGroup);
+    detailsGrid.appendChild(therapistGroup);
 
     const locationGroup=document.createElement('div');
-    locationGroup.className='spa-block';
+    locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
     locationGroup.appendChild(locationHeading);
@@ -1760,72 +2127,20 @@
     locationHelper.className='spa-helper-text';
     locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
-    detailsSection.appendChild(locationGroup);
-
-    const guestSection=document.createElement('section');
-    guestSection.className='spa-section spa-section-guests';
-    const guestHeading=document.createElement('h3');
-    guestHeading.textContent='Guests';
-    guestSection.appendChild(guestHeading);
-    const guestList=document.createElement('div');
-    guestList.className='spa-guest-list';
-    guestSection.appendChild(guestList);
-
-    const syncRow=document.createElement('label');
-    syncRow.className='spa-sync-row';
-    const syncCheckbox=document.createElement('input');
-    syncCheckbox.type='checkbox';
-    syncCheckbox.checked = linkGuests;
-    syncCheckbox.addEventListener('change',()=>{
-      linkGuests = syncCheckbox.checked;
-      if(linkGuests){
-        const ids = orderedAssigned();
-        const sourceId = ids[0] || TEMPLATE_ID;
-        if(ids.length){
-          activeGuestId = ids[0];
-        }
-        syncFrom(sourceId, { includeTemplate:true });
-      }else{
-        const canonical = getCanonicalSelection();
-        const sourceId = canonical?.guestId && canonical.guestId!==TEMPLATE_ID ? canonical.guestId : TEMPLATE_ID;
-        syncTemplateFromSourceId(sourceId);
-      }
-      refreshGuestControls();
-      refreshAllControls();
-    });
-    const syncLabel=document.createElement('span');
-    syncLabel.textContent='Keep guests in sync';
-    syncRow.appendChild(syncCheckbox);
-    syncRow.appendChild(syncLabel);
-    guestSection.appendChild(syncRow);
-
-    const guestEditorRow=document.createElement('div');
-    guestEditorRow.className='spa-guest-editor-row';
-    const guestEditorLabel=document.createElement('label');
-    guestEditorLabel.textContent='Editing details for';
-    guestEditorLabel.className='spa-guest-editor-label';
-    const guestSelect=document.createElement('select');
-    guestSelect.className='spa-guest-select';
-    guestSelect.addEventListener('change',()=>{
-      activeGuestId = guestSelect.value || null;
-      refreshAllControls();
-    });
-    guestEditorRow.appendChild(guestEditorLabel);
-    guestEditorRow.appendChild(guestSelect);
-    guestSection.appendChild(guestEditorRow);
-
-    const guestHelper=document.createElement('p');
-    guestHelper.className='spa-helper-text';
-    guestSection.appendChild(guestHelper);
-
-    body.appendChild(guestSection);
+    detailsGrid.appendChild(locationGroup);
+    detailsGrid.appendChild(timeGroup);
 
     const actions=document.createElement('div');
     actions.className='spa-actions';
     const confirmBtn=document.createElement('button');
     confirmBtn.type='button';
     confirmBtn.className='spa-confirm';
-    confirmBtn.textContent = mode==='edit' ? 'Update appointment' : 'Add appointment';
+    const confirmLabel = (mode==='edit' || existing) ? 'Update spa appointment' : 'Add spa appointment';
+    // Match the dinner flow: the visible copy is the plus glyph while screen
+    // readers receive a descriptive label so both dialogs share the same
+    // primary-action affordance.
+    confirmBtn.innerHTML = `<span aria-hidden="true">+</span><span class="sr-only">${confirmLabel}</span>`;
+    confirmBtn.setAttribute('aria-label', confirmLabel);
     actions.appendChild(confirmBtn);
     let removeBtn=null;
     if(mode==='edit' && existing){
@@ -1842,6 +2157,18 @@
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
     document.body.classList.add('spa-lock');
+    // Reset scroll so reopen/edit flows land at the top of the sheet regardless
+    // of the previous scroll position.
+    body.scrollTop = 0;
+    dialog.scrollTop = 0;
+    requestAnimationFrame(()=>{
+      // Running the reset again on the next frame guards against any focus
+      // shifting that might try to restore the previous scroll offset.
+      body.scrollTop = 0;
+      dialog.scrollTop = 0;
+      body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+      dialog.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    });
 
     const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
     // Replace the AM/PM wheel with a segmented toggle so SPA flows keep the
@@ -1862,17 +2189,63 @@
     const handleTimeChange = value => {
       const targets = resolveEditableTargets();
       const nextStart = to24Time(value);
+      let touched = false;
       targets.forEach(id => {
         const selection = getSelectionFor(id);
+        const prevStart = selection.start;
+        const prevEnd = selection.end;
+        const nextEnd = addMinutesToTime(nextStart, selection.durationMinutes);
         selection.start = nextStart;
-        // Duration drives end time: recompute whenever start shifts so preview stays live.
-        selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        // Duration drives end time: recompute whenever start shifts so the preview stays live.
+        selection.end = nextEnd;
+        if(prevStart !== selection.start || prevEnd !== selection.end){
+          touched = true;
+        }
       });
       const sourceId = targets[0] || TEMPLATE_ID;
       syncTemplateFromSourceId(sourceId);
+      if(touched){
+        markGuestsDirty(targets);
+      }else{
+        updateConfirmState();
+      }
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      if(startTimeEditing && startTimeInput){
+        startTimeInput.removeAttribute('aria-invalid');
+      }
       refreshEndPreview();
       syncMeridiemToggle(value.meridiem);
     };
+
+    // Left/right arrows hop between the hour, minute, and AM/PM columns while
+    // keeping each wheel's existing up/down physics untouched.
+    const columnFocusOrder = [];
+    const registerTimeColumn = (element, focus) => {
+      if(!element) return -1;
+      columnFocusOrder.push({
+        element,
+        focus: () => {
+          if(typeof focus === 'function'){
+            focus();
+          }else{
+            focusWithoutScroll(element);
+          }
+        }
+      });
+      return columnFocusOrder.length - 1;
+    };
+    const focusTimeColumn = index => {
+      if(!columnFocusOrder.length) return;
+      const normalized = (index + columnFocusOrder.length) % columnFocusOrder.length;
+      const entry = columnFocusOrder[normalized];
+      if(entry){
+        entry.focus();
+      }
+    };
+    let hourColumnIndex = -1;
+    let minuteColumnIndex = -1;
+    let meridiemColumnIndex = -1;
 
     const timePicker = createTimePicker ? createTimePicker({
       hourRange:[1,12],
@@ -1883,7 +2256,28 @@
       onChange: handleTimeChange
     }) : null;
 
-    const handleMeridiemInput = (value, { focus } = {}) => {
+    if(timePicker?.hourWheel?.element){
+      hourColumnIndex = registerTimeColumn(timePicker.hourWheel.element, () => {
+        if(typeof timePicker.hourWheel.focus === 'function'){
+          timePicker.hourWheel.focus({ preventScroll:true });
+        }else{
+          focusWithoutScroll(timePicker.hourWheel.element);
+        }
+      });
+    }
+    if(timePicker?.minuteWheel?.element){
+      minuteColumnIndex = registerTimeColumn(timePicker.minuteWheel.element, () => {
+        if(typeof timePicker.minuteWheel.focus === 'function'){
+          timePicker.minuteWheel.focus({ preventScroll:true });
+        }else{
+          focusWithoutScroll(timePicker.minuteWheel.element);
+        }
+      });
+    }
+
+    // Route segmented toggle changes through the picker change handler so the
+    // AM/PM state, wheel physics, and selection model stay perfectly aligned.
+    const handleMeridiemInput = (value, { focus, externalValue } = {}) => {
       if(!timePicker) return;
       const normalized = value === 'PM' ? 'PM' : 'AM';
       if(typeof timePicker.setMeridiem === 'function'){
@@ -1892,18 +2286,49 @@
         timePicker.meridiemWheel?.setValue?.(normalized);
       }
       const snapshot = timePicker.getValue?.();
-      const active = snapshot?.meridiem || normalized;
-      syncMeridiemToggle(active);
+      const nextValue = externalValue ? { ...externalValue, meridiem: normalized } : snapshot ? { ...snapshot, meridiem: normalized } : {
+        hour: timePicker.hourWheel?.value ?? initialTimeValue.hour,
+        minute: timePicker.minuteWheel?.value ?? initialTimeValue.minute,
+        meridiem: normalized
+      };
+      handleTimeChange(nextValue);
       if(focus){
-        const btn = meridiemButtons.get(active);
+        const btn = meridiemButtons.get(nextValue.meridiem);
         if(btn){
-          btn.focus();
+          focusWithoutScroll(btn);
         }
       }
     };
 
+    startTimeDisplay.textContent='—';
+    timeSeparator.hidden=true;
+
     if(timePicker){
       timeContainer.appendChild(timePicker.element);
+      if(hourColumnIndex>-1){
+        timePicker.hourWheel.element.addEventListener('keydown', e => {
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            focusTimeColumn(hourColumnIndex - 1);
+          }
+          if(e.key==='ArrowRight'){
+            e.preventDefault();
+            focusTimeColumn(hourColumnIndex + 1);
+          }
+        });
+      }
+      if(minuteColumnIndex>-1){
+        timePicker.minuteWheel.element.addEventListener('keydown', e => {
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            focusTimeColumn(minuteColumnIndex - 1);
+          }
+          if(e.key==='ArrowRight'){
+            e.preventDefault();
+            focusTimeColumn(minuteColumnIndex + 1);
+          }
+        });
+      }
       if(timePicker.meridiemWheel?.element){
         timePicker.meridiemWheel.element.setAttribute('tabindex','-1');
         const parent = timePicker.meridiemWheel.element.parentElement;
@@ -1915,6 +2340,11 @@
       toggle.className='spa-meridiem-toggle';
       toggle.setAttribute('role','radiogroup');
       toggle.setAttribute('aria-label','Select AM or PM');
+      meridiemColumnIndex = registerTimeColumn(toggle, () => {
+        const selected = Array.from(meridiemButtons.values()).find(btn => btn.getAttribute('aria-checked')==='true');
+        const target = selected || toggle.querySelector('button');
+        focusWithoutScroll(target);
+      });
       MERIDIEM_VALUES.forEach(value => {
         const radio=document.createElement('button');
         radio.type='button';
@@ -1928,12 +2358,22 @@
           handleMeridiemInput(value);
         });
         radio.addEventListener('keydown',e=>{
-          if(e.key==='ArrowLeft' || e.key==='ArrowRight'){
+          if(e.key==='ArrowUp' || e.key==='ArrowDown'){
             e.preventDefault();
-            const direction = e.key==='ArrowLeft' ? -1 : 1;
+            const direction = e.key==='ArrowUp' ? -1 : 1;
             const index = MERIDIEM_VALUES.indexOf(value);
             const nextIndex = (index + direction + MERIDIEM_VALUES.length) % MERIDIEM_VALUES.length;
             handleMeridiemInput(MERIDIEM_VALUES[nextIndex], { focus:true });
+            return;
+          }
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            focusTimeColumn(meridiemColumnIndex - 1);
+            return;
+          }
+          if(e.key==='ArrowRight'){
+            e.preventDefault();
+            focusTimeColumn(meridiemColumnIndex + 1);
           }
         });
         toggle.appendChild(radio);
@@ -1947,6 +2387,106 @@
       fallback.textContent='Time picker unavailable.';
       timeContainer.appendChild(fallback);
     }
+
+    // Parse freeform times like “7am” or “7 00 am” while rejecting entries that
+    // omit a meridiem. Canonicalised values snap to the 5-minute wheel cadence
+    // so manual edits remain in sync with the kinetic picker.
+    function parseManualTimeInput(raw){
+      if(raw==null) return { error:'missing-meridiem' };
+      const trimmed = String(raw).trim();
+      if(trimmed==='') return { error:'missing-meridiem' };
+      const compact = trimmed.toLowerCase().replace(/\s+/g,'');
+      if(!/(am|pm)$/.test(compact)){
+        return { error:'missing-meridiem' };
+      }
+      const match = compact.match(/^(\d{1,2})(?::?(\d{2}))?(am|pm)$/);
+      if(!match) return { error:'invalid' };
+      const hour = Number(match[1]);
+      const minute = match[2]!==undefined ? Number(match[2]) : 0;
+      if(!Number.isInteger(hour) || hour<1 || hour>12) return { error:'invalid' };
+      if(!Number.isInteger(minute) || minute<0 || minute>59) return { error:'invalid' };
+      if(minute % 5 !== 0) return { error:'invalid' };
+      return { hour, minute, meridiem: match[3].toUpperCase() };
+    }
+
+    function finalizeStartTimeEdit(commit){
+      if(!startTimeEditing) return;
+      const input = startTimeInput;
+      if(!input) return;
+      if(commit){
+        const parsed = parseManualTimeInput(input.value);
+        if(parsed.error){
+          timeHint.textContent = parsed.error==='missing-meridiem' ? 'Include am or pm' : 'Enter a valid time (e.g., 7:00 AM)';
+          timeHint.hidden = false;
+          input.setAttribute('aria-invalid','true');
+          setTimeout(()=>{
+            input.focus({ preventScroll:true });
+            input.select();
+          },0);
+          return;
+        }
+        input.removeAttribute('aria-invalid');
+        timeHint.hidden = true;
+        const canonical = fmt12(to24Time(parsed));
+        startTimeDisplay.textContent = canonical;
+        if(timePicker){
+          timePicker.hourWheel?.setValue?.(parsed.hour);
+          timePicker.minuteWheel?.setValue?.(parsed.minute);
+        }
+        handleMeridiemInput(parsed.meridiem, { externalValue: parsed });
+      }else{
+        timeHint.hidden = true;
+        timeHint.textContent='';
+      }
+      input.replaceWith(startTimeDisplay);
+      startTimeInput = null;
+      startTimeEditing = false;
+      if(!commit){
+        startTimeDisplay.focus({ preventScroll:true });
+      }
+    }
+
+    function openStartTimeEditor(){
+      if(startTimeEditing) return;
+      startTimeEditing = true;
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      const input=document.createElement('input');
+      input.type='text';
+      input.className='spa-start-time-input';
+      input.value = startTimeDisplay.textContent?.trim() || '';
+      input.setAttribute('aria-label','Start time');
+      input.setAttribute('aria-describedby', timeHint.id);
+      input.setAttribute('autocomplete','off');
+      input.setAttribute('autocapitalize','none');
+      input.setAttribute('spellcheck','false');
+      input.setAttribute('inputmode','text');
+      input.placeholder='e.g. 7:00 AM';
+      input.dataset.spaNoSubmit='true';
+      startTimeDisplay.replaceWith(input);
+      startTimeInput = input;
+      requestAnimationFrame(()=>{
+        input.focus({ preventScroll:true });
+        input.select();
+      });
+      input.addEventListener('blur',()=> finalizeStartTimeEdit(true));
+      // Enter commits the parsed time but never auto-submits the dialog so users
+      // can move on to other fields.
+      input.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){
+          e.preventDefault();
+          e.stopPropagation();
+          finalizeStartTimeEdit(true);
+        }
+        if(e.key==='Escape'){
+          e.preventDefault();
+          e.stopPropagation();
+          finalizeStartTimeEdit(false);
+        }
+      });
+    }
+
+    startTimeDisplay.addEventListener('click', openStartTimeEditor);
 
     function refreshServiceOptions(){
       const selection = getCanonicalSelection();
@@ -2009,83 +2549,6 @@
       }
     }
 
-    function refreshGuestControls(){
-      guestList.innerHTML='';
-      state.guests.forEach(guest => {
-        const row=document.createElement('label');
-        row.className='spa-guest-row';
-        const checkbox=document.createElement('input');
-        checkbox.type='checkbox';
-        checkbox.checked = assignedSet.has(guest.id);
-        checkbox.addEventListener('change',()=>{
-          if(checkbox.checked){
-            assignedSet.add(guest.id);
-            const canonical = getCanonicalSelection() || ensureTemplateSelection();
-            const clone = { ...canonical, guestId: guest.id };
-            clone.end = addMinutesToTime(clone.start, clone.durationMinutes);
-            selections.set(guest.id, clone);
-            if(linkGuests){
-              const ids = orderedAssigned();
-              const sourceId = ids[0] || TEMPLATE_ID;
-              if(ids.length){
-                activeGuestId = ids[0];
-              }
-              syncFrom(sourceId, { includeTemplate:true });
-            }else{
-              syncTemplateFromSourceId(guest.id);
-            }
-          }else{
-            assignedSet.delete(guest.id);
-            selections.delete(guest.id);
-            if(activeGuestId===guest.id){
-              activeGuestId = orderedAssigned()[0] || null;
-            }
-            if(linkGuests){
-              const ids = orderedAssigned();
-              if(ids.length){
-                syncFrom(ids[0], { includeTemplate:true });
-              }else{
-                syncTemplateFromSourceId(TEMPLATE_ID);
-              }
-            }
-          }
-          refreshGuestControls();
-          refreshAllControls();
-        });
-        const swatch=document.createElement('span');
-        swatch.className='spa-guest-swatch';
-        swatch.style.background = guest.color;
-        row.appendChild(checkbox);
-        row.appendChild(swatch);
-        const label=document.createElement('span');
-        label.textContent=guest.name;
-        row.appendChild(label);
-        guestList.appendChild(row);
-      });
-
-      guestSelect.innerHTML='';
-      orderedAssigned().forEach(id => {
-        const guest = state.guests.find(g=>g.id===id);
-        if(!guest) return;
-        const opt=document.createElement('option');
-        opt.value=id;
-        opt.textContent=guest.name;
-        guestSelect.appendChild(opt);
-      });
-      if(state.guests.length===0){
-        guestHelper.textContent='Add guests to assign this appointment.';
-      }else if(orderedAssigned().length===0){
-        guestHelper.textContent='Select at least one guest to continue.';
-      }else{
-        guestHelper.textContent='';
-      }
-      if(!orderedAssigned().includes(activeGuestId)){
-        activeGuestId = orderedAssigned()[0] || null;
-      }
-      guestSelect.disabled = linkGuests || orderedAssigned().length===0;
-      guestSelect.value = activeGuestId || '';
-    }
-
     function refreshTimePickerSelection(){
       const selection = getCanonicalSelection();
       if(!selection || !timePicker) return;
@@ -2103,9 +2566,23 @@
     function refreshEndPreview(){
       const selection = getCanonicalSelection();
       if(selection){
-        endPreview.textContent = `${fmt12(selection.start)} – ${fmt12(selection.end)}`;
+        const startLabel = fmt12(selection.start);
+        const endLabel = fmt12(selection.end);
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = startLabel;
+        }else{
+          startTimeDisplay.textContent = startLabel;
+        }
+        timeSeparator.hidden = false;
+        endTimeValue.textContent = endLabel;
       }else{
-        endPreview.textContent = '';
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = '';
+        }else{
+          startTimeDisplay.textContent = '—';
+        }
+        timeSeparator.hidden = true;
+        endTimeValue.textContent = '';
       }
     }
 
@@ -2120,14 +2597,23 @@
     }
 
     function updateConfirmState(){
-      confirmBtn.disabled = orderedAssigned().length===0;
+      const hasGuests = orderedAssigned().length>0;
+      const ready = hasGuests && areGuestsReady();
+      confirmBtn.disabled = !ready;
+      confirmBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
     }
 
     function selectService(name){
       const service = findService(name) || defaultService;
       const targets = resolveEditableTargets();
+      let touched = false;
       targets.forEach(id => {
         const selection = getSelectionFor(id, service);
+        const prevService = selection.serviceName;
+        const prevDuration = selection.durationMinutes;
+        const prevLocation = selection.location;
+        const prevSupports = selection.supportsInRoom;
+        const prevEnd = selection.end;
         selection.serviceName = service?.name || name;
         selection.serviceCategory = service?.category || '';
         selection.supportsInRoom = service?.supportsInRoom !== false;
@@ -2140,7 +2626,15 @@
         if(selection.location==='in-room' && selection.supportsInRoom===false){
           selection.location='same-cabana';
         }
+        if(selection.serviceName!==prevService || selection.durationMinutes!==prevDuration || selection.location!==prevLocation || selection.supportsInRoom!==prevSupports || selection.end!==prevEnd){
+          touched = true;
+        }
       });
+      if(touched){
+        markGuestsDirty(targets);
+      }else{
+        updateConfirmState();
+      }
       if(targets.length){
         syncTemplateFromSourceId(targets[0]);
       }
@@ -2149,11 +2643,22 @@
 
     function selectDuration(minutes){
       const targets = resolveEditableTargets();
+      let touched = false;
       targets.forEach(id => {
         const selection = getSelectionFor(id);
+        const prevDuration = selection.durationMinutes;
+        const prevEnd = selection.end;
         selection.durationMinutes = minutes;
         selection.end = addMinutesToTime(selection.start, minutes);
+        if(selection.durationMinutes!==prevDuration || selection.end!==prevEnd){
+          touched = true;
+        }
       });
+      if(touched){
+        markGuestsDirty(targets);
+      }else{
+        updateConfirmState();
+      }
       if(targets.length){
         syncTemplateFromSourceId(targets[0]);
       }
@@ -2162,10 +2667,20 @@
 
     function selectTherapist(id){
       const targets = resolveEditableTargets();
+      let touched = false;
       targets.forEach(targetId => {
         const selection = getSelectionFor(targetId);
+        const prevTherapist = selection.therapist;
         selection.therapist = id;
+        if(selection.therapist!==prevTherapist){
+          touched = true;
+        }
       });
+      if(touched){
+        markGuestsDirty(targets);
+      }else{
+        updateConfirmState();
+      }
       if(targets.length){
         syncTemplateFromSourceId(targets[0]);
       }
@@ -2183,6 +2698,7 @@
         return;
       }
       const targets = resolveEditableTargets();
+      let touched = false;
       targets.forEach(targetId => {
         const selection = getSelectionFor(targetId);
         const service = findService(selection.serviceName) || defaultService;
@@ -2190,8 +2706,17 @@
         if(id==='in-room' && !supportsInRoom){
           return;
         }
+        const prevLocation = selection.location;
         selection.location = id;
+        if(selection.location!==prevLocation){
+          touched = true;
+        }
       });
+      if(touched){
+        markGuestsDirty(targets);
+      }else{
+        updateConfirmState();
+      }
       if(targets.length){
         syncTemplateFromSourceId(targets[0]);
       }
@@ -2199,25 +2724,64 @@
       updateConfirmState();
     }
 
-    refreshGuestControls();
+    updateGuestControls();
     refreshAllControls();
 
     function confirmSelection(){
-      if(orderedAssigned().length===0) return;
-      const appointments = orderedAssigned().map(id => {
-        const selection = selections.get(id);
-        return selection ? {
+      const assigned = orderedAssigned();
+      if(assigned.length===0) return;
+      if(!areGuestsReady()){
+        updateGuestControls();
+        return;
+      }
+      const confirmedCount = countConfirmedGuests();
+      const canonical = getCanonicalSelection() || ensureTemplateSelection();
+      // Capture the final snapshot for every guest so we can either apply them
+      // uniformly or split them into individual activities when variations exist.
+      const snapshots = assigned.map(id => {
+        const base = confirmedCount===0 ? canonical : (selections.get(id) || canonical);
+        const startValue = base.start || defaultSpaStartTime;
+        const endValue = addMinutesToTime(startValue, base.durationMinutes);
+        const snapshot = {
           guestId: id,
-          serviceName: selection.serviceName,
-          serviceCategory: selection.serviceCategory,
-          durationMinutes: selection.durationMinutes,
-          start: selection.start,
-          end: addMinutesToTime(selection.start, selection.durationMinutes),
-          therapist: selection.therapist,
-          location: selection.location
-        } : null;
-      }).filter(Boolean);
-      upsertSpaEntry(targetDateKey, { id: existing?.id, appointments });
+          serviceName: base.serviceName,
+          serviceCategory: base.serviceCategory,
+          durationMinutes: base.durationMinutes,
+          start: startValue,
+          end: endValue,
+          therapist: base.therapist,
+          location: base.location
+        };
+        selections.set(id, { ...base, guestId: id, start: startValue, end: endValue });
+        return snapshot;
+      });
+
+      const allIdentical = snapshots.every(snap => {
+        const ref = snapshots[0];
+        return snap.serviceName===ref.serviceName &&
+          snap.serviceCategory===ref.serviceCategory &&
+          snap.durationMinutes===ref.durationMinutes &&
+          snap.start===ref.start &&
+          snap.end===ref.end &&
+          snap.therapist===ref.therapist &&
+          snap.location===ref.location;
+      });
+
+      if(existing?.id && !allIdentical){
+        removeSpaEntry(targetDateKey, existing.id);
+      }
+
+      if(allIdentical){
+        const entryId = existing?.id || null;
+        upsertSpaEntry(targetDateKey, { id: entryId, appointments: snapshots });
+      }else{
+        // Per-guest variations become independent rows so each guest carries their
+        // own chip, edit affordance, and preview line.
+        snapshots.forEach((snapshot, index) => {
+          const entryId = (existing && index===0) ? existing.id : null;
+          upsertSpaEntry(targetDateKey, { id: entryId, appointments: [snapshot] });
+        });
+      }
       markPreviewDirty();
       renderActivities();
       renderPreview();
@@ -2248,7 +2812,7 @@
         closeSpaEditor({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
+      if((e.key==='Enter' || e.key==='Return') && (!e.target || (e.target.tagName!=='BUTTON' && e.target.dataset?.spaNoSubmit!=='true'))){
         e.preventDefault();
         confirmSelection();
         return;
@@ -2284,11 +2848,7 @@
     };
 
     setTimeout(()=>{
-      if(linkGuests){
-        timePicker?.focus?.();
-      }else if(guestSelect && !guestSelect.disabled){
-        guestSelect.focus();
-      }
+      timePicker?.focus?.();
     },0);
   }
 
@@ -2430,6 +2990,43 @@
     const trimmed = name.trim();
     return /s$/i.test(trimmed) ? trimmed : `${trimmed}s`;
   };
+
+  function computeSpaOverlapMap(entries){
+    // Detect overlapping appointments per instructions so the activities list can
+    // surface cabana choices whenever two different guests share the same spa
+    // window on a given day.
+    const overlapMap = new Map();
+    const windows = [];
+    (entries || []).forEach(entry => {
+      if(!entry || entry.type!=='spa' || !entry.id) return;
+      overlapMap.set(entry.id, false);
+      const apps = Array.isArray(entry.appointments) ? entry.appointments : [];
+      apps.forEach(app => {
+        if(!app) return;
+        const start = minutesFromTime(app.start);
+        const end = minutesFromTime(app.end);
+        if(start==null || end==null) return;
+        windows.push({
+          entryId: entry.id,
+          guestId: app.guestId || null,
+          start,
+          end
+        });
+      });
+    });
+    for(let i=0;i<windows.length;i+=1){
+      const a = windows[i];
+      for(let j=i+1;j<windows.length;j+=1){
+        const b = windows[j];
+        if(a.guestId && b.guestId && a.guestId===b.guestId) continue;
+        if(a.start < b.end && a.end > b.start){
+          if(overlapMap.has(a.entryId)) overlapMap.set(a.entryId, true);
+          if(overlapMap.has(b.entryId)) overlapMap.set(b.entryId, true);
+        }
+      }
+    }
+    return overlapMap;
+  }
 
   function buildSpaPreviewLines(entry){
     if(!entry || !Array.isArray(entry.appointments)) return [];

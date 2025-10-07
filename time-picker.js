@@ -630,7 +630,19 @@
         }
       },
       refresh,
-      focus(){ viewport.focus(); },
+      focus(options){
+        if(options){
+          try{
+            viewport.focus(options);
+            return;
+          }catch(err){/* Safari <15 */}
+        }
+        try{
+          viewport.focus({ preventScroll:true });
+        }catch(err){
+          viewport.focus();
+        }
+      },
       dispose(){
         cancelAnimation();
         stopFreeScroll();
@@ -921,8 +933,8 @@
     disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
     minuteWheel.setDisabledChecker(minuteDisabledChecker);
 
-    const focus = () => {
-      hourWheel.focus();
+    const focus = options => {
+      hourWheel.focus(options);
     };
 
     const dispose = () => {
@@ -937,6 +949,7 @@
       const normalized = normalizeMeridiem(value);
       if(meridiemWheel && typeof meridiemWheel.setValue === 'function'){
         meridiemWheel.setValue(normalized);
+        syncMeridiem(normalized, { emitChange: false });
       }else{
         syncMeridiem(normalized);
       }
