@@ -1086,8 +1086,9 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='dinner-chip custom-chip';
-      // Default state shows the circular custom icon; hover/focus swap to the
-      // pencil so the affordance mirrors dinner/spa chips.
+      // Default state shows the circular custom icon; CSS swaps in the pencil
+      // on hover or :focus-visible so keyboard users see the edit affordance
+      // without changing the pill's shared sizing.
       chip.innerHTML = `<span class="chip-icon custom-chip-icon">${customChipIconSvg}</span><span class="chip-pencil">${customEditSvg}</span><span class="sr-only">Edit custom activity</span>`;
       chip.dataset.pressExempt='true';
       chip.setAttribute('aria-label','Edit custom activity');
