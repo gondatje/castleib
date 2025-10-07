@@ -57,7 +57,11 @@
     const nextMinute = normalized % 60;
     return `${pad(nextHour)}:${pad(nextMinute)}`;
   };
+  // Duration buttons show compact numerals so the three-option case still fits
+  // inside the fixed grid cell; downstream outputs continue to call the full
+  // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
+  const formatDurationButtonLabel = minutes => String(minutes);
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -2552,7 +2556,10 @@
         btn.type='button';
         btn.className='spa-radio';
         btn.dataset.value=String(minutes);
-        btn.textContent=formatDurationLabel(minutes);
+        // Buttons surface numerals only while the aria-label keeps the
+        // descriptive "-Minute" phrasing for assistive tech parity.
+        btn.textContent=formatDurationButtonLabel(minutes);
+        btn.setAttribute('aria-label', formatDurationLabel(minutes));
         const selected = selection?.durationMinutes===minutes;
         btn.classList.toggle('selected', selected);
         btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
