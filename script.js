@@ -421,6 +421,35 @@
   const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
   const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
+  const calendarWeekdayRow=calendarScrollContent && calendarScrollContent.querySelector('.dow');
+  const MIN_DAYCELL_HEIGHT=40;
+  const MAX_DAYCELL_HEIGHT=120;
+  let calendarVisibleWeeks=6;
+  let calendarRowHeightRaf=0;
+  const updateCalendarRowHeights=()=>{
+    if(!calendarScrollContent) return;
+    const hostHeight=calendarScrollContent.clientHeight;
+    if(hostHeight<=0) return;
+    const weeks=Math.max(1, calendarVisibleWeeks || 6);
+    const weekdayHeaderHeight=calendarWeekdayRow ? calendarWeekdayRow.getBoundingClientRect().height : 0;
+    const hostStyles=getComputedStyle(calendarScrollContent);
+    const hostGap=parseFloat(hostStyles.rowGap || hostStyles.gap || '0') || 0;
+    const gridStyles=getComputedStyle(calGrid);
+    const rowGap=parseFloat(gridStyles.rowGap || '0') || 0;
+    const totalRowGaps=Math.max(0,(weeks-1))*rowGap;
+    // available trims the weekday header + vertical gaps so the remaining block can be evenly divided between week rows.
+    const available=hostHeight - weekdayHeaderHeight - hostGap - totalRowGaps;
+    const rawRow=Math.floor(available / weeks);
+    const clamped=Math.max(MIN_DAYCELL_HEIGHT, Math.min(MAX_DAYCELL_HEIGHT, Number.isFinite(rawRow) ? rawRow : MAX_DAYCELL_HEIGHT));
+    calGrid.style.setProperty('--daycell-h', `${clamped}px`);
+  };
+  const scheduleCalendarRowHeightUpdate=()=>{
+    if(calendarRowHeightRaf) cancelAnimationFrame(calendarRowHeightRaf);
+    calendarRowHeightRaf=requestAnimationFrame(()=>{
+      calendarRowHeightRaf=0;
+      updateCalendarRowHeights();
+    });
+  };
   if(calendarCard && calendarContainer && calendarScroll && calendarScrollContent && calendarScrollThumb){
     const rootStyle=getComputedStyle(document.documentElement);
     const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
@@ -528,6 +557,7 @@
     });
     mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
     window.addEventListener('resize', scheduleThumbUpdate);
+    window.addEventListener('resize', scheduleCalendarRowHeightUpdate);
     // Desktop-only compaction: gate density changes behind the desktop media query so tablet/iPad keep the roomy layout.
     const desktopQuery=window.matchMedia('(min-width: 1024px)');
     const applyCalendarDensity=()=>{
@@ -557,6 +587,7 @@
         }
       }
       calendarContainer.style.setProperty('--calendar-grid-scale', scale.toFixed(3));
+      scheduleCalendarRowHeightUpdate();
       scheduleThumbUpdate();
     };
     const onDesktopQueryChange=()=>applyCalendarDensity();
@@ -570,7 +601,13 @@
       applyCalendarDensity();
     });
     densityObserver.observe(calendarCard);
+    const gridHostObserver=new ResizeObserver(()=>{
+      // ResizeObserver keeps the calendar row height in sync with viewport + layout changes.
+      scheduleCalendarRowHeightUpdate();
+    });
+    gridHostObserver.observe(calendarScroll);
     applyCalendarDensity();
+    scheduleCalendarRowHeightUpdate();
   }
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
@@ -948,7 +985,13 @@
     calMonth.textContent = monthName(y,m); calYear.textContent = y;
     calGrid.innerHTML='';
     const first=new Date(y,m,1), startOffset=first.getDay();
-    for(let i=0;i<42;i++){
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    // visibleWeeks tracks whether the active month spans five or six rows so the grid can compress rows without scrolling.
+    const visibleWeeks=Math.max(5, Math.ceil((startOffset + daysInMonth) / 7));
+    calendarVisibleWeeks=visibleWeeks;
+    calGrid.style.setProperty('--weeks', `${visibleWeeks}`);
+    const totalCells=visibleWeeks * 7;
+    for(let i=0;i<totalCells;i++){
       const d=new Date(y,m,1 - startOffset + i);
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
@@ -984,6 +1027,7 @@
       });
       calGrid.appendChild(btn);
     }
+    scheduleCalendarRowHeightUpdate();
     if(shouldRestoreFocus){
       // After rebuilding the grid, re-focus the active cell without scrolling so arrow
       // key presses and clicks keep the visible focus ring in place across month changes.

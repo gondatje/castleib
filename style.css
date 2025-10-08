@@ -389,6 +389,12 @@ body{
   display:flex;
   flex-direction:column;
   gap:var(--calendar-weekday-gap);
+  /* Grid host fills the viewport row so JS can measure the available height without triggering layout reflows elsewhere. */
+  height:100%;
+  min-height:0;
+  block-size:100%;
+  min-block-size:0;
+  overflow:hidden;
   /* Scaling happens on the inner stack so transform avoids reflow while the row height stays pegged by the grid track. */
   transform:scale(var(--calendar-grid-scale, 1));
   transform-origin:top center;
@@ -398,6 +404,10 @@ body{
 .left.card > #calendar .calendar-scroll__content .days{
   flex:1 1 auto;
   min-block-size:0;
+  block-size:100%;
+  height:100%;
+  min-height:0;
+  overflow:hidden;
 }
 /* Compact density tokens collapse spacing when the card height drops under desktop guardrails. */
 .left.card > #calendar[data-density='compact']{
@@ -621,7 +631,19 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .dow{margin:0;margin-block-end:var(--space-2)}
 .dow div{font-size:11px;color:var(--muted);text-align:center}
-.days button{aspect-ratio:1/1;border-radius:12px;background:#fff;position:relative}
+.days{
+  --weeks:6;
+  --daycell-h:120px;
+  grid-template-rows:repeat(var(--weeks, 6), minmax(40px, var(--daycell-h)));
+}
+.days button{
+  border-radius:12px;
+  background:#fff;
+  position:relative;
+  inline-size:100%;
+  block-size:100%;
+  min-block-size:40px;
+}
 .days button.other{opacity:.45}
 .days button.focus{outline:2px solid var(--brand)}
 .days button.today::after{content:'';position:absolute;bottom:6px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--brand);transform:translateX(-50%)}
