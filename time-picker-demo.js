@@ -8,8 +8,15 @@
     return;
   }
 
-  const pad = n => String(n).padStart(2, '0');
-  const formatValue = ({ hour, minute, meridiem }) => `${hour}:${pad(minute)} ${meridiem}`;
+  const formatTimeDisplay = (window.CHSFormatUtils && window.CHSFormatUtils.formatTimeDisplay)
+    ? window.CHSFormatUtils.formatTimeDisplay
+    : ({ hour, minute, meridiem }) => {
+        const normalizedHour = ((Number(hour) || 0) % 12) || 12;
+        const paddedMinute = String(Number(minute) || 0).padStart(2,'0');
+        const suffix = (meridiem || '').toLowerCase() === 'pm' ? 'pm' : 'am';
+        return `${normalizedHour}:${paddedMinute}${suffix}`;
+      };
+  const formatValue = parts => formatTimeDisplay(parts);
 
   const dinnerRules = {
     5: new Set([0, 15]),
@@ -51,9 +58,9 @@
       title: 'Spa',
       description: '12-hour wheel, visible AM/PM, five minute granularity.',
       defaults: [
-        { label: 'Default 7:00 AM', value: { hour: 7, minute: 0, meridiem: 'AM' } },
-        { label: 'Default 9:05 AM', value: { hour: 9, minute: 5, meridiem: 'AM' } },
-        { label: 'Default 2:35 PM', value: { hour: 2, minute: 35, meridiem: 'PM' } }
+        { label: 'Default 7:00am', value: { hour: 7, minute: 0, meridiem: 'AM' } },
+        { label: 'Default 9:05am', value: { hour: 9, minute: 5, meridiem: 'AM' } },
+        { label: 'Default 2:35pm', value: { hour: 2, minute: 35, meridiem: 'PM' } }
       ],
       buildConfig(defaultValue, updateValue){
         return {
@@ -76,9 +83,9 @@
       description: 'Shared picker with Start/End buttons for arrivals and departures.',
       showHelpers: true,
       defaults: [
-        { label: 'Default 7:00 AM', value: { hour: 7, minute: 0, meridiem: 'AM' } },
-        { label: 'Default 8:45 AM', value: { hour: 8, minute: 45, meridiem: 'AM' } },
-        { label: 'Default 6:15 PM', value: { hour: 6, minute: 15, meridiem: 'PM' } }
+        { label: 'Default 7:00am', value: { hour: 7, minute: 0, meridiem: 'AM' } },
+        { label: 'Default 8:45am', value: { hour: 8, minute: 45, meridiem: 'AM' } },
+        { label: 'Default 6:15pm', value: { hour: 6, minute: 15, meridiem: 'PM' } }
       ],
       buildConfig(defaultValue, updateValue, helpers){
         return {
@@ -223,7 +230,7 @@
     controls.className = 'time-picker-demo-controls';
     card.appendChild(controls);
 
-    const resetButton = createButton('Reset both to 7:00 PM');
+    const resetButton = createButton('Reset both to 7:00pm');
     controls.appendChild(resetButton);
 
     const physicsGrid = document.createElement('div');

@@ -11,6 +11,10 @@
     ? window.AssignmentChipLogic.attachGroupPillInteractions
     : () => ({ open: () => {}, close: () => {} });
 
+  const formatTimeDisplay = (window.CHSFormatUtils && window.CHSFormatUtils.formatTimeDisplay)
+    ? window.CHSFormatUtils.formatTimeDisplay
+    : value => (value==null ? '' : String(value));
+
   // Mirror the production overflow controller so the preview keeps the guest
   // rail locked to one line and trades excess chips for a +N popover.
   const layoutGuestCluster = (container, chips, options = {}) => {
@@ -456,7 +460,10 @@
       row.tabIndex = 0;
     }
 
-    const ariaLabel = `Add activity: ${activity.start} to ${activity.end} ${activity.title}`;
+    const startLabel = activity.start ? formatTimeDisplay(activity.start) : '';
+    const endLabel = activity.end ? formatTimeDisplay(activity.end) : '';
+    const timeLabel = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
+    const ariaLabel = endLabel ? `Add activity: ${startLabel} to ${endLabel} ${activity.title}` : `Add activity: ${timeLabel} ${activity.title}`;
     row.setAttribute('aria-label', ariaLabel);
 
     const body = document.createElement('div');
@@ -467,7 +474,7 @@
 
     const time = document.createElement('span');
     time.className = 'activity-row-time';
-    time.textContent = `${activity.start} – ${activity.end}`;
+    time.textContent = timeLabel;
     headline.appendChild(time);
 
     const title = document.createElement('span');

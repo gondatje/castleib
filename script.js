@@ -17,14 +17,11 @@
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
-  const fmt12 = hm => {
-    let [h, m] = hm.split(':').map(Number);
-    const isAm = h < 12;
-    h = ((h + 11) % 12) + 1;
-    const meridiem = isAm ? 'AM' : 'PM';
-    return `${h}:${pad(m)} ${meridiem}`;
-  };
   const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
+  // Centralized formatter is provided by utils/format.js so every surface stays in sync.
+  const formatTimeDisplay = (window.CHSFormatUtils && typeof window.CHSFormatUtils.formatTimeDisplay === 'function')
+    ? window.CHSFormatUtils.formatTimeDisplay
+    : (value => (value==null ? '' : String(value)));
   const minutesFromTime = hm => {
     if(!hm) return null;
     const { hour, minute } = parse24Time(hm || '00:00');
@@ -452,12 +449,12 @@
   let stayNotePicker=null;
   function updateStayNoteInputs(){
     if(arrivalEtaInput){
-      const display = state.arrivalNote ? fmt12(state.arrivalNote) : '';
+      const display = state.arrivalNote ? formatTimeDisplay(state.arrivalNote) : '';
       arrivalEtaInput.value = display;
       arrivalEtaInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='arrivalNote' ? 'true' : 'false');
     }
     if(departureEtdInput){
-      const display = state.departureNote ? fmt12(state.departureNote) : '';
+      const display = state.departureNote ? formatTimeDisplay(state.departureNote) : '';
       departureEtdInput.value = display;
       departureEtdInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='departureNote' ? 'true' : 'false');
     }
@@ -1040,7 +1037,7 @@
         div.tabIndex = 0;
         div.removeAttribute('aria-disabled');
       }
-      const ariaLabel = `Add activity: ${fmt12(row.start)} to ${fmt12(row.end)} ${row.title}`;
+      const ariaLabel = `Add activity: ${formatTimeDisplay(row.start)} to ${formatTimeDisplay(row.end)} ${row.title}`;
       div.setAttribute('aria-label', ariaLabel);
 
       const body=document.createElement('div');
@@ -1051,7 +1048,7 @@
 
       const time=document.createElement('span');
       time.className='activity-row-time';
-      time.textContent = `${fmt12(row.start)} – ${fmt12(row.end)}`;
+      time.textContent = `${formatTimeDisplay(row.start)} – ${formatTimeDisplay(row.end)}`;
       headline.appendChild(time);
 
       const title=document.createElement('span');
@@ -1541,7 +1538,7 @@
       headline.className='activity-row-headline';
       const time=document.createElement('span');
       time.className='activity-row-time';
-      time.textContent = fmt12(entry.start);
+      time.textContent = formatTimeDisplay(entry.start);
       const title=document.createElement('span');
       title.className='activity-row-title';
       title.textContent = entry.title;
@@ -1587,8 +1584,8 @@
 
       const time=document.createElement('span');
       time.className='activity-row-time';
-      const startLabel = entry.start ? fmt12(entry.start) : '';
-      const endLabel = entry.end ? fmt12(entry.end) : '';
+      const startLabel = entry.start ? formatTimeDisplay(entry.start) : '';
+      const endLabel = entry.end ? formatTimeDisplay(entry.end) : '';
       time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
       headline.appendChild(time);
 
@@ -1643,8 +1640,8 @@
 
       const time=document.createElement('span');
       time.className='activity-row-time';
-      const startLabel = entry.start ? fmt12(entry.start) : '';
-      const endLabel = entry.end ? fmt12(entry.end) : '';
+      const startLabel = entry.start ? formatTimeDisplay(entry.start) : '';
+      const endLabel = entry.end ? formatTimeDisplay(entry.end) : '';
       time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
       headline.appendChild(time);
 
@@ -3281,7 +3278,7 @@
       if(commit){
         const parsed = parseManualTimeInput(input.value);
         if(parsed.error){
-          timeHint.textContent = parsed.error==='missing-meridiem' ? 'Include am or pm' : 'Enter a valid time (e.g., 7:00 AM)';
+          timeHint.textContent = parsed.error==='missing-meridiem' ? 'Include am or pm' : 'Enter a valid time (e.g., 7:00am)';
           timeHint.hidden = false;
           input.setAttribute('aria-invalid','true');
           setTimeout(()=>{
@@ -3292,7 +3289,7 @@
         }
         input.removeAttribute('aria-invalid');
         timeHint.hidden = true;
-        const canonical = fmt12(to24Time(parsed));
+        const canonical = formatTimeDisplay(to24Time(parsed));
         startTimeDisplay.textContent = canonical;
         if(timePicker){
           timePicker.hourWheel?.setValue?.(parsed.hour);
@@ -3326,7 +3323,7 @@
       input.setAttribute('autocapitalize','none');
       input.setAttribute('spellcheck','false');
       input.setAttribute('inputmode','text');
-      input.placeholder='e.g. 7:00 AM';
+      input.placeholder='e.g. 7:00am';
       input.dataset.spaNoSubmit='true';
       startTimeDisplay.replaceWith(input);
       startTimeInput = input;
@@ -3436,8 +3433,8 @@
     function refreshEndPreview(){
       const selection = getCanonicalSelection();
       if(selection){
-        const startLabel = fmt12(selection.start);
-        const endLabel = fmt12(selection.end);
+        const startLabel = formatTimeDisplay(selection.start);
+        const endLabel = formatTimeDisplay(selection.end);
         if(startTimeEditing && startTimeInput){
           startTimeInput.value = startLabel;
         }else{
@@ -4073,7 +4070,7 @@
 
     const updateStartDisplay=()=>{
       if(startValue){
-        startValueNode.textContent = fmt12(startValue);
+        startValueNode.textContent = formatTimeDisplay(startValue);
         startPill.dataset.empty='false';
       }else{
         startValueNode.textContent = 'Set start';
@@ -4083,7 +4080,7 @@
 
     const updateEndDisplay=()=>{
       if(endValue){
-        endValueNode.textContent = fmt12(endValue);
+        endValueNode.textContent = formatTimeDisplay(endValue);
         endPill.dataset.empty='false';
         clearEndBtn.disabled=false;
       }else{
@@ -4900,7 +4897,9 @@
         totalGuestsInStay: state.guests.length
       });
       const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
-      const timeRange = `<span class="email-activity-time">${escapeHtml(fmt12(base.start))} – ${escapeHtml(fmt12(base.end))}</span>`;
+      const timeRangeStart = escapeHtml(formatTimeDisplay(base.start));
+      const timeRangeEnd = escapeHtml(formatTimeDisplay(base.end));
+      const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
       // Wrap the spa time range so we can normalize its weight in the preview email.
       lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
       return lines;
@@ -4914,7 +4913,9 @@
       const therapist = spaTherapistLabel(app.therapist);
       const location = spaLocationLabel(app.location);
       const guestLabel = guest ? ` | ${escapeHtml(guest.name)}` : '';
-      const timeRange = `<span class="email-activity-time">${escapeHtml(fmt12(app.start))} – ${escapeHtml(fmt12(app.end))}</span>`;
+      const timeRangeStart = escapeHtml(formatTimeDisplay(app.start));
+      const timeRangeEnd = escapeHtml(formatTimeDisplay(app.end));
+      const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
       // Wrap the per-guest spa time so its font weight matches the rest of the itinerary line.
       lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
     });
@@ -4991,15 +4992,15 @@
 
       const checkoutLine = () => {
         const row = makeEl('div', 'email-activity');
-        row.appendChild(document.createTextNode(`${fmt12('11:00')} Check-Out | Welcome to stay on property until `));
-        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('13:00'));
+        row.appendChild(document.createTextNode(`${formatTimeDisplay('11:00')} Check-Out | Welcome to stay on property until `));
+        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('13:00'));
         row.appendChild(stayWindow);
         return row;
       };
       const checkinLine = () => {
         const row = makeEl('div', 'email-activity');
-        row.appendChild(document.createTextNode(`${fmt12('16:00')} Guaranteed Check-In | Welcome to arrive as early as `));
-        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', fmt12('12:00'));
+        row.appendChild(document.createTextNode(`${formatTimeDisplay('16:00')} Guaranteed Check-In | Welcome to arrive as early as `));
+        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('12:00'));
         row.appendChild(arrivalWindow);
         return row;
       };
@@ -5038,8 +5039,8 @@
           && totalGuestsInStay > 0
           && ids.length === totalGuestsInStay;
         if(!isDinner && guestNames.length===0 && !assignmentCoversAll) return;
-        const startTime = it.start ? escapeHtml(fmt12(it.start)) : '';
-        const endTime = it.end ? escapeHtml(fmt12(it.end)) : '';
+        const startTime = it.start ? escapeHtml(formatTimeDisplay(it.start)) : '';
+        const endTime = it.end ? escapeHtml(formatTimeDisplay(it.end)) : '';
         let timeSegment = '';
         if(startTime && endTime){
           timeSegment = `${startTime} - ${endTime}`;
