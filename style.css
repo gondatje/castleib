@@ -300,20 +300,6 @@ body{
     overflow:hidden;
     overflow:clip;
   }
-  .left.card > #calendar{
-    /*
-     * Calendar stack: flex so the header/nav stay pinned while the grid + guests scroll
-     * together. The min-block-size guard keeps Split View heights stable when space is tight.
-     */
-    display:flex;
-    flex-direction:column;
-    flex:1 1 auto;
-    min-block-size:0;
-    overflow:auto;
-    overscroll-behavior:contain;
-    scrollbar-gutter:stable both-edges;
-    -webkit-overflow-scrolling:touch;
-  }
   .center.card > #activities{
     /* Activities column scrolls internally so the shared row never grows beyond the viewport. */
     block-size:100%;
@@ -358,6 +344,43 @@ body{
   block-size:100%;
   min-block-size:0;
 }
+/*
+ * Calendar rail containment: clip at the card edge and let the internal stack
+ * manage its own scrolling so Today/guest tools never collide with nav.
+ */
+.left.card{
+  overflow:hidden;
+  overflow:clip;
+}
+.left.card > #calendar{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-5);
+  flex:1 1 auto;
+  min-block-size:0;
+}
+.left.card > #calendar .calendar-scroll{
+  /* Keep the interactive stack scrollable with the disappearing scrollbar pattern. */
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-4);
+  flex:1 1 auto;
+  min-block-size:0;
+  padding-block-end:var(--space-4);
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.left.card > #calendar .calendar-scroll:hover{scrollbar-width:thin;}
+.left.card > #calendar .calendar-scroll::-webkit-scrollbar{width:0;height:0;}
+.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar{width:6px;height:6px;}
+.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar-thumb{
+  background:color-mix(in srgb,var(--muted) 45%,transparent);
+  border-radius:999px;
+}
+.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar-track{background:transparent;}
 
 /* Preview containment: outer card masks overflow while inner scroller handles the scroll. */
 .preview-card{
@@ -735,7 +758,6 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 /* The calendar stack now uses token spacing so the live route matches the preview cadence. */
 .calendar-actions{
   margin:0;
-  margin-block-start:var(--space-5);
 }
 /*
  * Softly elevate the Today button and stretch it full-width so it reads as the
@@ -767,17 +789,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 18%, transparent);
 }
 .stay-note-row{
-  display:flex;
+  /* Grid keeps Arrival/Departure + ETA/ETD on one line with flexible inputs. */
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
   gap:var(--space-3);
-  flex-wrap:wrap;
   margin:0;
-  margin-block-start:var(--space-4);
 }
-.stay-note{display:flex;align-items:center;gap:var(--space-2);min-width:0}
-.stay-note-button{
-  min-height:36px;
+.calendar-control{
+  min-block-size:calc(var(--space-6) + var(--space-3));
   padding-inline:var(--space-3);
+  padding-block:var(--space-1);
   border-radius:12px;
+}
+.stay-note-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   background:var(--surface);
   color:var(--text-primary);
   border:1px solid var(--border);
@@ -787,11 +815,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-height:36px;
-  padding-inline:var(--space-3);
   min-width:4.5rem;
+  inline-size:100%;
   border:1px solid var(--border-hairline);
-  border-radius:999px;
+  border-radius:12px;
   background:var(--surface);
   color:var(--text-primary);
   font:inherit;
@@ -815,11 +842,21 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .stay-time-input::placeholder{color:var(--text-muted);}
 @media(max-width:720px){
-  .stay-note-row{gap:var(--space-2)}
-  .stay-note{flex:1 1 100%}
-  .stay-note-button{flex:0 0 auto}
+  .stay-note-row{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:var(--space-2);
+    row-gap:var(--space-3);
+  }
 }
-.guests-header{align-items:center;gap:var(--space-3)}
+.guest-section{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-3);
+}
+.guests-header{
+  align-items:center;
+  gap:var(--space-3);
+}
 .guests-header .guest-tools{
   margin-inline-start:auto;
   display:flex;
@@ -827,9 +864,35 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   gap:var(--space-2);
   flex-wrap:wrap;
   justify-content:flex-end;
+  flex:1 1 auto;
+  min-width:0;
 }
-.guests-header .guest-input{flex:1 1 auto;min-width:8rem}
+.guests-header .guest-input{
+  flex:1 1 min(16rem,100%);
+  min-width:0;
+}
 .guests-header .icon-btn{flex:0 0 auto}
+.guest-list{
+  /* Reserve room for chips and fall back to an internal scroll when crowded. */
+  display:flex;
+  gap:var(--space-2);
+  flex-wrap:wrap;
+  min-width:0;
+  padding-block:var(--space-1);
+  min-block-size:calc(var(--space-6) + var(--space-3));
+  max-block-size:calc(var(--space-6) * 4);
+  overflow:auto;
+  scrollbar-width:none;
+  overscroll-behavior:contain;
+}
+.guest-list:hover{scrollbar-width:thin;}
+.guest-list::-webkit-scrollbar{width:0;height:0;}
+.guest-list:hover::-webkit-scrollbar{width:6px;height:6px;}
+.guest-list:hover::-webkit-scrollbar-thumb{
+  background:color-mix(in srgb,var(--muted) 45%,transparent);
+  border-radius:999px;
+}
+.guest-list:hover::-webkit-scrollbar-track{background:transparent;}
 .stay-time-layer{position:fixed;inset:0;z-index:1200}
 .stay-time-scrim{position:absolute;inset:0;background:transparent}
 /* Anchor the floating picker near its trigger without breaking layout flow. */
