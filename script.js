@@ -416,6 +416,162 @@
   }
   updatePreviewButtons();
   calGrid.setAttribute('tabindex','0');
+  const calendarCard=document.querySelector('.left.card');
+  const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
+  const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
+  const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
+  const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
+  if(calendarCard && calendarContainer && calendarScroll && calendarScrollContent && calendarScrollThumb){
+    const rootStyle=getComputedStyle(document.documentElement);
+    const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
+    const parseTokenSize=value=>{
+      const token=(value || '').trim();
+      if(!token) return 0;
+      if(token.endsWith('rem') || token.endsWith('em')){
+        return parseFloat(token) * baseFontSize;
+      }
+      if(token.endsWith('px')){
+        return parseFloat(token);
+      }
+      return parseFloat(token) || 0;
+    };
+    const trackPaddingPx=parseTokenSize(rootStyle.getPropertyValue('--space-4'));
+    let scrollIdleTimer=null;
+    let scheduledFrame=null;
+    const clearIdleTimer=()=>{
+      if(scrollIdleTimer){
+        clearTimeout(scrollIdleTimer);
+        scrollIdleTimer=null;
+      }
+    };
+    const beginIdleCountdown=()=>{
+      clearIdleTimer();
+      scrollIdleTimer=window.setTimeout(()=>{
+        calendarScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const scheduleThumbUpdate=()=>{
+      if(scheduledFrame!=null){
+        return;
+      }
+      scheduledFrame=requestAnimationFrame(()=>{
+        scheduledFrame=null;
+        applyThumbMetrics();
+      });
+    };
+    const applyThumbMetrics=()=>{
+      if(!calendarContainer.classList.contains('calendar--scrollable')){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
+      const { clientHeight, scrollHeight, scrollTop } = calendarScroll;
+      if(scrollHeight <= clientHeight + 1){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
+      calendarScrollThumb.removeAttribute('hidden');
+      const trackHeight=Math.max(clientHeight - (trackPaddingPx * 2), 0);
+      if(trackHeight <= 0){
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        return;
+      }
+      // Overlay thumb height mirrors the native formula: visible ratio scaled by the viewport height, capped to the track.
+      const rawThumbSize=clientHeight * (clientHeight / scrollHeight);
+      const thumbSize=Math.min(rawThumbSize, trackHeight);
+      const maxOffset=Math.max(trackHeight - thumbSize, 0);
+      const scrollableRange=Math.max(scrollHeight - clientHeight, 1);
+      const offset=maxOffset * (scrollTop / scrollableRange);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-size', `${thumbSize}px`);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-offset', `${offset}px`);
+    };
+    const activateThumb=()=>{
+      if(calendarScrollThumb.hasAttribute('hidden')){
+        return;
+      }
+      calendarScroll.classList.add('is-scrolling');
+      beginIdleCountdown();
+    };
+    calendarScroll.addEventListener('scroll',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('wheel',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('pointermove',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerdown',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerenter',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerleave',()=>{
+      beginIdleCountdown();
+    });
+    const scrollResizeObserver=new ResizeObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    scrollResizeObserver.observe(calendarScroll);
+    const mutationObserver=new MutationObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
+    window.addEventListener('resize', scheduleThumbUpdate);
+    // Desktop-only compaction: gate density changes behind the desktop media query so tablet/iPad keep the roomy layout.
+    const desktopQuery=window.matchMedia('(min-width: 1024px)');
+    const applyCalendarDensity=()=>{
+      const cardHeight=calendarCard.clientHeight;
+      const isDesktop=desktopQuery.matches;
+      // Container breakpoints: <=900px tightens spacing, <=840px enables the fully compressed token set.
+      let density='regular';
+      if(isDesktop && cardHeight<=840){
+        density='compressed';
+      }else if(isDesktop && cardHeight<=900){
+        density='compact';
+      }
+      calendarContainer.dataset.density=density;
+      // Scroll fallback only kicks in below 800px tall viewports so the column stays static at the target desktop sizes.
+      const shouldEnableScroll=cardHeight<800;
+      calendarContainer.classList.toggle('calendar--scrollable', shouldEnableScroll);
+      if(!shouldEnableScroll){
+        calendarScroll.scrollTop=0;
+      }
+      let scale=1;
+      if(!shouldEnableScroll && isDesktop){
+        const { clientHeight } = calendarScroll;
+        const contentHeight=calendarScrollContent.scrollHeight;
+        if(contentHeight>clientHeight+1){
+          // Scale fallback mirrors the spec clamp: never shrink below 90% so day buttons stay at least 40px tall.
+          scale=Math.max(0.9, Math.min(clientHeight / contentHeight, 1));
+        }
+      }
+      calendarContainer.style.setProperty('--calendar-grid-scale', scale.toFixed(3));
+      scheduleThumbUpdate();
+    };
+    const onDesktopQueryChange=()=>applyCalendarDensity();
+    if(typeof desktopQuery.addEventListener==='function'){
+      desktopQuery.addEventListener('change', onDesktopQueryChange);
+    }else if(typeof desktopQuery.addListener==='function'){
+      desktopQuery.addListener(onDesktopQueryChange);
+    }
+    // Observe the calendar card height so density + scale respond to window and content changes.
+    const densityObserver=new ResizeObserver(()=>{
+      applyCalendarDensity();
+    });
+    densityObserver.observe(calendarCard);
+    applyCalendarDensity();
+  }
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
       const activeCell = calGrid.querySelector(`[data-date-key="${keyDate(state.focus)}"]`);

@@ -29,23 +29,25 @@
             <button id="yNext" class="nav-btn" title="Next Year" aria-label="Next Year">»</button>
           </div>
         </div>
-
-        <div id="dow" class="grid dow" aria-hidden="true"></div>
-        <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
+        <!-- Clip overflow at the column edge and allow the interactive stack to scroll without disturbing the toolbar. -->
+        <div class="calendar-scroll" role="presentation">
+          <div class="calendar-scroll__content">
+            <div id="dow" class="grid dow" aria-hidden="true"></div>
+            <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
+          </div>
+          <!-- Overlay thumb renders inside the scroll container so the custom scrollbar can fade in without shifting layout. -->
+          <div class="calendar-scroll__thumb" aria-hidden="true"></div>
+        </div>
         <div class="calendar-actions">
           <!-- Full-width Today button anchors the control stack so it reads as the primary action without shifting nearby content. -->
           <button id="btnToday" class="calendar-today-button" title="Today" aria-label="Today">Today</button>
         </div>
         <div class="stay-note-row" aria-label="Stay arrival and departure tools">
-          <!-- Group arrival controls so the note input sits inline with the button while keeping keyboard order logical. -->
-          <div class="stay-note">
-            <button id="btnArrival" class="stay-note-button" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
-            <input id="arrivalEta" class="stay-time-input" type="text" placeholder="ETA" aria-label="Arrival time note" aria-haspopup="dialog" readonly>
-          </div>
-          <div class="stay-note">
-            <button id="btnDeparture" class="stay-note-button" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
-            <input id="departureEtd" class="stay-time-input" type="text" placeholder="ETD" aria-label="Departure time note" aria-haspopup="dialog" readonly>
-          </div>
+          <!-- Buttons + notes share a grid so they stay aligned while respecting keyboard order. -->
+          <button id="btnArrival" class="stay-note-button calendar-control" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
+          <input id="arrivalEta" class="stay-time-input calendar-control" type="text" placeholder="ETA" aria-label="Arrival time note" aria-haspopup="dialog" readonly>
+          <button id="btnDeparture" class="stay-note-button calendar-control" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
+          <input id="departureEtd" class="stay-time-input calendar-control" type="text" placeholder="ETD" aria-label="Departure time note" aria-haspopup="dialog" readonly>
         </div>
         <!-- Guest tools sit in the calendar flow so iPad can stack header → nav → grid → controls → guests without JS shuffles. -->
         <div class="section guest-section">
@@ -55,17 +57,19 @@
             <div class="guest-tools">
               <input id="guestName" class="guest-input" type="text" placeholder="Who..?" aria-label="Guest name">
               <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
-              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
-                <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
-              </svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
+                  <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
+                </svg>
               </button>
             </div>
           </div>
-          <div id="guests" class="chips" aria-label="Guests"></div>
+          <div class="guest-pill-viewport">
+            <div id="guests" class="chips guest-list" aria-label="Guests"></div>
+          </div>
         </div>
-      </div>
+        </div>
     </section>
 
     <!-- Activities -->

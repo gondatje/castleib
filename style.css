@@ -300,20 +300,6 @@ body{
     overflow:hidden;
     overflow:clip;
   }
-  .left.card > #calendar{
-    /*
-     * Calendar stack: flex so the header/nav stay pinned while the grid + guests scroll
-     * together. The min-block-size guard keeps Split View heights stable when space is tight.
-     */
-    display:flex;
-    flex-direction:column;
-    flex:1 1 auto;
-    min-block-size:0;
-    overflow:auto;
-    overscroll-behavior:contain;
-    scrollbar-gutter:stable both-edges;
-    -webkit-overflow-scrolling:touch;
-  }
   .center.card > #activities{
     /* Activities column scrolls internally so the shared row never grows beyond the viewport. */
     block-size:100%;
@@ -357,6 +343,121 @@ body{
   flex-direction:column;
   block-size:100%;
   min-block-size:0;
+}
+/*
+ * Calendar rail containment: clip at the card edge and let the internal stack
+ * manage its own scrolling so Today/guest tools never collide with nav.
+ */
+.left.card{
+  overflow:hidden;
+  overflow:clip;
+}
+.left.card > #calendar{
+  /* Grid rows lock the header, grid, and control stack without requiring JS to juggle layout. */
+  --calendar-row-gap:var(--space-5);
+  --calendar-toolbar-gap:var(--space-3);
+  --calendar-weekday-gap:var(--space-2);
+  --calendar-cell-gap:calc(var(--space-2) - (var(--space-1) / 2));
+  --calendar-nav-gap:var(--space-3);
+  --calendar-nav-size:calc(var(--space-5) + var(--space-4));
+  --calendar-control-height:calc(var(--space-6) + var(--space-3));
+  --calendar-month-size:1rem;
+  --calendar-year-size:0.75rem;
+  --calendar-grid-scale:1;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto auto auto;
+  row-gap:var(--calendar-row-gap);
+  flex:1 1 auto;
+  min-block-size:0; /* Allow the 1fr calendar row to shrink instead of forcing the card taller. */
+  overflow:hidden;
+}
+.left.card > #calendar .toolbar{
+  margin:0;
+  margin-block-end:var(--calendar-toolbar-gap);
+}
+.left.card > #calendar .calendar-scroll{
+  /* Grid viewport keeps the month visible while allowing scale/scroll fallbacks without impacting nearby controls. */
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:var(--calendar-weekday-gap);
+  min-block-size:0;
+  padding-block-end:var(--space-4);
+  overflow:hidden;
+}
+.left.card > #calendar .calendar-scroll__content{
+  display:flex;
+  flex-direction:column;
+  gap:var(--calendar-weekday-gap);
+  /* Scaling happens on the inner stack so transform avoids reflow while the row height stays pegged by the grid track. */
+  transform:scale(var(--calendar-grid-scale, 1));
+  transform-origin:top center;
+}
+.left.card > #calendar .calendar-scroll__content > .grid{gap:var(--calendar-cell-gap);}
+.left.card > #calendar .calendar-scroll__content .dow{margin:0;}
+.left.card > #calendar .calendar-scroll__content .days{
+  flex:1 1 auto;
+  min-block-size:0;
+}
+/* Compact density tokens collapse spacing when the card height drops under desktop guardrails. */
+.left.card > #calendar[data-density='compact']{
+  --calendar-row-gap:var(--space-4);
+  --calendar-toolbar-gap:var(--space-2);
+  --calendar-weekday-gap:var(--space-1);
+  --calendar-cell-gap:calc(var(--space-2) - var(--space-1));
+  --calendar-nav-gap:var(--space-2);
+  --calendar-nav-size:calc(var(--space-5) + var(--space-3));
+  --calendar-control-height:calc(var(--space-6) + var(--space-2));
+  --calendar-month-size:calc(1rem - (var(--space-1) / 4));
+  --calendar-year-size:calc(0.75rem - (var(--space-1) / 4));
+}
+.left.card > #calendar[data-density='compressed']{
+  --calendar-row-gap:var(--space-3);
+  --calendar-toolbar-gap:calc(var(--space-2) - (var(--space-1) / 2));
+  --calendar-weekday-gap:var(--space-1);
+  --calendar-cell-gap:calc(var(--space-2) - var(--space-1));
+  --calendar-nav-gap:calc(var(--space-2) - (var(--space-1) / 2));
+  --calendar-nav-size:calc(var(--space-4) + var(--space-3));
+  --calendar-control-height:calc(var(--space-6) + var(--space-1));
+  --calendar-month-size:calc(1rem - (var(--space-1) / 2));
+  --calendar-year-size:calc(0.75rem - (var(--space-1) / 2));
+}
+/* Calendar scroll containment only enables native scrolling when the column falls below the desktop height guardrail. */
+.left.card > #calendar.calendar--scrollable{
+  overflow:visible;
+}
+.left.card > #calendar.calendar--scrollable .calendar-scroll{
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges; /* Fallback guard so native gutters stay stable if the overlay is unavailable. */
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none; /* Firefox: suppress the native thumb so the overlay handles visibility. */
+}
+/* WebKit/Blink: hide the scrollbar track entirely so the overlay can paint without shrinking content. */
+.left.card > #calendar.calendar--scrollable .calendar-scroll::-webkit-scrollbar{display:none;}
+
+/* Overlay thumb stays pinned to the trailing edge and fades in when the user scrolls or hovers. */
+.calendar-scroll__thumb{
+  --calendar-thumb-size:0px;
+  --calendar-thumb-offset:0px;
+  position:absolute;
+  inset-inline-end:var(--space-3);
+  inset-block-start:var(--space-4);
+  inline-size:max(4px,var(--space-1));
+  block-size:var(--calendar-thumb-size);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--muted) 55%,transparent);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 120ms ease;
+  transform:translate3d(0,var(--calendar-thumb-offset),0);
+}
+.left.card > #calendar .calendar-scroll.is-scrolling .calendar-scroll__thumb,
+.left.card > #calendar .calendar-scroll:hover .calendar-scroll__thumb{
+  opacity:0.88;
+}
+@media (prefers-reduced-motion: reduce){
+  .calendar-scroll__thumb{transition:none;}
 }
 
 /* Preview containment: outer card masks overflow while inner scroller handles the scroll. */
@@ -723,19 +824,36 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .activity-row-rail{display:flex;align-items:center;gap:var(--space-2);flex-wrap:nowrap;min-width:0;flex:0 0 auto;}
 .stick-right{justify-content:flex-end}
 .section{margin-top:16px}
-#calMonth{font-weight:700;font-size:16px}
-#calYear{color:var(--muted);font-size:12px}
+#calMonth{font-weight:700;font-size:var(--calendar-month-size,1rem)}
+#calYear{color:var(--muted);font-size:var(--calendar-year-size,0.75rem)}
 .toolbar{
   margin:0;
   margin-block-end:var(--space-3);
 }
-.toolbar .nav-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;width:100%}
+.left.card > #calendar .toolbar{
+  margin-block-end:var(--calendar-toolbar-gap);
+}
+.left.card > #calendar .toolbar .nav-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:var(--calendar-nav-gap);
+  flex-wrap:nowrap;
+  inline-size:100%;
+}
 .toolbar .monthyear-col{display:flex;flex-direction:column;line-height:1.05;align-items:center;text-align:center;flex:0 0 140px;white-space:nowrap}
-.toolbar .nav-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0}
+.left.card > #calendar .toolbar .nav-btn{
+  inline-size:var(--calendar-nav-size);
+  block-size:var(--calendar-nav-size);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  padding:0;
+}
 /* The calendar stack now uses token spacing so the live route matches the preview cadence. */
 .calendar-actions{
   margin:0;
-  margin-block-start:var(--space-5);
 }
 /*
  * Softly elevate the Today button and stretch it full-width so it reads as the
@@ -767,17 +885,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 18%, transparent);
 }
 .stay-note-row{
-  display:flex;
+  /* Grid keeps Arrival/Departure + ETA/ETD on one line with flexible inputs. */
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
   gap:var(--space-3);
-  flex-wrap:wrap;
   margin:0;
-  margin-block-start:var(--space-4);
 }
-.stay-note{display:flex;align-items:center;gap:var(--space-2);min-width:0}
-.stay-note-button{
-  min-height:36px;
+.calendar-control{
+  min-block-size:var(--calendar-control-height);
   padding-inline:var(--space-3);
+  padding-block:var(--space-1);
   border-radius:12px;
+}
+.stay-note-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   background:var(--surface);
   color:var(--text-primary);
   border:1px solid var(--border);
@@ -787,11 +911,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-height:36px;
-  padding-inline:var(--space-3);
   min-width:4.5rem;
+  inline-size:100%;
   border:1px solid var(--border-hairline);
-  border-radius:999px;
+  border-radius:12px;
   background:var(--surface);
   color:var(--text-primary);
   font:inherit;
@@ -815,11 +938,21 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .stay-time-input::placeholder{color:var(--text-muted);}
 @media(max-width:720px){
-  .stay-note-row{gap:var(--space-2)}
-  .stay-note{flex:1 1 100%}
-  .stay-note-button{flex:0 0 auto}
+  .stay-note-row{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:var(--space-2);
+    row-gap:var(--space-3);
+  }
 }
-.guests-header{align-items:center;gap:var(--space-3)}
+.guest-section{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-3);
+}
+.guests-header{
+  align-items:center;
+  gap:var(--space-3);
+}
 .guests-header .guest-tools{
   margin-inline-start:auto;
   display:flex;
@@ -827,9 +960,37 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   gap:var(--space-2);
   flex-wrap:wrap;
   justify-content:flex-end;
+  flex:1 1 auto;
+  min-width:0;
 }
-.guests-header .guest-input{flex:1 1 auto;min-width:8rem}
+.guests-header .guest-input{
+  flex:1 1 min(16rem,100%);
+  min-width:0;
+}
 .guests-header .icon-btn{flex:0 0 auto}
+.guest-pill-viewport{
+  /* Keep chips inside the calendar rail while allowing long lists to scroll in place. */
+  min-block-size:calc(var(--space-6) + var(--space-3));
+  max-block-size:calc(var(--space-6) * 4);
+  overflow:auto;
+  padding-block:var(--space-1);
+  scrollbar-width:none;
+  overscroll-behavior:contain;
+}
+.guest-pill-viewport::-webkit-scrollbar{width:0;height:0;}
+.guest-pill-viewport:hover{scrollbar-width:thin;}
+.guest-pill-viewport:hover::-webkit-scrollbar{width:6px;height:6px;}
+.guest-pill-viewport:hover::-webkit-scrollbar-thumb{
+  background:color-mix(in srgb,var(--muted) 45%,transparent);
+  border-radius:999px;
+}
+.guest-pill-viewport:hover::-webkit-scrollbar-track{background:transparent;}
+.guest-list{
+  display:flex;
+  gap:var(--space-2);
+  flex-wrap:wrap;
+  min-width:0;
+}
 .stay-time-layer{position:fixed;inset:0;z-index:1200}
 .stay-time-scrim{position:absolute;inset:0;background:transparent}
 /* Anchor the floating picker near its trigger without breaking layout flow. */
@@ -903,7 +1064,6 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .guest-section{
   /* Hairline divider + spacing align the relocated guest block with the calendar controls. */
   margin:0;
-  margin-block-start:var(--space-5);
   padding-block-start:var(--space-3);
   border-top:1px solid var(--border-hairline);
 }
