@@ -369,18 +369,37 @@ body{
   padding-block-end:var(--space-4);
   overflow:auto;
   overscroll-behavior:contain;
-  scrollbar-gutter:stable both-edges;
+  scrollbar-gutter:stable both-edges; /* Fallback guard so native gutters stay stable if the overlay is unavailable. */
   -webkit-overflow-scrolling:touch;
-  scrollbar-width:none;
+  scrollbar-width:none; /* Firefox: suppress the native thumb so the overlay handles visibility. */
+  position:relative;
 }
-.left.card > #calendar .calendar-scroll:hover{scrollbar-width:thin;}
-.left.card > #calendar .calendar-scroll::-webkit-scrollbar{width:0;height:0;}
-.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar{width:6px;height:6px;}
-.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar-thumb{
-  background:color-mix(in srgb,var(--muted) 45%,transparent);
+/* WebKit/Blink: hide the scrollbar track entirely so the overlay can paint without shrinking content. */
+.left.card > #calendar .calendar-scroll::-webkit-scrollbar{display:none;}
+
+/* Overlay thumb stays pinned to the trailing edge and fades in when the user scrolls or hovers. */
+.calendar-scroll__thumb{
+  --calendar-thumb-size:0px;
+  --calendar-thumb-offset:0px;
+  position:absolute;
+  inset-inline-end:var(--space-3);
+  inset-block-start:var(--space-4);
+  inline-size:max(4px,var(--space-1));
+  block-size:var(--calendar-thumb-size);
   border-radius:999px;
+  background:color-mix(in srgb,var(--muted) 55%,transparent);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 120ms ease;
+  transform:translate3d(0,var(--calendar-thumb-offset),0);
 }
-.left.card > #calendar .calendar-scroll:hover::-webkit-scrollbar-track{background:transparent;}
+.left.card > #calendar .calendar-scroll.is-scrolling .calendar-scroll__thumb,
+.left.card > #calendar .calendar-scroll:hover .calendar-scroll__thumb{
+  opacity:0.88;
+}
+@media (prefers-reduced-motion: reduce){
+  .calendar-scroll__thumb{transition:none;}
+}
 
 /* Preview containment: outer card masks overflow while inner scroller handles the scroll. */
 .preview-card{

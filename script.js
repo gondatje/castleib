@@ -416,6 +416,110 @@
   }
   updatePreviewButtons();
   calGrid.setAttribute('tabindex','0');
+  const calendarScroll=document.querySelector('.calendar-scroll');
+  const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
+  if(calendarScroll && calendarScrollThumb){
+    const rootStyle=getComputedStyle(document.documentElement);
+    const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
+    const parseTokenSize=value=>{
+      const token=(value || '').trim();
+      if(!token) return 0;
+      if(token.endsWith('rem') || token.endsWith('em')){
+        return parseFloat(token) * baseFontSize;
+      }
+      if(token.endsWith('px')){
+        return parseFloat(token);
+      }
+      return parseFloat(token) || 0;
+    };
+    const trackPaddingPx=parseTokenSize(rootStyle.getPropertyValue('--space-4'));
+    let scrollIdleTimer=null;
+    let scheduledFrame=null;
+    const clearIdleTimer=()=>{
+      if(scrollIdleTimer){
+        clearTimeout(scrollIdleTimer);
+        scrollIdleTimer=null;
+      }
+    };
+    const beginIdleCountdown=()=>{
+      clearIdleTimer();
+      scrollIdleTimer=window.setTimeout(()=>{
+        calendarScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const scheduleThumbUpdate=()=>{
+      if(scheduledFrame!=null){
+        return;
+      }
+      scheduledFrame=requestAnimationFrame(()=>{
+        scheduledFrame=null;
+        applyThumbMetrics();
+      });
+    };
+    const applyThumbMetrics=()=>{
+      const { clientHeight, scrollHeight, scrollTop } = calendarScroll;
+      if(scrollHeight <= clientHeight + 1){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
+      calendarScrollThumb.removeAttribute('hidden');
+      const trackHeight=Math.max(clientHeight - (trackPaddingPx * 2), 0);
+      if(trackHeight <= 0){
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        return;
+      }
+      // Overlay thumb height mirrors the native formula: visible ratio scaled by the viewport height, capped to the track.
+      const rawThumbSize=clientHeight * (clientHeight / scrollHeight);
+      const thumbSize=Math.min(rawThumbSize, trackHeight);
+      const maxOffset=Math.max(trackHeight - thumbSize, 0);
+      const scrollableRange=Math.max(scrollHeight - clientHeight, 1);
+      const offset=maxOffset * (scrollTop / scrollableRange);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-size', `${thumbSize}px`);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-offset', `${offset}px`);
+    };
+    const activateThumb=()=>{
+      if(calendarScrollThumb.hasAttribute('hidden')){
+        return;
+      }
+      calendarScroll.classList.add('is-scrolling');
+      beginIdleCountdown();
+    };
+    calendarScroll.addEventListener('scroll',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('wheel',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('pointermove',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerdown',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerenter',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerleave',()=>{
+      beginIdleCountdown();
+    });
+    const resizeObserver=new ResizeObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    resizeObserver.observe(calendarScroll);
+    const mutationObserver=new MutationObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
+    window.addEventListener('resize', scheduleThumbUpdate);
+    scheduleThumbUpdate();
+  }
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
       const activeCell = calGrid.querySelector(`[data-date-key="${keyDate(state.focus)}"]`);
