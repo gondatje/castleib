@@ -1035,18 +1035,18 @@
 
       body.appendChild(headline);
 
-      const tagWrap=document.createElement('div'); tagWrap.className='tag-row';
-
       const dateK = keyDate(state.focus);
       const day = getOrCreateDay(dateK);
       const entry = day.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
       const assignedIds = entry ? Array.from(entry.guestIds) : [];
 
-      if(state.guests.length>0){
-        renderAssignments(tagWrap, entry, assignedIds, dateK);
-      }
+      // Split the trailing rail into guest + action clusters so chips sit to the
+      // right of the title stack without affecting row height.
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests';
 
-      body.appendChild(tagWrap);
+      const actionRail=document.createElement('div');
+      actionRail.className='activity-row-rail';
 
       const setPressedState = (pressed)=>{
         if(pressed){
@@ -1106,12 +1106,20 @@
       });
 
       div.appendChild(body);
+      div.appendChild(guestCluster);
+      div.appendChild(actionRail);
       activitiesEl.appendChild(div);
+
+      if(state.guests.length>0){
+        renderAssignments(guestCluster, entry, assignedIds, dateK);
+      }
     });
 
     function renderAssignments(container, entry, ids, dateK){
+      if(!container) return;
       container.innerHTML='';
-      if(ids.length===0) return;
+      container.dataset.hasGuests='false';
+      if(!Array.isArray(ids) || ids.length===0) return;
 
       const idSet = new Set(ids);
       const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
@@ -1141,6 +1149,7 @@
         pill.setAttribute('aria-expanded','false');
         pill.dataset.pressExempt='true';
         pill.addEventListener('pointerdown', e=> e.stopPropagation());
+        pill.addEventListener('click', e=> e.stopPropagation());
 
         const label=document.createElement('span');
         label.textContent=plan.pillLabel || '';
@@ -1158,12 +1167,133 @@
         attachGroupPillInteractions(pill);
 
         container.appendChild(pill);
+        container.dataset.hasGuests='true';
         return;
       }
 
-      plan.guests.forEach(guest=>{
-        container.appendChild(createChip(guest, entry, dateK));
+      const chips = plan.guests.map(guest=> createChip(guest, entry, dateK));
+      layoutGuestCluster(container, chips, {
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
       });
+    }
+
+    // Measure the guest rail and collapse overflow into a +N pill whose popover
+    // keeps the hidden chips interactive without altering the row height.
+    function layoutGuestCluster(container, chips, options={}){
+      if(!container) return;
+      const items = Array.isArray(chips) ? chips.filter(Boolean) : [];
+      container.innerHTML='';
+      if(items.length===0){
+        container.dataset.hasGuests='false';
+        return;
+      }
+
+      const visible = items.slice();
+      const hidden = [];
+      const measurementPadding = 1;
+      let overflowButton = null;
+      let rafToken = null;
+
+      const applyLayout = () => {
+        container.innerHTML='';
+        visible.forEach(chip => container.appendChild(chip));
+        if(hidden.length>0){
+          if(!overflowButton){
+            overflowButton = buildOverflowButton(options);
+          }
+          updateOverflowButton(overflowButton, hidden, options);
+          container.appendChild(overflowButton);
+        }
+        container.dataset.hasGuests='true';
+      };
+
+      const scheduleReflow = () => {
+        if(rafToken!==null) return;
+        if(typeof requestAnimationFrame==='function'){
+          rafToken = requestAnimationFrame(()=>{
+            rafToken = null;
+            layoutGuestCluster(container, items, options);
+          });
+        }
+      };
+
+      applyLayout();
+
+      if(container.clientWidth<=0){
+        scheduleReflow();
+        return;
+      }
+
+      let guard = 0;
+      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+        hidden.unshift(visible.pop());
+        guard+=1;
+        applyLayout();
+      }
+
+      if(hidden.length===0){
+        container.dataset.hasGuests='true';
+        return;
+      }
+
+      guard = 0;
+      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+        hidden.unshift(visible.pop());
+        guard+=1;
+        applyLayout();
+      }
+
+      applyLayout();
+    }
+
+    function buildOverflowButton(options={}){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='tag-everyone guest-overflow-pill';
+      button.dataset.pressExempt='true';
+      button.dataset.overflowChip='true';
+      button.setAttribute('aria-haspopup','true');
+      button.setAttribute('aria-expanded','false');
+      button.addEventListener('pointerdown', e=> e.stopPropagation());
+      button.addEventListener('click', e=> e.stopPropagation());
+
+      const label=document.createElement('span');
+      label.className='guest-overflow-label';
+      button.appendChild(label);
+
+      const pop=document.createElement('div');
+      pop.className='popover';
+      pop.setAttribute('role','group');
+      pop.setAttribute('aria-label', options.popoverLabel || 'Additional guests');
+      button.appendChild(pop);
+
+      attachGroupPillInteractions(button);
+      return button;
+    }
+
+    function updateOverflowButton(button, hiddenChips, options={}){
+      if(!button) return;
+      const count = hiddenChips.length;
+      const label = button.querySelector('.guest-overflow-label');
+      if(label){
+        label.textContent = `+${count}`;
+      }
+      const pop = button.querySelector('.popover');
+      if(pop){
+        pop.innerHTML='';
+        hiddenChips.forEach(chip => pop.appendChild(chip));
+      }
+      const tooltipNames = hiddenChips.map(chip => chip?.title || chip?.getAttribute?.('aria-label') || chip?.textContent || '').filter(Boolean);
+      const prefix = options.ariaLabelPrefix || 'More guests';
+      if(tooltipNames.length>0){
+        const joined = tooltipNames.join(', ');
+        button.title = joined;
+        button.setAttribute('aria-label', `${prefix}: ${joined}`);
+      }else{
+        button.removeAttribute('title');
+        button.setAttribute('aria-label', `${prefix} (${count})`);
+      }
     }
 
     function createChip(guest, entry, dateK){
@@ -1238,9 +1368,6 @@
       headline.appendChild(title);
       body.appendChild(headline);
 
-      const tagWrap=document.createElement('div');
-      tagWrap.className='tag-row';
-
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='dinner-chip';
@@ -1250,10 +1377,8 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
-
-      if(tagWrap.childElementCount>0){
-        body.appendChild(tagWrap);
-      }
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests';
 
       // Keep the dinner edit affordance in a dedicated rail so it pins to the right.
       const rail=document.createElement('div');
@@ -1261,6 +1386,7 @@
       rail.appendChild(chip);
 
       div.appendChild(body);
+      div.appendChild(guestCluster);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
     }
@@ -1291,11 +1417,6 @@
 
       body.appendChild(headline);
 
-      const tagWrap=document.createElement('div');
-      tagWrap.className='tag-row';
-
-      renderSpaGuestChips(tagWrap, entry, dateK);
-
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='spa-chip chip chip--spa';
@@ -1305,10 +1426,8 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
-
-      if(tagWrap.childElementCount>0){
-        body.appendChild(tagWrap);
-      }
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests';
 
       // Share the right rail treatment so every activity action aligns consistently.
       const rail=document.createElement('div');
@@ -1316,8 +1435,11 @@
       rail.appendChild(chip);
 
       div.appendChild(body);
+      div.appendChild(guestCluster);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
+
+      renderSpaGuestChips(guestCluster, entry, dateK);
     }
 
     function renderCustom(entry){
@@ -1344,15 +1466,7 @@
 
       body.appendChild(headline);
 
-      const tagWrap=document.createElement('div');
-      tagWrap.className='tag-row';
-
       const guestIds = Array.isArray(entry.guestIds) ? entry.guestIds : Array.from(entry.guestIds || []);
-      if(state.guests.length>0){
-        // Reuse the shared assignment renderer so Both/Everyone chips stay in sync
-        // with the core guest logic after save.
-        renderAssignments(tagWrap, entry, guestIds, dateK);
-      }
 
       const chip=document.createElement('button');
       chip.type='button';
@@ -1366,21 +1480,27 @@
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
 
-      if(tagWrap.childElementCount>0){
-        body.appendChild(tagWrap);
-      }
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests';
 
       const rail=document.createElement('div');
       rail.className='activity-row-rail';
       rail.appendChild(chip);
 
       div.appendChild(body);
+      div.appendChild(guestCluster);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
+
+      if(state.guests.length>0){
+        renderAssignments(guestCluster, entry, guestIds, dateK);
+      }
     }
 
     function renderSpaGuestChips(container, entry, dateK){
       if(!container || !entry) return;
+      container.innerHTML='';
+      container.dataset.hasGuests='false';
       const guestIds = Array.from(entry.guestIds || []);
       if(guestIds.length===0) return;
       const idSet = new Set(guestIds);
@@ -1419,6 +1539,7 @@
         pill.setAttribute('aria-expanded','false');
         pill.dataset.pressExempt='true';
         pill.addEventListener('pointerdown', e=> e.stopPropagation());
+        pill.addEventListener('click', e=> e.stopPropagation());
         const label=document.createElement('span');
         label.textContent = plan.pillLabel || '';
         pill.appendChild(label);
@@ -1432,10 +1553,13 @@
         pill.appendChild(pop);
         attachGroupPillInteractions(pill);
         container.appendChild(pill);
+        container.dataset.hasGuests='true';
         return;
       }
-      plan.guests.forEach(guest => {
-        container.appendChild(createSpaAssignmentChip(guest, entry, dateK));
+      const chips = plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK));
+      layoutGuestCluster(container, chips, {
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
       });
     }
 
