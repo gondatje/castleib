@@ -419,27 +419,40 @@
   const calendarCard=document.querySelector('.left.card');
   const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
 
-  if(activitiesEl){
-    activitiesEl.classList.add('activities-scroll');
-    // Mirror the native overlay scrollbar behavior: show during interaction,
-    // then hide again without nudging layout once activity stops.
-    let hideActivitiesScrollbar;
-    const revealActivitiesScrollbar=()=>{
-      activitiesEl.classList.add('is-scrolling');
-      clearTimeout(hideActivitiesScrollbar);
-      hideActivitiesScrollbar=window.setTimeout(()=>{
-        activitiesEl.classList.remove('is-scrolling');
-      },900);
-    };
-    const scrollKeys=['ArrowDown','ArrowUp','PageDown','PageUp','Home','End'];
-    activitiesEl.addEventListener('scroll',revealActivitiesScrollbar,{passive:true});
-    activitiesEl.addEventListener('wheel',revealActivitiesScrollbar,{passive:true});
-    activitiesEl.addEventListener('keydown',event=>{
-      if(scrollKeys.includes(event.key)){
-        revealActivitiesScrollbar();
-      }
-    });
-  }
+  (function ensureStableScrollbarGutter(){
+    const scroller=document.querySelector('.activities__scroller');
+    if(!scroller) return;
+
+    const supportsGutter=CSS.supports?.('scrollbar-gutter','stable')||false;
+
+    function computeScrollbarWidth(){
+      // Offscreen measurement mirrors the OS scrollbar footprint without
+      // disturbing layout, letting us reserve space only when a classic bar
+      // would otherwise overlay content.
+      const probe=document.createElement('div');
+      probe.style.cssText=`
+      position:absolute; top:-9999px; left:-9999px;
+      width:100px; height:100px; overflow:scroll;`;
+      document.body.appendChild(probe);
+      const sbw=probe.offsetWidth-probe.clientWidth;
+      document.body.removeChild(probe);
+      return sbw;
+    }
+
+    function applyCompensation(){
+      const sbw=computeScrollbarWidth();
+      // Overlay scrollbars (macOS) yield 0, so padding stays neutral; classic
+      // scrollbars (Windows) reserve width to keep the content from shifting.
+      scroller.style.setProperty('--sbw',supportsGutter?'0px':`${sbw}px`);
+    }
+
+    applyCompensation();
+    let resizeFrameId;
+    window.addEventListener('resize',()=>{
+      cancelAnimationFrame(resizeFrameId);
+      resizeFrameId=requestAnimationFrame(applyCompensation);
+    },{passive:true});
+  })();
   const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
   const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');

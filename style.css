@@ -706,26 +706,30 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #activities,#demoActivities{display:flex;flex-direction:column;padding:4px 0;gap:0;background:var(--surface);}
 #activities{
   /*
+   * Flex column ensures the rendered rows retain their stacked layout while the
+   * scroller manages overflow and gutter compensation.
+   */
+  display:flex;
+  flex-direction:column;
+}
+.activities__scroller{
+  /*
    * Flex growth grants the list the remaining column height so header/actions
-   * stay pinned while the body scrolls. The dedicated .activities-scroll class
-   * now handles the scrollbar presentation so these layout constraints remain.
+   * stay pinned while the body scrolls without layout jumps when the scrollbar
+   * appears on classic engines.
    */
   flex:1 1 auto;
   min-block-size:0;
-}
-/* Activities scroller container */
-.activities-scroll{
   overflow:auto;
   overscroll-behavior:contain;
-  -webkit-overflow-scrolling:touch;
   scrollbar-gutter:stable both-edges;
+  -webkit-overflow-scrolling:touch;
+  overflow-anchor:none;
 }
-/* Hide when idle (Firefox/legacy/Chrome WebKit) */
-.activities-scroll{scrollbar-width:none;-ms-overflow-style:none;}
-.activities-scroll::-webkit-scrollbar{width:0;height:0;}
-/* Show only while "in use" */
-.activities-scroll.is-scrolling{scrollbar-width:thin;}
-.activities-scroll.is-scrolling::-webkit-scrollbar{width:8px;height:8px;}
+.activities__list{
+  /* Will be overwritten via JS on engines without `scrollbar-gutter` support. */
+  padding-inline-end:var(--sbw,0px);
+}
 /*
  * Grid gives us a stable left stack + right rail while preserving the fixed
  * min-height so chips never resize the lane. Padding + divider offsets lean on
