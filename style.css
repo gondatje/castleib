@@ -706,16 +706,62 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #activities,#demoActivities{display:flex;flex-direction:column;padding:4px 0;gap:0;background:var(--surface);}
 #activities{
   /*
+   * Flex column ensures the rendered rows retain their stacked layout while the
+   * scroller manages overflow and gutter compensation.
+   */
+  display:flex;
+  flex-direction:column;
+}
+.activities__scroller{
+  /*
    * Flex growth grants the list the remaining column height so header/actions
-   * stay pinned while the body scrolls. Overflow containment keeps scroll
-   * chaining off the page and reserves scrollbar gutter to prevent reflow.
+   * stay pinned while the body scrolls without layout jumps when the scrollbar
+   * appears on classic engines.
    */
   flex:1 1 auto;
   min-block-size:0;
-  overflow-y:auto;
+  overflow:auto;
   overscroll-behavior:contain;
   scrollbar-gutter:stable both-edges;
   -webkit-overflow-scrolling:touch;
+  overflow-anchor:none;
+  /*
+   * Keep Firefox's scrollbar hit-box available for hover/focus reveals while
+   * rendering it transparent by default. Theme tokens let downstream skins
+   * adjust without redefining the behavior.
+   */
+  scrollbar-width:thin;
+  scrollbar-color:transparent transparent;
+  --scroll-thumb:var(--color-scroll-thumb,rgba(0,0,0,.35));
+  --scroll-track:var(--color-scroll-track,rgba(0,0,0,.08));
+}
+.activities__scroller::-webkit-scrollbar{
+  width:var(--sbw,0px);
+  height:var(--sbw,0px);
+}
+.activities__scroller:not(:hover):not(:focus-within)::-webkit-scrollbar-thumb,
+.activities__scroller:not(:hover):not(:focus-within)::-webkit-scrollbar-track{
+  background-color:transparent;
+}
+.activities__scroller:hover,
+.activities__scroller:focus-within{
+  scrollbar-color:var(--scroll-thumb) var(--scroll-track);
+}
+.activities__scroller:hover::-webkit-scrollbar-thumb,
+.activities__scroller:focus-within::-webkit-scrollbar-thumb{
+  background-color:var(--scroll-thumb);
+  border-radius:999px;
+}
+.activities__scroller:hover::-webkit-scrollbar-track,
+.activities__scroller:focus-within::-webkit-scrollbar-track{
+  background-color:var(--scroll-track);
+}
+.activities__list{
+  /*
+   * JS toggles this padding only when engines ignore `scrollbar-gutter`,
+   * preventing a double-reserve on browsers that already honor the gutter.
+   */
+  padding-inline-end:var(--scrollbar-fallback-padding,0px);
 }
 /*
  * Grid gives us a stable left stack + right rail while preserving the fixed

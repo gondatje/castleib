@@ -418,6 +418,40 @@
   calGrid.setAttribute('tabindex','0');
   const calendarCard=document.querySelector('.left.card');
   const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
+
+  (function ensureStableScrollbarGutter(){
+    const scroller=document.querySelector('.activities__scroller');
+    if(!scroller) return;
+
+    const supportsGutter=CSS.supports?.('scrollbar-gutter','stable')||false;
+
+    function computeScrollbarWidth(){
+      // Offscreen measurement mirrors the OS scrollbar footprint without
+      // disturbing layout, letting us reserve space only when a classic bar
+      // would otherwise overlay content.
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;top:-9999px;left:-9999px;width:100px;height:100px;overflow:scroll;';
+      document.body.appendChild(probe);
+      const sbw=probe.offsetWidth-probe.clientWidth;
+      probe.remove();
+      return sbw;
+    }
+
+    function applyCompensation(){
+      const sbw=computeScrollbarWidth();
+      // WebKit relies on ::-webkit-scrollbar width while legacy engines need
+      // explicit padding when they ignore `scrollbar-gutter`, so expose both.
+      scroller.style.setProperty('--sbw',`${sbw}px`);
+      scroller.style.setProperty('--scrollbar-fallback-padding',supportsGutter?'0px':`${sbw}px`);
+    }
+
+    applyCompensation();
+    let resizeFrameId;
+    window.addEventListener('resize',()=>{
+      cancelAnimationFrame(resizeFrameId);
+      resizeFrameId=requestAnimationFrame(applyCompensation);
+    },{passive:true});
+  })();
   const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
   const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
