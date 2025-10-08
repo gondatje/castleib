@@ -1283,43 +1283,13 @@
 
       const title=document.createElement('span');
       title.className='activity-row-title';
-      const summary = summarizeSpaTitle(entry);
+      // Activities column hides duration/sub-notes for spa rows so the service name
+      // is the only label while preview/email continue to render the full summary.
+      const summary = spaActivitiesTitle(entry);
       title.textContent = summary;
       headline.appendChild(title);
 
       body.appendChild(headline);
-
-      const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
-      const firstAppointment = appointments[0] || null;
-      const therapistLabel = spaTherapistLabel(firstAppointment?.therapist);
-      const locationId = firstAppointment?.location || null;
-      const locationAlwaysRelevant = locationId==='in-room' || locationId==='couples-massage';
-      const showLocation = locationAlwaysRelevant || (entry.id && spaOverlapById.get(entry.id));
-      const locationLabel = showLocation && locationId ? spaLocationLabel(locationId) : null;
-      const guestNames = collectSpaGuestNames(entry, {
-        guestLookup,
-        totalGuestsInStay: state.guests.length
-      });
-      // Surface therapist preference every time and append cabana/location and
-      // guest details per the established `time | service | therapist | cabana | guest`
-      // format the activities rail uses for spa rows. The shared helper above
-      // also hides the redundant guest tags when every guest is assigned.
-      const metaParts = [therapistLabel || spaTherapistLabel('no-preference')];
-      if(locationLabel){
-        metaParts.push(locationLabel);
-      }
-      if(guestNames.length>1){
-        guestNames.forEach(name => metaParts.push(name));
-      }else if(guestNames.length===1){
-        metaParts.push(guestNames[0]);
-      }
-      const metaRow=document.createElement('div');
-      metaRow.className='spa-meta';
-      const metaContent = metaParts.filter(Boolean).join(' | ');
-      metaRow.textContent = metaContent;
-      if(metaContent){
-        body.appendChild(metaRow);
-      }
 
       const tagWrap=document.createElement('div');
       tagWrap.className='tag-row';
@@ -1512,6 +1482,18 @@
       const sameDuration = entry.appointments.every(app => app.durationMinutes === first.durationMinutes);
       if(sameService && sameDuration){
         return `${formatDurationLabel(first.durationMinutes)} ${first.serviceName}`;
+      }
+      return 'Spa Appointments';
+    }
+
+    function spaActivitiesTitle(entry){
+      if(!entry || !Array.isArray(entry.appointments) || entry.appointments.length===0){
+        return 'Spa Appointment';
+      }
+      const first = entry.appointments[0];
+      const sameService = entry.appointments.every(app => app.serviceName === first.serviceName);
+      if(sameService && first?.serviceName){
+        return first.serviceName;
       }
       return 'Spa Appointments';
     }
