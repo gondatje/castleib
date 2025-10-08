@@ -362,13 +362,19 @@ body{
   overflow:hidden;
   isolation:isolate;
   contain:content;
+  /* Grid reserves a dedicated row for buttons so they stay pinned without position hacks. */
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:var(--space-4);
+  /* Reassert min-block-size:0 so the grid row can shrink in Safari flex/grid combos. */
+  min-block-size:0;
   /* Remove the default padding so the scroll container can own spacing without jitter. */
   padding:0;
 }
 
 .preview-card__scroll{
   /* Inner scroller: fills the card while keeping layout localized. */
-  flex:1 1 auto;
+  /* min-block-size:0 stops Safari from forcing extra height so the grid row can shrink. */
   min-block-size:0;
   display:flex;
   flex-direction:column;
@@ -390,7 +396,7 @@ body{
 
 /* Content wrapper prevents margin-collapse and wraps long HTML fragments safely. */
 .preview-card__body{
-  /* Layout column keeps actions attached to the preview content. */
+  /* Layout column allows email markup to grow independently from the header. */
   display:flex;
   flex-direction:column;
   gap:var(--space-4);
@@ -422,9 +428,11 @@ body{
 }
 
 .preview-card__actions{
+  /* Buttons stay flow-pinned by the grid row—no sticky/fixed positioning. */
   display:flex;
   justify-content:flex-end;
   gap:8px;
+  padding:0 var(--space-4) var(--space-4);
 }
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 /*
