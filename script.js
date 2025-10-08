@@ -121,10 +121,36 @@
   // focus reveals the standard pencil affordance for editing.
   const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor" stroke="currentColor"/></svg>';
-  const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
+  // Shared modal glyphs keep every destructive/save affordance visually in sync while
+  // letting the CSS drive color via `currentColor` so themes remain consistent.
+  const saveIconSvg = '<svg viewBox="-3 -3 24 24" aria-hidden="true" focusable="false"><path d="M2 0h11.22a2 2 0 0 1 1.345.52l2.78 2.527A2 2 0 0 1 18 4.527V16a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 2v14h14V4.527L13.22 2H2zm4 8h6a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm0 2v4h6v-4H6zm7-9a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1zM5 3h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 3h3V5H6v1z" fill="currentColor"/></svg>';
+  const deleteIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2h4a1 1 0 1 1 0 2h-1.069l-.867 12.142A2 2 0 0 1 17.069 22H6.93a2 2 0 0 1-1.995-1.858L4.07 8H3a1 1 0 0 1 0-2h4V4zm2 2h6V4H9v2zM6.074 8l.857 12H17.07l.857-12H6.074zM10 10a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1zm4 0a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1z" fill="currentColor"/></svg>';
+  const addIconSvg = '<svg viewBox="0 0 256 256" aria-hidden="true" focusable="false"><circle cx="128" cy="128" r="112" fill="none" stroke="currentColor" stroke-width="16"/><path d="M 80,128 H 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><path d="M 128,80 V 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/></svg>';
   // Toolbar clear button uses the MIT-licensed Ant Design delete glyph so destructive affordances stay readable at small sizes.
   const clearToolbarSvg = '<svg viewBox="0 0 1024 1024" aria-hidden="true" focusable="false"><path fill="currentColor" d="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z"/></svg>';
   const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
+
+  // Reusable factory keeps icon-only buttons consistent across modals while retaining
+  // semantic labels + tooltips for assistive tech and pointer affordances.
+  const createIconButton = ({ icon, label, extraClass='' }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = ['btn-icon', extraClass].filter(Boolean).join(' ');
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.innerHTML = icon;
+    return button;
+  };
+
+  // Close buttons reuse the shared icon styling so the hit target stays ≥44px and
+  // the "×" glyph remains purely presentational under a uniform "Close" label.
+  const createModalCloseButton = onClick => {
+    const button = createIconButton({ icon: '<span aria-hidden="true">×</span>', label: 'Close', extraClass: 'modal-close' });
+    if(typeof onClick === 'function'){
+      button.addEventListener('click', onClick);
+    }
+    return button;
+  };
 
   const dinnerMinutes = [0,15,30,45];
   const dinnerHours = [5,6,7,8];
@@ -1844,27 +1870,27 @@
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
 
+    // Shared modal header keeps the typography + spacing identical across flows.
     const header=document.createElement('div');
-    header.className='dinner-header';
-    const title=document.createElement('div');
-    title.className='dinner-title';
-    title.textContent='Dinner time';
+    header.className='modal-header';
+    const title=document.createElement('h2');
+    title.className='modal-title';
+    title.textContent='Dinner';
     title.id='dinner-dialog-title';
+    const modeDescriptor=document.createElement('span');
+    modeDescriptor.className='sr-only';
+    modeDescriptor.textContent = (mode==='edit' || existing) ? ' – Editing dinner time' : ' – Add dinner time';
+    title.appendChild(modeDescriptor);
     dialog.setAttribute('aria-labelledby','dinner-dialog-title');
     header.appendChild(title);
 
-    const closeBtn=document.createElement('button');
-    closeBtn.type='button';
-    closeBtn.className='dinner-close';
-    closeBtn.setAttribute('aria-label','Cancel dinner selection');
-    closeBtn.textContent='×';
-    closeBtn.addEventListener('click',()=> closeDinnerPicker({returnFocus:true}));
+    const closeBtn=createModalCloseButton(()=> closeDinnerPicker({returnFocus:true}));
     header.appendChild(closeBtn);
 
     dialog.appendChild(header);
 
     const body=document.createElement('div');
-    body.className='dinner-body';
+    body.className='modal-body dinner-body';
 
     const timePicker = (typeof createTimePicker === 'function') ? createTimePicker({
       hourRange: [dinnerHours[0], dinnerHours[dinnerHours.length-1]],
@@ -1894,27 +1920,30 @@
 
     dialog.appendChild(body);
 
-    const actions=document.createElement('div');
-    actions.className='dinner-actions';
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    // Shared footer layout keeps destructive controls on the left while primary
+    // actions stay grouped on the right for every modal.
 
-    const confirmBtn=document.createElement('button');
-    confirmBtn.type='button';
-    confirmBtn.className='dinner-confirm';
-    const confirmLabel = (mode==='edit' || existing) ? 'Update dinner time' : 'Add dinner time';
-    confirmBtn.innerHTML=`<span aria-hidden="true">+</span><span class="sr-only">${confirmLabel}</span>`;
-    confirmBtn.setAttribute('aria-label', confirmLabel);
-    actions.appendChild(confirmBtn);
+    const confirmIsEdit = mode==='edit' && !!existing;
+    const confirmLabel = confirmIsEdit ? 'Save dinner time' : 'Add dinner time';
+    const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
+    const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    footerEnd.appendChild(confirmBtn);
 
     let removeBtn=null;
-    if(mode==='edit' && existing){
-      removeBtn=document.createElement('button');
-      removeBtn.type='button';
-      removeBtn.className='dinner-remove';
-      removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove dinner</span>`;
-      actions.appendChild(removeBtn);
+    if(confirmIsEdit){
+      removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete dinner', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(removeBtn);
     }
 
-    dialog.appendChild(actions);
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
 
     const previousFocus = document.activeElement;
 
@@ -2215,24 +2244,27 @@
     overlay.className='spa-overlay';
     const dialog = document.createElement('div');
     dialog.className='spa-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
 
     const header = document.createElement('div');
-    header.className='spa-header';
+    header.className='modal-header';
     const title=document.createElement('h2');
-    title.className='spa-title';
-    title.textContent='SPA Appointment';
-    const closeBtn=document.createElement('button');
-    closeBtn.type='button';
-    closeBtn.className='spa-close';
-    closeBtn.setAttribute('aria-label','Close');
-    closeBtn.textContent='×';
-    closeBtn.addEventListener('click',()=> closeSpaEditor({returnFocus:true}));
+    title.className='modal-title';
+    title.id='spa-dialog-title';
+    title.textContent='Spa';
+    const spaModeDescriptor=document.createElement('span');
+    spaModeDescriptor.className='sr-only';
+    spaModeDescriptor.textContent = existing ? ' – Editing spa appointment' : ' – Add spa appointment';
+    title.appendChild(spaModeDescriptor);
+    dialog.setAttribute('aria-labelledby','spa-dialog-title');
+    const closeBtn=createModalCloseButton(()=> closeSpaEditor({returnFocus:true}));
     header.appendChild(title);
     header.appendChild(closeBtn);
     dialog.appendChild(header);
 
     const body = document.createElement('div');
-    body.className='spa-body';
+    body.className='modal-body spa-body';
     dialog.appendChild(body);
 
     // Compose the SPA flow left-to-right so each decision feeds the next stage:
@@ -2948,32 +2980,27 @@
     primaryColumn.appendChild(locationGroup);
     detailsGrid.appendChild(guestSection);
 
-    const actions=document.createElement('div');
-    actions.className='spa-actions';
-    const confirmBtn=document.createElement('button');
-    confirmBtn.type='button';
-    confirmBtn.className='spa-confirm';
-    const confirmLabel = (mode==='edit' || existing) ? 'Update spa appointment' : 'Add spa appointment';
-    // Match the dinner flow: the visible copy is the plus glyph while screen
-    // readers receive a descriptive label so both dialogs share the same
-    // primary-action affordance.
-    confirmBtn.innerHTML = `<span aria-hidden="true">+</span><span class="sr-only">${confirmLabel}</span>`;
-    confirmBtn.setAttribute('aria-label', confirmLabel);
-    actions.appendChild(confirmBtn);
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    const confirmIsEdit = mode==='edit' && !!existing;
+    const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
+    const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
+    const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    footerEnd.appendChild(confirmBtn);
     let removeBtn=null;
-    if(mode==='edit' && existing){
+    if(confirmIsEdit){
       // Editing exposes a destructive control that clears the entire merged
       // appointment; inline chips remain responsible for single-guest removals.
-      removeBtn=document.createElement('button');
-      removeBtn.type='button';
-      removeBtn.className='spa-remove';
-      removeBtn.innerHTML=`${trashSvg}<span class="sr-only">Remove spa appointment</span>`;
-      actions.appendChild(removeBtn);
+      removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete spa appointment', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(removeBtn);
     }
-    // Floating action cluster: the container anchors the + pill to the modal's
-    // bottom-right corner while keeping the optional delete button alongside it,
-    // and the shared aria-label keeps the accessible add/update copy intact.
-    body.appendChild(actions);
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
 
     const previousFocus=document.activeElement;
 
@@ -3761,19 +3788,18 @@
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
     const header=document.createElement('div');
-    header.className='custom-header';
+    header.className='modal-header';
     const title=document.createElement('h2');
-    title.className='custom-heading';
+    title.className='modal-title';
     title.id='custom-dialog-title';
-    title.textContent = existing ? 'Edit custom activity' : 'New custom activity';
+    title.textContent='Custom';
+    const customModeDescriptor=document.createElement('span');
+    customModeDescriptor.className='sr-only';
+    customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
+    title.appendChild(customModeDescriptor);
     header.appendChild(title);
 
-    const closeBtn=document.createElement('button');
-    closeBtn.type='button';
-    closeBtn.className='custom-close';
-    closeBtn.setAttribute('aria-label','Cancel custom activity');
-    closeBtn.textContent='×';
-    closeBtn.addEventListener('click',()=> closeCustomBuilder({returnFocus:true}));
+    const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
     header.appendChild(closeBtn);
 
     dialog.appendChild(header);
@@ -3781,7 +3807,7 @@
     const body=document.createElement('div');
     // Keep scrolling inside the content wrapper so the header/footer stay
     // pinned while the dialog respects the viewport-safe max height.
-    body.className='custom-body';
+    body.className='modal-body custom-body';
     dialog.appendChild(body);
 
     const titleSection=document.createElement('section');
@@ -3965,22 +3991,25 @@
     guestSection.appendChild(guestSummary);
     body.appendChild(guestSection);
 
-    const actions=document.createElement('div');
-    actions.className='custom-actions';
-    const saveBtn=document.createElement('button');
-    saveBtn.type='button';
-    saveBtn.className='custom-save';
-    saveBtn.textContent='Save';
-    actions.appendChild(saveBtn);
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    const saveIsEdit = !!existing;
+    const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
+    const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
+    const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
+    footerEnd.appendChild(saveBtn);
     let deleteBtn=null;
-    if(existing){
-      deleteBtn=document.createElement('button');
-      deleteBtn.type='button';
-      deleteBtn.className='custom-delete';
-      deleteBtn.textContent='Delete';
-      actions.appendChild(deleteBtn);
+    if(saveIsEdit){
+      deleteBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete custom activity', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(deleteBtn);
     }
-    dialog.appendChild(actions);
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
 
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
