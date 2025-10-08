@@ -101,12 +101,18 @@
     </section>
 
     <!-- Preview -->
-    <section class="right card preview-card">
-      <div class="card-section-header">
-        <h2>Preview</h2>
+    <section class="right card preview-card" data-area="preview" aria-label="Email preview">
+      <div class="preview-card__scroll">
+        <header class="card-section-header preview-card__header">
+          <h2>Preview</h2>
+        </header>
+        <div class="preview-card__body">
+          <div class="preview-card__content">
+            <div id="email" class="email" spellcheck="false"></div>
+          </div>
+        </div>
       </div>
-      <div id="email" class="email" spellcheck="false"></div>
-      <div class="row stick-right">
+      <div class="row stick-right preview-card__actions">
         <button id="editPreview" title="Edit Email Preview" aria-label="Edit Email Preview">Edit</button>
         <button id="lockPreview" title="Lock Email Preview" aria-label="Lock Email Preview" disabled>Lock</button>
         <button id="resetPreview" title="Reset Email Edits" aria-label="Reset Email Edits" disabled>Reset</button>

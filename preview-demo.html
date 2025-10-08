@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preview Pane Demo · CHS Itinerary Builder</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .preview-demo-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;}
+    .preview-demo-note{margin:0;color:var(--muted);font-size:14px;}
+    .preview-demo-viewport{display:grid;place-items:stretch;}
+    .preview-demo-card{max-inline-size:560px;margin:0 auto;block-size:clamp(360px,70vh,520px);}
+    .preview-demo-card .preview-card__actions button[disabled]{opacity:.5;cursor:not-allowed;}
+  </style>
+</head>
+<body class="demo-page">
+  <div class="demo-container">
+    <header class="demo-header">
+      <h1>Preview pane scroll containment</h1>
+      <p class="demo-section-copy">This sandbox renders an extra-long itinerary so you can verify the preview content scrolls internally while the action row stays visible.</p>
+    </header>
+
+    <section class="demo-section" aria-labelledby="preview-demo-title">
+      <div class="preview-demo-toolbar">
+        <div class="demo-section-header">
+          <h2 id="preview-demo-title">Preview rail demo</h2>
+        </div>
+        <button id="previewDemoTheme" type="button">Toggle dark mode</button>
+      </div>
+      <p class="preview-demo-note">Scroll inside the preview below—the buttons remain flow-pinned to the card via grid layout.</p>
+      <div class="preview-demo-viewport">
+        <section class="card preview-card preview-demo-card" aria-label="Email preview demo">
+          <div class="preview-card__scroll">
+            <header class="card-section-header preview-card__header">
+              <h2>Preview</h2>
+            </header>
+            <div class="preview-card__body">
+              <div class="preview-card__content">
+                <div id="previewDemoEmail" class="email" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Buttons remain inside the grid so they sit beneath the scroller without sticky positioning. -->
+          <div class="row stick-right preview-card__actions">
+            <button type="button">Edit</button>
+            <button type="button" disabled>Lock</button>
+            <button type="button" disabled>Reset</button>
+            <button type="button" aria-label="Copy preview">⧉</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <script src="preview-demo.js"></script>
+</body>
+</html>
