@@ -499,7 +499,25 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
  * min-height so chips never resize the lane. Padding + divider offsets lean on
  * the spacing scale to stay in sync with neighboring sections.
  */
-#activities .activity-row,#demoActivities .activity-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;column-gap:var(--space-3);padding:var(--space-4);min-height:5rem;border-radius:14px;background:transparent;cursor:pointer;touch-action:pan-y;transition:background-color .18s ease,box-shadow .22s ease,transform .16s ease,opacity .16s ease;}
+#activities .activity-row,#demoActivities .activity-row{
+  /*
+   * Three-track grid keeps the title/time stack fixed on the left, dedicates the
+   * middle track to the guest reveal lane, and pins the action chips to the
+   * right so the reveal never shifts the rail.
+   */
+  position:relative;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  column-gap:var(--space-3);
+  padding:var(--space-4);
+  min-height:5rem;
+  border-radius:14px;
+  background:transparent;
+  cursor:pointer;
+  touch-action:pan-y;
+  transition:background-color .18s ease,box-shadow .22s ease,transform .16s ease,opacity .16s ease;
+}
 #activities .activity-row::after,#demoActivities .activity-row::after{content:"";position:absolute;left:var(--space-4);right:var(--space-4);bottom:0;height:1px;background:var(--activity-divider);transform-origin:center;transform:scaleY(.5);}
 #activities .activity-row:last-of-type::after,#demoActivities .activity-row:last-of-type::after{content:none;}
 #activities .activity-row[data-disabled='true'],#demoActivities .activity-row[data-disabled='true']{cursor:default;opacity:.55;}
@@ -514,21 +532,66 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #activities .activity-row-headline,#demoActivities .activity-row-headline{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);min-width:0;color:var(--text-primary);}
 #activities .activity-row-time,#demoActivities .activity-row-time{font-size:.8125rem;font-weight:500;letter-spacing:.02em;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
 #activities .activity-row-title,#demoActivities .activity-row-title{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary);min-width:0;}
-#activities .activity-row-guests,#demoActivities .activity-row-guests{
+#activities .activity-row-guest-lane,#demoActivities .activity-row-guest-lane{
   /*
-   * The guest lane hugs the action chips while leaving enough room for the left
-   * stack. Clamp the inline size so the overflow controller can reliably
-   * replace extra chips with a +N pill without ever growing the row height.
+   * The middle track stretches to absorb available width and anchors content to
+   * the right edge so expanded chips grow right → left without pushing the
+   * action rail.
    */
+  justify-self:stretch;
   display:flex;
   align-items:center;
-  justify-self:end;
-  flex:0 1 auto;
+  justify-content:flex-end;
+  min-width:0;
+  overflow:hidden;
+  max-inline-size:clamp(10rem,34vw,18rem);
+}
+#activities .activity-row-guest-slot,#demoActivities .activity-row-guest-slot{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:var(--space-2);
+  min-width:0;
+  inline-size:100%;
+}
+#activities .activity-row-guest-slot[data-expanded='true'],#demoActivities .activity-row-guest-slot[data-expanded='true']{
+  gap:0;
+}
+#activities .activity-row-guest-cluster,#demoActivities .activity-row-guest-cluster{
+  display:flex;
+  flex-direction:row-reverse;
+  align-items:center;
   gap:var(--space-2);
   overflow:hidden;
-  max-inline-size:clamp(8rem,32vw,14rem);
-  min-inline-size:0;
+  max-inline-size:100%;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease;
 }
+#activities .activity-row-guest-slot[data-expanded='true'] .activity-row-guest-cluster,#demoActivities .activity-row-guest-slot[data-expanded='true'] .activity-row-guest-cluster{
+  opacity:1;
+  pointer-events:auto;
+}
+#activities .activity-row-guest-slot[data-expanded='true'] .guest-reveal-pill,#demoActivities .activity-row-guest-slot[data-expanded='true'] .guest-reveal-pill{
+  opacity:0;
+  pointer-events:none;
+}
+#activities .activity-row-guest-slot .guest-reveal-pill,#demoActivities .activity-row-guest-slot .guest-reveal-pill{
+  transition:opacity .18s ease;
+}
+#activities .activity-row-guest-slot[data-expanded='false'] .activity-row-guest-cluster,#demoActivities .activity-row-guest-slot[data-expanded='false'] .activity-row-guest-cluster{
+  max-inline-size:0;
+}
+#activities .activity-row-guest-slot[data-expanded='true'] .activity-row-guest-cluster,#demoActivities .activity-row-guest-slot[data-expanded='true'] .activity-row-guest-cluster{
+  max-inline-size:var(--guest-lane-width, 100%);
+}
+#activities .activity-row-guest-slot:focus-within .guest-reveal-pill,#demoActivities .activity-row-guest-slot:focus-within .guest-reveal-pill{
+  outline:none;
+}
+#activities .activity-row-guest-slot:focus-within .activity-row-guest-cluster,#demoActivities .activity-row-guest-slot:focus-within .activity-row-guest-cluster{
+  outline:none;
+}
+#activities .activity-row-guests,#demoActivities .activity-row-guests{display:flex;align-items:center;gap:var(--space-2);}
 #activities .activity-row-guests:empty,#demoActivities .activity-row-guests:empty{display:flex;min-height:0;}
 .dinner-item,
 .spa-item,
@@ -543,6 +606,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .spa-item .spa-meta{margin-top:4px;font-size:13px;color:var(--muted);}
 .tag-everyone{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:4px 12px;border-radius:999px;border:1px solid var(--chipBorder);background:#fff;font-weight:600;color:var(--chipText);cursor:pointer;appearance:none;font:inherit;line-height:1;transition:box-shadow .2s ease;}
+.guest-reveal-pill{white-space:nowrap;}
 .tag-everyone:focus{outline:2px solid var(--brand);outline-offset:2px;}
 .tag-everyone .popover{position:absolute;transform:translate(-50%,0);bottom:calc(100% - 4px);left:50%;display:none;gap:6px;padding:6px;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);flex-wrap:wrap;z-index:10;min-width:0;width:max-content;max-width:min(360px,90vw);justify-content:flex-start}
 .tag-everyone.open .popover,.tag-everyone[aria-expanded="true"] .popover,.tag-everyone:focus-within .popover{display:flex}
@@ -550,6 +614,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .guest-overflow-pill{gap:var(--space-2);padding-inline:var(--space-2);font-variant-numeric:tabular-nums;}
 .guest-overflow-pill .guest-overflow-label{display:inline-flex;align-items:center;line-height:1;font-weight:600;}
 .guest-overflow-pill .popover{justify-content:flex-start;}
+.activity-row-guest-cluster .guest-overflow-pill{min-height:24px;padding-block:2px;}
+.activity-row-guest-cluster .guest-overflow-pill:focus{outline:2px solid var(--brand);outline-offset:2px;}
+.activity-row-guest-cluster .chip[tabindex]{outline:none;}
+.activity-row-guest-cluster .chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
 /* Dedicated right rail remains auto-sized so editing chips pin right without altering row height. */
 .activity-row-rail{display:flex;align-items:center;justify-self:end;gap:var(--space-2);flex-wrap:nowrap;min-width:0;}
 .stick-right{justify-content:flex-end}
