@@ -495,12 +495,12 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   -webkit-overflow-scrolling:touch;
 }
 /*
- * Pivot the row into a horizontal flex lane so the action chips can live in a
- * dedicated right rail while the title/time stack stays untouched. The
- * min-height keeps the fixed activity cadence even when the rail is empty.
+ * Grid gives us a stable left stack + right rail while preserving the fixed
+ * min-height so chips never resize the lane. Padding + divider offsets lean on
+ * the spacing scale to stay in sync with neighboring sections.
  */
-#activities .activity-row,#demoActivities .activity-row{position:relative;display:flex;align-items:center;flex-wrap:nowrap;gap:var(--space-4);padding:14px 16px;min-height:80px;border-radius:14px;background:transparent;cursor:pointer;touch-action:pan-y;transition:background-color .18s ease,box-shadow .22s ease,transform .16s ease,opacity .16s ease;}
-#activities .activity-row::after,#demoActivities .activity-row::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:1px;background:var(--activity-divider);transform-origin:center;transform:scaleY(.5);}
+#activities .activity-row,#demoActivities .activity-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:var(--space-3);padding:var(--space-4);min-height:5rem;border-radius:14px;background:transparent;cursor:pointer;touch-action:pan-y;transition:background-color .18s ease,box-shadow .22s ease,transform .16s ease,opacity .16s ease;}
+#activities .activity-row::after,#demoActivities .activity-row::after{content:"";position:absolute;left:var(--space-4);right:var(--space-4);bottom:0;height:1px;background:var(--activity-divider);transform-origin:center;transform:scaleY(.5);}
 #activities .activity-row:last-of-type::after,#demoActivities .activity-row:last-of-type::after{content:none;}
 #activities .activity-row[data-disabled='true'],#demoActivities .activity-row[data-disabled='true']{cursor:default;opacity:.55;}
 #activities .activity-row[data-disabled='true']::after,#demoActivities .activity-row[data-disabled='true']::after{opacity:.5;}
@@ -508,11 +508,13 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){#activities .activity-row,#demoActivities .activity-row{transition:none;}#activities .activity-row[data-pressed='true'],#demoActivities .activity-row[data-pressed='true']{transform:none;}}
 @media(hover:hover){#activities .activity-row:not([data-disabled='true']):hover,#demoActivities .activity-row:not([data-disabled='true']):hover{background:var(--activity-hover);box-shadow:var(--activity-shadow-hover);}}
 #activities .activity-row:focus-visible,#demoActivities .activity-row:focus-visible{outline:none;box-shadow:0 0 0 2px var(--activity-focus-ring),0 0 0 6px var(--activity-focus-glow);background:var(--activity-hover);}
-#activities .activity-row-body,#demoActivities .activity-row-body{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 auto;}
-#activities .activity-row-headline,#demoActivities .activity-row-headline{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-weight:500;letter-spacing:.01em;color:var(--text-primary);}
-#activities .activity-row-time,#demoActivities .activity-row-time{font-weight:600;font-variant-numeric:tabular-nums;}
-#activities .activity-row-title,#demoActivities .activity-row-title{flex:1 1 auto;min-width:0;}
-#activities .activity-row .tag-row,#demoActivities .activity-row .tag-row{margin-top:2px;}
+#activities .activity-row-body,#demoActivities .activity-row-body{display:flex;flex-direction:column;justify-content:center;gap:var(--space-2);min-width:0;}
+/* Stack time above title with a tight rhythm so the details read as a two-line
+ * block while honoring the fixed min-height guardrail. */
+#activities .activity-row-headline,#demoActivities .activity-row-headline{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);min-width:0;color:var(--text-primary);}
+#activities .activity-row-time,#demoActivities .activity-row-time{font-size:.8125rem;font-weight:500;letter-spacing:.02em;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+#activities .activity-row-title,#demoActivities .activity-row-title{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary);min-width:0;}
+#activities .activity-row .tag-row,#demoActivities .activity-row .tag-row{margin-top:var(--space-1);}
 .dinner-item,
 .spa-item,
 .custom-item{
@@ -531,8 +533,8 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .tag-everyone.open .popover,.tag-everyone[aria-expanded="true"] .popover,.tag-everyone:focus-within .popover{display:flex}
 @media(hover:hover){.tag-everyone:hover .popover{display:flex}}
 .tag-row{display:flex;gap:6px;flex-wrap:wrap}
-/* Dedicated lane for dinner/spa/custom chips so they never wrap and stay pinned. */
-.activity-row-rail{margin-left:auto;display:flex;align-items:center;gap:var(--space-2);flex-wrap:nowrap;flex:0 0 auto;min-width:0;}
+/* Dedicated right rail remains auto-sized so editing chips pin right without altering row height. */
+.activity-row-rail{display:flex;align-items:center;justify-self:end;gap:var(--space-2);flex-wrap:nowrap;min-width:0;}
 .stick-right{justify-content:flex-end}
 .section{margin-top:16px}
 #calMonth{font-weight:700;font-size:16px}
