@@ -204,7 +204,10 @@
 
     const cluster = document.createElement('div');
     cluster.className = 'activity-row-guest-cluster';
-    slot.appendChild(cluster);
+
+    const revealSlot = document.createElement('div');
+    revealSlot.className = 'guest-reveal-slot';
+    slot.appendChild(revealSlot);
 
     const collapsedLabel = activity.pill?.label || (guests.length === 2 ? 'Both' : 'Everyone');
     const allNames = guests.map(guest => guest.name).filter(Boolean).join(', ');
@@ -221,7 +224,7 @@
       pill.title = allNames;
     }
     pill.addEventListener('pointerdown', event => event.stopPropagation());
-    slot.appendChild(pill);
+    revealSlot.appendChild(pill);
 
     let expanded = false;
     let availableWidth = 0;
@@ -250,8 +253,21 @@
       }
     };
 
+    const mountCluster = () => {
+      if(revealSlot.firstChild === cluster) return;
+      // Swap the pill for the live cluster so chips inherit the pill's layout slot
+      // without nudging the trailing rail.
+      revealSlot.replaceChildren(cluster);
+    };
+
+    const mountPill = () => {
+      if(revealSlot.firstChild === pill) return;
+      revealSlot.replaceChildren(pill);
+    };
+
     const renderCluster = () => {
       if(!expanded) return;
+      mountCluster();
       const width = availableWidth > 0 ? availableWidth : lane.getBoundingClientRect().width;
       if(width <= 0){
         if(typeof requestAnimationFrame === 'function'){
@@ -260,9 +276,11 @@
         return;
       }
       cluster.style.width = `${width}px`;
+      revealSlot.style.width = `${width}px`;
       slot.style.setProperty('--guest-lane-width', `${width}px`);
       // Width is passed to the overflow controller so the row-reverse cluster can
       // trim from the left while keeping the reveal anchored to the action rail.
+      // The helper handles +N overflow exactly the same as the always-expanded rows.
       layoutGuestCluster(cluster, chips, {
         popoverLabel: 'Guests',
         ariaLabelPrefix: 'More guests',
@@ -312,6 +330,9 @@
       slot.dataset.expanded = 'false';
       pill.setAttribute('aria-expanded', 'false');
       cluster.style.width = '';
+      revealSlot.style.width = '';
+      slot.style.removeProperty('--guest-lane-width');
+      mountPill();
       focusIndex = 0;
       if(restoreFocus && typeof pill.focus === 'function'){
         pill.focus({ preventScroll: true });

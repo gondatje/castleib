@@ -555,8 +555,18 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   min-width:0;
   inline-size:100%;
 }
+#activities .guest-reveal-slot,#demoActivities .guest-reveal-slot{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  min-width:0;
+  flex:0 0 auto;
+}
 #activities .activity-row-guest-slot[data-expanded='true'],#demoActivities .activity-row-guest-slot[data-expanded='true']{
   gap:0;
+}
+#activities .activity-row-guest-slot[data-expanded='true'] .guest-reveal-slot,#demoActivities .activity-row-guest-slot[data-expanded='true'] .guest-reveal-slot{
+  flex:1 1 auto;
 }
 #activities .activity-row-guest-cluster,#demoActivities .activity-row-guest-cluster{
   display:flex;
