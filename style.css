@@ -1490,10 +1490,11 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-guest-pill:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 /* Pin the confirmation bubble to the edge of each guest chip so it mirrors the roster pill spacing without shifting layout. */
 .spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);padding:0;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease;z-index:1;}
+.spa-guest-confirm-toggle[data-static-confirm="true"]{cursor:default;pointer-events:none;opacity:1;}
 /* Bubble inherits the guest pill color via CSS variables so we can animate between outline and fill without extra DOM. */
-.spa-guest__bubble{inline-size:18px;block-size:18px;border-radius:50%;border:2px solid var(--guest-color,var(--pillColor,var(--brand)));background:transparent;display:inline-flex;align-items:center;justify-content:center;transition:background-color .12s ease,border-color .12s ease,transform .12s ease,color .12s ease;color:transparent;}
+.spa-guest__bubble{--spa-guest-bubble-color:var(--guest-color,var(--pillColor,var(--brand)));inline-size:18px;block-size:18px;border-radius:50%;border:1px solid var(--spa-guest-bubble-color);border-color:color-mix(in srgb,var(--spa-guest-bubble-color) 68%,transparent);background:transparent;display:inline-flex;align-items:center;justify-content:center;transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,transform .12s ease,color .12s ease;color:transparent;}
 .spa-guest__bubble svg{width:12px;height:12px;display:block;transition:opacity .12s ease;opacity:0;}
-.spa-guest__bubble--filled{background:var(--guest-color,var(--pillColor,var(--brand)));border-color:var(--guest-color,var(--pillColor,var(--brand)));color:#fff;}
+.spa-guest__bubble--filled{background:var(--spa-guest-bubble-color);border-color:color-mix(in srgb,var(--spa-guest-bubble-color) 32%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--spa-guest-bubble-color) 48%,transparent);color:#fff;}
 .spa-guest__bubble--filled svg{opacity:1;}
 .spa-guest__bubble:active{transform:scale(.96);}
 .spa-guest-chip.needs-confirm .spa-guest-confirm-toggle,.spa-guest-chip.confirmed .spa-guest-confirm-toggle,.spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}

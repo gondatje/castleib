@@ -2354,11 +2354,11 @@
     const orderedGuests = () => modalGuestIds.slice();
     let assignedIds = modalGuestIds.slice();
     const assignedSet = new Set(assignedIds);
-    // Guest confirmation state mirrors the pill UX: included guests start pending
-    // until their selections are locked via the checkmark control.
+    // Guest confirmation state mirrors the pill UX: included guests start in a
+    // confirmed state so the modal opens with every guest visibly checked.
     const guestConfirmState = new Map();
     assignedIds.forEach(id => {
-      guestConfirmState.set(id, !!existing);
+      guestConfirmState.set(id, true);
     });
 
     const defaultService = (()=>{
@@ -2603,14 +2603,25 @@
         return entry ? entry.name : '';
       }).filter(Boolean);
       const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
+      // When only one guest can appear in the modal, show a static nametag so
+      // the confirmation affordance stays visible without acting like a toggle.
+      const singleGuestMode = assigned.length===1 && modalGuestIds.length===1;
+      if(singleGuestMode){
+        assigned.forEach(id => {
+          if(!guestConfirmState.get(id)){
+            guestConfirmState.set(id, true);
+          }
+        });
+      }
 
       guestHeading.textContent = visibleIds.length===1 ? 'Guest' : 'Guests';
 
       if(singleGuestRoster){
         const solo = state.guests[0];
         if(solo){
+          guestConfirmState.set(solo.id, true);
           const wrapper=document.createElement('div');
-          wrapper.className='spa-guest-chip spa-guest-chip-static included';
+          wrapper.className='spa-guest-chip spa-guest-chip-static included confirmed has-confirm';
           wrapper.dataset.guestId = solo.id;
           // Single-guest stays render the pill as a static name tag so the
           // inline experience matches the roster while skipping the confirm
@@ -2635,6 +2646,15 @@
           labelSpan.textContent=buildGuestLabel(solo);
           pill.appendChild(labelSpan);
           wrapper.appendChild(pill);
+          const confirmIcon=document.createElement('span');
+          confirmIcon.className='spa-guest-confirm-toggle spa-guest__bubble spa-guest__bubble--filled';
+          confirmIcon.dataset.staticConfirm='true';
+          confirmIcon.setAttribute('aria-hidden','true');
+          if(solo.color){
+            confirmIcon.style.setProperty('--guest-color', solo.color);
+          }
+          confirmIcon.innerHTML = checkSvg;
+          wrapper.appendChild(confirmIcon);
           guestList.appendChild(wrapper);
         }
         guestHint.hidden=true;
@@ -2671,8 +2691,11 @@
           wrapper.classList.add('active');
         }
 
-        const pill=document.createElement('button');
-        pill.type='button';
+        const pillTag = singleGuestMode ? 'span' : 'button';
+        const pill=document.createElement(pillTag);
+        if(!singleGuestMode){
+          pill.type='button';
+        }
         pill.className='guest-pill spa-guest-pill';
         // Reuse the roster palette so the modal pills stay color-synced with the
         // main guest chips and expose that accent to the confirmation control.
@@ -2680,7 +2703,9 @@
         wrapper.style.setProperty('--pill-bg', guest.color);
         wrapper.style.setProperty('--pill-fg', guest.color);
         wrapper.style.setProperty('--pill-accent', guest.color);
-        pill.setAttribute('aria-pressed', included ? 'true' : 'false');
+        if(!singleGuestMode){
+          pill.setAttribute('aria-pressed', included ? 'true' : 'false');
+        }
         pill.classList.toggle('active', included);
         if(guest.primary){
           const star=document.createElement('span');
@@ -2694,26 +2719,30 @@
         labelSpan.textContent=buildGuestLabel(guest);
         pill.appendChild(labelSpan);
 
-        pill.addEventListener('click',()=>{
-          if(!included){
-            includeGuest(guest.id);
-            return;
-          }
-          if(uniform){
-            return;
-          }
-          setActiveGuest(guest.id);
-        });
-        pill.addEventListener('keydown',e=>{
-          if(!included && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
-            e.preventDefault();
-            includeGuest(guest.id);
-          }
-        });
+        if(!singleGuestMode){
+          pill.addEventListener('click',()=>{
+            if(!included){
+              includeGuest(guest.id);
+              return;
+            }
+            if(uniform){
+              return;
+            }
+            setActiveGuest(guest.id);
+          });
+          pill.addEventListener('keydown',e=>{
+            if(!included && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
+              e.preventDefault();
+              includeGuest(guest.id);
+            }
+          });
+        }
         if(included){
           wrapper.classList.add('has-confirm');
-          pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
-        }else{
+          if(!singleGuestMode){
+            pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
+          }
+        }else if(!singleGuestMode){
           pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
         }
 
@@ -2723,22 +2752,29 @@
           // The checkmark replaces the hover “X” affordance from the roster chips;
           // keeping it inside the pill ensures the modal visuals stay pixel-identical
           // while still exposing a separate button for confirmation.
-          const confirmBtn=document.createElement('button');
-          confirmBtn.type='button';
+          const confirmTag = singleGuestMode ? 'span' : 'button';
+          const confirmBtn=document.createElement(confirmTag);
           confirmBtn.className='spa-guest-confirm-toggle spa-guest__bubble';
           confirmBtn.classList.toggle('spa-guest__bubble--filled', confirmed);
-          confirmBtn.dataset.spaNoSubmit='true';
-          confirmBtn.dataset.guestId = guest.id;
           if(guest.color){
             confirmBtn.style.setProperty('--guest-color', guest.color);
           }
-          confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
-          confirmBtn.setAttribute('aria-label', `Confirm ${guest.name}`);
-          confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">Confirm ${guest.name}</span>`;
-          confirmBtn.addEventListener('click',e=>{
-            e.stopPropagation();
-            setGuestConfirmed(guest.id, !confirmed);
-          });
+          if(singleGuestMode){
+            confirmBtn.dataset.staticConfirm='true';
+            confirmBtn.setAttribute('aria-hidden','true');
+            confirmBtn.innerHTML = checkSvg;
+          }else{
+            confirmBtn.type='button';
+            confirmBtn.dataset.spaNoSubmit='true';
+            confirmBtn.dataset.guestId = guest.id;
+            confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
+            confirmBtn.setAttribute('aria-label', `Confirm ${guest.name}`);
+            confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">Confirm ${guest.name}</span>`;
+            confirmBtn.addEventListener('click',e=>{
+              e.stopPropagation();
+              setGuestConfirmed(guest.id, !confirmed);
+            });
+          }
           wrapper.appendChild(confirmBtn);
         }
 
@@ -2778,7 +2814,7 @@
       const canonical = inUniformMode() ? (getCanonicalSelection() || template) : template;
       const nextSelection = canonical ? { ...canonical, guestId: id } : { ...template, guestId: id };
       selections.set(id, nextSelection);
-      guestConfirmState.set(id, false);
+      guestConfirmState.set(id, true);
       assignedIds = orderedAssigned();
       if(inUniformMode()){
         syncTemplateFromSourceId(id);
