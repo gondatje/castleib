@@ -39,6 +39,9 @@
   --space-4:1rem;
   --space-5:1.25rem;
   --space-6:1.5rem;
+  /* Icon sizing tokens keep SVG glyphs consistent everywhere we reuse them. */
+  --icon-14:14px;
+  --icon-16:16px;
   /* Responsive layout tokens keep columns balanced and gutters subtle across breakpoints. */
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
@@ -500,7 +503,14 @@ h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercas
 }
 button{border:1px solid var(--border);background:#f1f5f9;border-radius:10px;padding:8px 10px;cursor:pointer;touch-action:manipulation}
 button:focus{outline:2px solid var(--brand);outline-offset:2px}
-.lock-icon{width:1em;height:1em;display:block}
+/* Shared icon helper keeps every SVG sized via tokens + currentColor.
+ * Future edit affordances should reuse .icon-edit so the pencil stays consistent. */
+.icon{inline-size:var(--icon-size,1em);block-size:var(--icon-size,1em);display:inline-block;color:currentColor;}
+.icon-edit{--icon-size:var(--icon-16,16px);}
+.icon-lock{--icon-size:var(--icon-16,16px);}
+.icon-reset{--icon-size:var(--icon-16,16px);}
+.icon-copy{--icon-size:var(--icon-16,16px);}
+.chip .icon-edit{--icon-size:var(--icon-14,14px);}
 .muted{color:var(--muted)}
 .grid{
   display:grid;
@@ -519,6 +529,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.stay{background:var(--stayBand)}
 #dayTitle{font-weight:600}
 .email{background:#fff;border:1px solid var(--border);padding:20px;border-radius:12px;min-height:260px;font-size:15px;line-height:var(--line-tight,1.35);color:var(--ink)}
+.email.preview-locked{background:color-mix(in srgb,var(--surface) 92%,var(--text-muted) 8%);box-shadow:inset 0 0 0 1px var(--hairline-strong);cursor:default}
 /* Reset browser margins inside the preview only so headers/lines sit back-to-back without extra gaps. */
 .email h1,.email h2,.email h3,.email h4,.email h5,.email h6,.email p,.email ul,.email ol,.email li,.email div{margin-block:0}
 .email ul,.email ol{padding-inline-start:0;list-style:none}
@@ -904,7 +915,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .dinner-chip .chip-icon,.dinner-chip .chip-pencil{display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
 .dinner-chip .chip-icon svg{width:18px;height:18px;display:block;transform:translateX(0.5px);}
 .dinner-chip .chip-pencil{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .16s ease;}
-.dinner-chip .chip-pencil svg{width:16px;height:16px;}
+.dinner-chip .chip-pencil .icon{display:block;}
 .dinner-chip .chip-icon{transition:opacity .16s ease;}
 @media(hover:hover){.dinner-chip:hover .chip-icon{opacity:0;}.dinner-chip:hover .chip-pencil{opacity:1;}}
 .dinner-chip:focus .chip-icon{opacity:0;}
@@ -934,7 +945,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   box-shadow:0 4px 12px rgba(12,18,32,.16);
   transform:translateY(-1px);
 }
-.chip--spa .icon{
+.chip--spa .chip-layer{
   position:absolute;
   inline-size:1em;
   block-size:1em;
@@ -943,13 +954,13 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   justify-content:center;
   transition:opacity 120ms ease-out;
 }
-.chip--spa .icon svg{width:1em;height:1em;display:block;}
-.chip--spa .icon-spa{opacity:1;}
-.chip--spa .icon-pencil{opacity:0;}
-.chip--spa:hover .icon-spa,
-.chip--spa:focus-visible .icon-spa{opacity:0;}
-.chip--spa:hover .icon-pencil,
-.chip--spa:focus-visible .icon-pencil{opacity:1;}
+.chip--spa .chip-layer svg{width:1em;height:1em;display:block;}
+.chip--spa .chip-layer--spa{opacity:1;}
+.chip--spa .chip-layer--edit{opacity:0;}
+.chip--spa:hover .chip-layer--spa,
+.chip--spa:focus-visible .chip-layer--spa{opacity:0;}
+.chip--spa:hover .chip-layer--edit,
+.chip--spa:focus-visible .chip-layer--edit{opacity:1;}
 /*
  * Custom activity chips layer the slider + pencil icons so the default glyph
  * remains visible until hover or keyboard focus swaps in the edit affordance.
@@ -980,7 +991,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .chip--custom:focus-visible{
   color:var(--chip-custom-fg,#000);
 }
-.chip--custom .icon{
+.chip--custom .chip-layer{
   position:absolute;
   inline-size:1em;
   block-size:1em;
@@ -989,18 +1000,18 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   justify-content:center;
   transition:opacity 120ms ease-out;
 }
-.chip--custom .icon svg{width:16px;height:16px;display:block;}
+.chip--custom .chip-layer svg{width:16px;height:16px;display:block;}
 .chip--custom svg,
 .chip--custom svg *{
   fill:currentColor !important;
   stroke:currentColor !important;
 }
-.chip--custom .icon-custom{opacity:1;}
-.chip--custom .icon-pencil{opacity:0;}
-.chip--custom:hover .icon-custom,
-.chip--custom:focus-visible .icon-custom{opacity:0;}
-.chip--custom:hover .icon-pencil,
-.chip--custom:focus-visible .icon-pencil{opacity:1;}
+.chip--custom .chip-layer--custom{opacity:1;}
+.chip--custom .chip-layer--edit{opacity:0;}
+.chip--custom:hover .chip-layer--custom,
+.chip--custom:focus-visible .chip-layer--custom{opacity:0;}
+.chip--custom:hover .chip-layer--edit,
+.chip--custom:focus-visible .chip-layer--edit{opacity:1;}
 .dinner-icon{display:block;}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
@@ -1038,6 +1049,31 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   }
 }
 .btn-icon:not([disabled]):active{background:color-mix(in srgb,var(--brand) 24%,var(--surface));transform:translateY(1px);}
+
+/* Preview rail actions reuse icon buttons so the row stays pinned without layout shifts. */
+.preview-action-btn{
+  inline-size:2.5rem;
+  block-size:2.5rem;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--text-primary);
+  transition:transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+.preview-action-btn:not(:disabled):hover{
+  background:color-mix(in srgb,var(--brand) 12%, var(--surface));
+  box-shadow:0 10px 24px color-mix(in srgb,var(--text-primary) 16%, transparent);
+  transform:translateY(-1px);
+}
+.preview-action-btn:not(:disabled):active{
+  background:color-mix(in srgb,var(--brand) 18%, var(--surface));
+  transform:translateY(0);
+}
+.preview-action-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+.preview-action-btn[disabled]{opacity:0.5;cursor:default;box-shadow:none;}
 .btn-icon[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none;}
 .btn-icon--primary{color:var(--brand);}
 .btn-icon--subtle{color:var(--muted);}

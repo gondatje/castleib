@@ -123,7 +123,11 @@
   // Spec-supplied custom chip icon swaps in a unique glyph until hover/keyboard
   // focus reveals the standard pencil affordance for editing.
   const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor" stroke="currentColor"/></svg>';
+  // Shared edit glyph ensures every edit affordance uses the same SVG + token sizing.
+  const editIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit"><path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/></svg>';
+  const lockIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-lock"><path d="M16 4a6 6 0 0 0-6 6v4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V16a2 2 0 0 0-2-2h-2v-4a6 6 0 0 0-6-6zm0 2a4 4 0 0 1 4 4v4h-8v-4a4 4 0 0 1 4-4zm-8 10h16v12H8V16zm8 2a2 2 0 0 0-2 2 2 2 0 0 0 1 1.732V24h2v-2.268A2 2 0 0 0 16 18z" fill="currentColor"/></svg>';
+  const resetIconSvg = '<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false" class="icon icon-reset"><path d="M64,256H34A222,222,0,0,1,430,118.15V85h30V190H355V160h67.27A192.21,192.21,0,0,0,256,64C150.13,64,64,150.13,64,256Zm384,0c0,105.87-86.13,192-192,192A192.21,192.21,0,0,1,89.73,352H157V322H52V427H82V393.85A222,222,0,0,0,478,256Z" fill="currentColor"/></svg>';
+  const copyIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon icon-copy"><path d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V4zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2h-4zm4-2V4H4v10h10z" fill="currentColor"/></svg>';
   // Shared modal glyphs keep every destructive/save affordance visually in sync while
   // letting the CSS drive color via `currentColor` so themes remain consistent.
   const saveIconSvg = '<svg viewBox="-3 -3 24 24" aria-hidden="true" focusable="false"><path d="M2 0h11.22a2 2 0 0 1 1.345.52l2.78 2.527A2 2 0 0 1 18 4.527V16a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 2v14h14V4.527L13.22 2H2zm4 8h6a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm0 2v4h6v-4H6zm7-9a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1zM5 3h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 3h3V5H6v1z" fill="currentColor"/></svg>';
@@ -354,10 +358,16 @@
     dataStatus: 'loading',
     editing: false,
     previewMode: 'view',
-    previewPatches: new Map(),
+    // Single boolean keeps the toggle icon + label in sync without juggling two buttons.
+    isEditingPreview: false,
+    previewState: {
+      isLocked: false,
+      // Granular overrides live here so locking only hides edit chrome while
+      // the generator keeps flowing new data through untouched segments.
+      overrides: { days: {} }
+    },
     previewBaseSnapshot: new Map(),
     previewItineraryKey: null,
-    previewStalePatchKeys: new Set(),
     previewDirty: true,
     spaCatalog: null,
     customCatalog: { titles: [], locations: [] }
@@ -371,14 +381,22 @@
   const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
-  const editPreviewBtn=$('#editPreview');
-  const lockPreviewBtn=$('#lockPreview');
+  const previewToggleBtn=$('#previewToggle');
   const resetPreviewBtn=$('#resetPreview');
   const copyBtn=$('#copy');
   const addDinnerBtn=$('#addDinner');
   const addSpaBtn=$('#addSpa');
   const addCustomBtn=$('#addCustom');
   const clearAllBtn=$('#clearAll');
+
+  if(resetPreviewBtn){
+    resetPreviewBtn.innerHTML = resetIconSvg;
+  }
+  if(copyBtn){
+    copyBtn.innerHTML = copyIconSvg;
+    copyBtn.title = 'Copy preview';
+    copyBtn.setAttribute('aria-label','Copy preview');
+  }
   function decorateToolbarButton(button, iconSvg, srText){
     if(!button){
       return;
@@ -1562,7 +1580,7 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='dinner-chip';
-      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${pencilSvg}</span><span class="sr-only">Edit dinner time</span>`;
+      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${editIconSvg}</span><span class="sr-only">Edit dinner time</span>`;
       chip.setAttribute('aria-label','Edit dinner time');
       chip.title='Edit dinner time';
       chip.dataset.pressExempt='true';
@@ -1615,7 +1633,7 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='spa-chip chip chip--spa';
-      chip.innerHTML = `<span class="icon icon-spa" aria-hidden="true">${spaIconSvg}</span><span class="icon icon-pencil" aria-hidden="true">${pencilSvg}</span><span class="sr-only">Edit spa appointment</span>`;
+      chip.innerHTML = `<span class="chip-layer chip-layer--spa" aria-hidden="true">${spaIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span><span class="sr-only">Edit spa appointment</span>`;
       chip.setAttribute('aria-label','Edit spa appointment');
       chip.title='Edit spa appointment';
       chip.dataset.pressExempt='true';
@@ -1672,7 +1690,7 @@
       chip.className='chip chip--custom';
       // Layer both icons so the custom glyph renders immediately and we can flip
       // to the pencil via hover/:focus-visible without resizing the pill.
-      chip.innerHTML = `<span class="icon icon-custom" aria-hidden="true">${customChipIconSvg}</span><span class="icon icon-pencil" aria-hidden="true">${pencilSvg}</span>`;
+      chip.innerHTML = `<span class="chip-layer chip-layer--custom" aria-hidden="true">${customChipIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span>`;
       chip.dataset.pressExempt='true';
       chip.setAttribute('aria-label','Edit custom activity');
       chip.title='Edit custom activity';
@@ -5023,7 +5041,7 @@
   }
 
   // ---------- Preview ----------
-  const PREVIEW_PATCH_STORAGE_PREFIX = 'chs.previewPatches:v1:';
+  const PREVIEW_OVERRIDE_STORAGE_PREFIX = 'chs.previewOverrides:v1:';
 
   function stableHash(input){
     const str = String(input || '');
@@ -5033,13 +5051,6 @@
       hash |= 0;
     }
     return Math.abs(hash).toString(36);
-  }
-
-  function cssEscape(value){
-    if(typeof CSS !== 'undefined' && CSS.escape){
-      return CSS.escape(value);
-    }
-    return String(value || '').replace(/"/g,'\\"');
   }
 
   function sanitizePreviewHtml(html){
@@ -5077,29 +5088,103 @@
   }
 
   function previewStorageKey(itineraryId){
-    return `${PREVIEW_PATCH_STORAGE_PREFIX}${itineraryId}`;
+    return `${PREVIEW_OVERRIDE_STORAGE_PREFIX}${itineraryId}`;
   }
 
-  function loadPreviewPatches(itineraryId){
-    if(!itineraryId || typeof localStorage==='undefined') return [];
+  function emptyOverrides(){
+    return { days: {} };
+  }
+
+  function cloneOverrides(source){
+    const overrides = source && typeof source === 'object' ? source : emptyOverrides();
+    const result = { days: {} };
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    Object.keys(days).forEach(dayKey => {
+      const entry = days[dayKey];
+      if(!entry || typeof entry !== 'object') return;
+      const nextEntry = {};
+      if('headerHtml' in entry && typeof entry.headerHtml === 'string'){
+        nextEntry.headerHtml = entry.headerHtml;
+      }
+      if(entry.items && typeof entry.items === 'object'){
+        const itemIds = Object.keys(entry.items);
+        if(itemIds.length>0){
+          nextEntry.items = {};
+          itemIds.forEach(itemId => {
+            if(typeof entry.items[itemId] === 'string'){
+              nextEntry.items[itemId] = entry.items[itemId];
+            }
+          });
+          if(Object.keys(nextEntry.items).length===0){
+            delete nextEntry.items;
+          }
+        }
+      }
+      if(nextEntry.headerHtml!==undefined || nextEntry.items){
+        result.days[dayKey] = nextEntry;
+      }
+    });
+    return result;
+  }
+
+  function isEmptyOverrides(overrides){
+    if(!overrides || typeof overrides !== 'object') return true;
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    return Object.keys(days).length===0;
+  }
+
+  function normalizeOverrides(overrides){
+    if(!overrides || typeof overrides !== 'object'){
+      return emptyOverrides();
+    }
+    const next = { days: {} };
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    Object.keys(days).forEach(dayKey => {
+      const entry = days[dayKey];
+      if(!entry || typeof entry !== 'object') return;
+      const normalized = {};
+      if(typeof entry.headerHtml === 'string'){
+        normalized.headerHtml = sanitizePreviewHtml(entry.headerHtml);
+      }
+      if(entry.items && typeof entry.items === 'object'){
+        const normalizedItems = {};
+        Object.keys(entry.items).forEach(itemId => {
+          const value = entry.items[itemId];
+          if(typeof value === 'string'){
+            normalizedItems[itemId] = sanitizePreviewHtml(value);
+          }
+        });
+        if(Object.keys(normalizedItems).length>0){
+          normalized.items = normalizedItems;
+        }
+      }
+      if(normalized.headerHtml!==undefined || normalized.items){
+        next.days[dayKey] = normalized;
+      }
+    });
+    return next;
+  }
+
+  function loadPreviewOverrides(itineraryId){
+    if(!itineraryId || typeof localStorage==='undefined') return emptyOverrides();
     try{
       const raw = localStorage.getItem(previewStorageKey(itineraryId));
-      if(!raw) return [];
+      if(!raw) return emptyOverrides();
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      return normalizeOverrides(parsed);
     }catch(e){
-      return [];
+      return emptyOverrides();
     }
   }
 
-  // Persist per-itinerary so edits travel with the stay regardless of browser reloads.
-  function persistPreviewPatches(itineraryId, patches){
+  // Persist per-itinerary so overrides travel with the stay regardless of reloads.
+  function persistPreviewOverrides(itineraryId, overrides){
     if(!itineraryId || typeof localStorage==='undefined') return;
     try{
-      if(!patches || patches.length===0){
+      if(isEmptyOverrides(overrides)){
         localStorage.removeItem(previewStorageKey(itineraryId));
       }else{
-        localStorage.setItem(previewStorageKey(itineraryId), JSON.stringify(patches));
+        localStorage.setItem(previewStorageKey(itineraryId), JSON.stringify(overrides));
       }
     }catch(e){
       // Ignore persistence errors so the preview keeps rendering without blocking UX.
@@ -5126,42 +5211,6 @@
     return null;
   }
 
-  function findPreviewAnchorByKey(key){
-    if(!email || !key) return null;
-    const [type, value] = key.split(':');
-    if(!type || value===undefined) return null;
-    const safe = cssEscape(value);
-    if(type==='day') return email.querySelector(`.pv-day[data-day="${safe}"]`);
-    if(type==='item') return email.querySelector(`.pv-line[data-item-id="${safe}"]`);
-    if(type==='system') return email.querySelector(`.pv-line[data-system="${safe}"]`);
-    return null;
-  }
-
-  // Reapply edits per anchor so item insertions or reorders do not disturb
-  // existing overrides. Missing anchors simply mark the patch as stale until the
-  // item reappears.
-  function applyPreviewPatches(){
-    if(!state.previewPatches || state.previewPatches.size===0) return;
-    if(!(state.previewStalePatchKeys instanceof Set)){
-      state.previewStalePatchKeys = new Set();
-    }else{
-      state.previewStalePatchKeys.clear();
-    }
-    for(const patch of state.previewPatches.values()){
-      if(!patch || !patch.key) continue;
-      const target = findPreviewAnchorByKey(patch.key);
-      if(!target){
-        state.previewStalePatchKeys.add(patch.key);
-        continue;
-      }
-      if(patch.type==='replaceText'){
-        target.textContent = patch.payload ?? '';
-      }else{
-        target.innerHTML = sanitizePreviewHtml(patch.payload ?? '');
-      }
-    }
-  }
-
   // Preview anchors derive from immutable schedule traits so an item keeps the
   // same data-item-id even if the day re-renders or moves in the DOM. This keeps
   // user edits attached to the logical item rather than its position.
@@ -5173,64 +5222,118 @@
     return `${type}-${stableHash(raw)}`;
   }
 
-  function ensurePreviewPatchesLoaded(){
+  function ensurePreviewOverridesLoaded(){
     const itineraryId = getItineraryId();
     if(state.previewItineraryKey === itineraryId){
       return;
     }
-    const previousPatches = state.previewPatches instanceof Map ? new Map(state.previewPatches) : new Map();
+    const previous = cloneOverrides(state.previewState?.overrides);
     state.previewItineraryKey = itineraryId;
-    const loaded = loadPreviewPatches(itineraryId);
-    let map = new Map();
-    loaded.forEach(patch => {
-      if(patch && patch.key){
-        map.set(patch.key, patch);
+    let overrides = loadPreviewOverrides(itineraryId);
+    if(isEmptyOverrides(overrides) && !isEmptyOverrides(previous)){
+      overrides = cloneOverrides(previous);
+      persistPreviewOverrides(itineraryId, normalizeOverrides(overrides));
+    }
+    state.previewState.overrides = normalizeOverrides(overrides);
+    if(state.previewMode!=='edit' && !state.previewState?.isLocked){
+      state.previewMode = isEmptyOverrides(overrides) ? 'view' : 'locked';
+      state.isEditingPreview = false;
+    }
+  }
+
+  function commitOverrides(nextOverrides, { persist = true } = {}){
+    const normalized = normalizeOverrides(nextOverrides);
+    state.previewState.overrides = normalized;
+    if(persist){
+      const itineraryId = state.previewItineraryKey || getItineraryId();
+      persistPreviewOverrides(itineraryId, normalized);
+    }
+    updatePreviewButtons();
+    return normalized;
+  }
+
+  function pruneOverrides(activeDays, activeItemKeys){
+    // Drop overrides for days/items that fall out of the rendered window so
+    // stay changes or deletions cannot resurrect stale coordinator edits.
+    const overrides = cloneOverrides(state.previewState?.overrides);
+    const daySet = new Set(activeDays || []);
+    const itemSet = new Set(activeItemKeys || []);
+    let changed = false;
+    Object.keys(overrides.days).forEach(dayKey => {
+      if(!daySet.has(dayKey)){
+        delete overrides.days[dayKey];
+        changed = true;
+        return;
+      }
+      const entry = overrides.days[dayKey];
+      if(entry.items){
+        Object.keys(entry.items).forEach(itemId => {
+          const composite = `${dayKey}::${itemId}`;
+          if(!itemSet.has(composite)){
+            delete entry.items[itemId];
+            changed = true;
+          }
+        });
+        if(entry.items && Object.keys(entry.items).length===0){
+          delete entry.items;
+        }
+      }
+      if(entry.headerHtml===undefined && !entry.items){
+        delete overrides.days[dayKey];
+        changed = true;
       }
     });
-    if(map.size===0 && previousPatches.size>0){
-      // When the stay window shifts (new arrival/departure) we treat it as the same
-      // in-progress itinerary and migrate the existing overrides forward so they
-      // keep applying. Persisting under the new key means subsequent renders reuse
-      // the edits even if the page reloads mid-adjustment.
-      map = previousPatches;
-      const migrated = Array.from(map.values()).sort((a,b)=> (a.ts||0)-(b.ts||0));
-      persistPreviewPatches(itineraryId, migrated);
-    }
-    state.previewPatches = map;
-    if(state.previewMode!=='edit'){
-      state.previewMode = map.size>0 ? 'locked' : 'view';
+    if(changed){
+      commitOverrides(overrides);
     }
   }
 
   function updatePreviewButtons(){
-    const hasPatches = state.previewPatches && state.previewPatches.size>0;
-    if(editPreviewBtn){
-      editPreviewBtn.disabled = state.previewMode==='edit';
-    }
-    if(lockPreviewBtn){
-      lockPreviewBtn.disabled = state.previewMode!=='edit';
+    const overrides = state.previewState?.overrides;
+    const hasOverrides = !isEmptyOverrides(overrides);
+    const isLocked = !!state.previewState?.isLocked;
+    if(previewToggleBtn){
+      // One button swaps glyph + label instead of juggling separate edit/lock controls.
+      const isEditing = !!state.isEditingPreview;
+      previewToggleBtn.disabled = false;
+      previewToggleBtn.setAttribute('aria-pressed', String(isEditing));
+      let label;
+      let iconMarkup;
+      if(isEditing){
+        label = 'Lock preview';
+        iconMarkup = lockIconSvg;
+      }else if(isLocked){
+        label = 'Unlock preview';
+        iconMarkup = lockIconSvg;
+      }else{
+        label = 'Edit preview';
+        iconMarkup = editIconSvg;
+      }
+      previewToggleBtn.setAttribute('aria-label', label);
+      previewToggleBtn.title = label;
+      previewToggleBtn.innerHTML = iconMarkup;
     }
     if(resetPreviewBtn){
-      resetPreviewBtn.disabled = !hasPatches;
+      resetPreviewBtn.disabled = !hasOverrides && !isLocked;
     }
   }
 
   function setPreviewAriaLabel(){
     if(!email) return;
-    if(state.previewMode==='edit'){
+    if(state.isEditingPreview){
       email.setAttribute('aria-label','Editing email preview');
-    }else if(state.previewMode==='locked'){
+    }else if(state.previewState?.isLocked){
       email.setAttribute('aria-label','Email preview (locked)');
     }else{
       email.setAttribute('aria-label','Email preview');
     }
   }
 
-  function registerPreviewBase(key, el, baseMap){
-    if(!key || !el) return;
+  function registerPreviewBase(key, payload, baseMap){
+    if(!key) return;
     baseMap.set(key, {
       type: 'replaceInner',
-      payload: el.innerHTML
+      payload: sanitizePreviewHtml(payload ?? '')
     });
   }
 
@@ -5251,11 +5354,27 @@
   }
 
   function renderPreview(){
-    if(state.previewMode==='edit'){
+    const isLocked = !!state.previewState?.isLocked;
+    if(email){
+      email.classList.toggle('preview-locked', isLocked);
+      if(isLocked){
+        email.contentEditable = 'false';
+        email.style.outline = 'none';
+      }
+    }
+    if(state.isEditingPreview){
       state.previewDirty = true;
       return;
     }
-    ensurePreviewPatchesLoaded();
+    ensurePreviewOverridesLoaded();
+    const overrides = state.previewState?.overrides || emptyOverrides();
+
+    if(!state.isEditingPreview){
+      state.previewMode = isLocked
+        ? 'locked'
+        : (isEmptyOverrides(overrides) ? 'view' : 'locked');
+    }
+
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
     const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
 
@@ -5281,6 +5400,7 @@
     if(stayKeys.length===0){
       email.appendChild(makeEl('p','email-empty','Set Arrival and Departure to build your preview.'));
       state.previewBaseSnapshot = new Map();
+      pruneOverrides([], []);
       state.previewDirty = false;
       setPreviewAriaLabel();
       updatePreviewButtons();
@@ -5288,24 +5408,34 @@
     }
 
     const baseMap = new Map();
+    const activeDays = [];
+    const activeItemKeys = [];
+
     stayKeys.forEach((k)=>{
+      activeDays.push(k);
       const [y,m,d] = k.split('-').map(Number);
       const date = new Date(y, m-1, d);
       const w = weekdayName(date);
       const daySection = makeEl('section','email-day');
       const monthLabel = date.toLocaleString(undefined,{month:'long'});
-      // Wrap the renderable header so it has a stable anchor for diffing and copy.
       const dayWrapper = makeEl('div','pv-day');
       dayWrapper.dataset.day = k;
+      const dayOverrides = overrides.days && overrides.days[k] ? overrides.days[k] : {};
+      const defaultHeaderHtml = `${escapeHtml(w)}, ${escapeHtml(monthLabel)} ${ordinalHtml(date.getDate())}`;
+      // Compose the generator output with any stored override so edits survive
+      // locks while untouched days continue to stream live updates.
+      const headerHtml = (typeof dayOverrides.headerHtml === 'string')
+        ? dayOverrides.headerHtml
+        : defaultHeaderHtml;
       dayWrapper.appendChild(
         makeEl(
           'h4',
           'email-day-title',
-          `${escapeHtml(w)}, ${escapeHtml(monthLabel)} ${ordinalHtml(date.getDate())}`,
+          headerHtml,
           {html:true}
         )
       );
-      registerPreviewBase(`day:${k}`, dayWrapper, baseMap);
+      registerPreviewBase(`day:${k}`, defaultHeaderHtml, baseMap);
       daySection.appendChild(dayWrapper);
 
       const checkoutLine = () => {
@@ -5316,7 +5446,7 @@
         const stayWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('13:00'));
         row.appendChild(stayWindow);
         wrapper.appendChild(row);
-        registerPreviewBase('system:departure', wrapper, baseMap);
+        registerPreviewBase('system:departure', wrapper.innerHTML, baseMap);
         return wrapper;
       };
       const checkinLine = () => {
@@ -5327,7 +5457,7 @@
         const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('12:00'));
         row.appendChild(arrivalWindow);
         wrapper.appendChild(row);
-        registerPreviewBase('system:arrival', wrapper, baseMap);
+        registerPreviewBase('system:arrival', wrapper.innerHTML, baseMap);
         return wrapper;
       };
 
@@ -5346,25 +5476,28 @@
           const baseAnchor = computePreviewItemAnchor(it, k);
           spaLines.forEach((line, idx) => {
             const wrapper = makeEl('div','pv-line');
+            wrapper.dataset.day = k;
             const anchorValue = baseAnchor ? `${baseAnchor}::${idx}` : null;
-            if(anchorValue) wrapper.dataset.itemId = anchorValue;
+            if(anchorValue){
+              wrapper.dataset.itemId = anchorValue;
+              activeItemKeys.push(`${k}::${anchorValue}`);
+            }
+            const itemOverrides = dayOverrides.items && anchorValue ? dayOverrides.items[anchorValue] : undefined;
+            // Each spa fragment composes in-place so multi-line entries can mix
+            // coordinator tweaks with live system mutations safely.
+            const lineHtml = (typeof itemOverrides === 'string') ? itemOverrides : line;
             wrapper.appendChild(
-              makeEl('div','email-activity', line, {html:true})
+              makeEl('div','email-activity', lineHtml, {html:true})
             );
             const key = anchorValue ? `item:${anchorValue}` : null;
-            if(key) registerPreviewBase(key, wrapper, baseMap);
+            if(key) registerPreviewBase(key, line, baseMap);
             daySection.appendChild(wrapper);
           });
           return;
         }
         const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
         if(!isDinner && ids.length===0) return;
-        // Dinner always applies to every guest on the stay, so the preview skips
-        // individual name tags to avoid implying it can be scoped per person.
         const totalGuestsInStay = state.guests.length;
-        // Shared label helper mirrors the activities rail: if every guest is
-        // assigned we still render the activity but skip the pipe-delimited
-        // names so the preview and row stay in sync.
         const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, {
           guestLookup,
           totalGuestsInStay
@@ -5383,7 +5516,6 @@
         }else if(endTime){
           timeSegment = endTime;
         }
-        // Wrap generic itinerary times so we can remove bold styling without affecting other text.
         const timeMarkup = timeSegment ? `<span class="email-activity-time">${timeSegment}</span>` : '';
         const title = escapeHtml(it.title||'');
         const segments = [];
@@ -5398,29 +5530,36 @@
           lineMarkup = lineMarkup ? `${lineMarkup} | ${guestSegment}` : guestSegment;
         }
         if(!lineMarkup){
-          // Avoid injecting empty divs so the preview stays a continuous stack with no phantom gaps.
           return;
         }
         const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.day = k;
         const anchorValue = computePreviewItemAnchor(it, k);
-        if(anchorValue) wrapper.dataset.itemId = anchorValue;
+        if(anchorValue){
+          wrapper.dataset.itemId = anchorValue;
+          activeItemKeys.push(`${k}::${anchorValue}`);
+        }
+        const itemOverrides = dayOverrides.items && anchorValue ? dayOverrides.items[anchorValue] : undefined;
+        // Item rows swap to coordinator overrides when present; otherwise they
+        // keep the generated markup so new guests or time tweaks appear live.
+        const finalMarkup = (typeof itemOverrides === 'string') ? itemOverrides : lineMarkup;
         wrapper.appendChild(
           makeEl(
             'div',
             'email-activity',
-            lineMarkup,
+            finalMarkup,
             {html:true}
           )
         );
         const key = anchorValue ? `item:${anchorValue}` : null;
-        if(key) registerPreviewBase(key, wrapper, baseMap);
+        if(key) registerPreviewBase(key, lineMarkup, baseMap);
         daySection.appendChild(wrapper);
       });
 
       email.appendChild(daySection);
     });
     state.previewBaseSnapshot = baseMap;
-    applyPreviewPatches();
+    pruneOverrides(activeDays, activeItemKeys);
     state.previewDirty = false;
     setPreviewAriaLabel();
     updatePreviewButtons();
@@ -5479,60 +5618,77 @@
   updateStayNoteInputs();
 
   // ---------- Edit / Copy / Clear ----------
-  // Diff the live DOM against the canonical render so we only persist the blocks
-  // the coordinator touched. Storing sanitized payloads keeps the preview safe to
-  // reapply after every render cycle.
-  function capturePreviewPatchesFromDom(){
+  // Diff the live DOM against the canonical render so we only persist the day or
+  // row the coordinator touched. Granular overrides keep the generator alive for
+  // untouched rows while edits stay anchored to their logical ids.
+  function capturePreviewOverridesFromDom(){
     const baseMap = state.previewBaseSnapshot instanceof Map ? state.previewBaseSnapshot : new Map();
     const anchors = collectPreviewAnchors(email);
-    const patches = state.previewPatches instanceof Map ? new Map(state.previewPatches) : new Map();
-    const now = Date.now();
+    const overrides = cloneOverrides(state.previewState?.overrides);
     anchors.forEach(anchor => {
       const key = anchorKeyFromElement(anchor);
       if(!key) return;
       const baseEntry = baseMap.get(key);
       if(!baseEntry) return;
-      const sanitized = sanitizePreviewHtml(anchor.innerHTML);
-      if(anchor.innerHTML !== sanitized){
-        anchor.innerHTML = sanitized;
-      }
-      const hasMarkup = sanitized.includes('<');
-      if(!hasMarkup){
-        const textPayload = anchor.textContent ?? '';
-        const scratch = document.createElement('div');
-        scratch.innerHTML = baseEntry.payload ?? '';
-        const baseText = scratch.textContent ?? '';
-        if(textPayload === baseText){
-          patches.delete(key);
+      if(anchor.classList.contains('pv-day')){
+        const dayKey = anchor.dataset.day || '';
+        if(!dayKey) return;
+        const header = anchor.querySelector('.email-day-title');
+        if(!header) return;
+        const sanitized = sanitizePreviewHtml(header.innerHTML);
+        if(header.innerHTML !== sanitized){
+          header.innerHTML = sanitized;
+        }
+        const defaultHtml = baseEntry.payload ?? '';
+        if(sanitized === defaultHtml){
+          if(overrides.days[dayKey]){
+            delete overrides.days[dayKey].headerHtml;
+            if(!overrides.days[dayKey].items || Object.keys(overrides.days[dayKey].items).length===0){
+              delete overrides.days[dayKey];
+            }
+          }
         }else{
-          patches.set(key, {
-            key,
-            type: 'replaceText',
-            payload: textPayload,
-            ts: now
-          });
+          if(!overrides.days[dayKey]) overrides.days[dayKey] = {};
+          overrides.days[dayKey].headerHtml = sanitized;
         }
         return;
       }
-      if((baseEntry.payload ?? '') === sanitized){
-        patches.delete(key);
-        return;
+      if(!anchor.dataset.itemId) return;
+      const dayKey = anchor.dataset.day || '';
+      const itemId = anchor.dataset.itemId || '';
+      if(!dayKey || !itemId) return;
+      const row = anchor.querySelector('.email-activity');
+      if(!row) return;
+      const sanitized = sanitizePreviewHtml(row.innerHTML);
+      if(row.innerHTML !== sanitized){
+        row.innerHTML = sanitized;
       }
-      patches.set(key, {
-        key,
-        type: 'replaceInner',
-        payload: sanitized,
-        ts: now
-      });
+      const defaultHtml = baseEntry.payload ?? '';
+      if(sanitized === defaultHtml){
+        if(overrides.days[dayKey] && overrides.days[dayKey].items){
+          delete overrides.days[dayKey].items[itemId];
+          if(Object.keys(overrides.days[dayKey].items).length===0){
+            delete overrides.days[dayKey].items;
+          }
+          if(overrides.days[dayKey].headerHtml===undefined && !overrides.days[dayKey].items){
+            delete overrides.days[dayKey];
+          }
+        }
+      }else{
+        if(!overrides.days[dayKey]) overrides.days[dayKey] = {};
+        if(!overrides.days[dayKey].items) overrides.days[dayKey].items = {};
+        overrides.days[dayKey].items[itemId] = sanitized;
+      }
     });
-    state.previewPatches = patches;
-    const itineraryId = state.previewItineraryKey || getItineraryId();
-    const persisted = Array.from(patches.values()).sort((a,b)=> (a.ts||0)-(b.ts||0));
-    persistPreviewPatches(itineraryId, persisted);
+    commitOverrides(overrides);
   }
 
   function enterPreviewEditMode(){
+    if(state.previewState?.isLocked){
+      return;
+    }
     state.previewMode = 'edit';
+    state.isEditingPreview = true;
     state.editing = true;
     email.contentEditable = 'true';
     email.style.outline = '2px dashed #bbb';
@@ -5543,8 +5699,16 @@
 
   function lockPreviewEdits(){
     if(state.previewMode!=='edit') return;
-    capturePreviewPatchesFromDom();
-    state.previewMode = state.previewPatches.size>0 ? 'locked' : 'view';
+    capturePreviewOverridesFromDom();
+    const sanitizedSnapshot = sanitizePreviewHtml(email.innerHTML);
+    if(email.innerHTML !== sanitizedSnapshot){
+      email.innerHTML = sanitizedSnapshot;
+    }
+    // Lock flips the edit affordances off while the composed overrides keep
+    // flowing through renderPreview so live itinerary updates continue.
+    state.previewState.isLocked = true;
+    state.previewMode = 'locked';
+    state.isEditingPreview = false;
     state.editing = false;
     email.contentEditable = 'false';
     email.style.outline = 'none';
@@ -5554,29 +5718,60 @@
   }
 
   function resetPreviewEdits(){
-    if(!state.previewPatches || state.previewPatches.size===0) return;
+    if(state.previewState?.isLocked){
+      if(!confirm('Unlock and discard all preview edits?')) return;
+      state.previewState.isLocked = false;
+      commitOverrides(emptyOverrides());
+      state.previewMode = 'view';
+      state.isEditingPreview = false;
+      state.editing = false;
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      setPreviewAriaLabel();
+      renderPreview();
+      return;
+    }
+    if(state.isEditingPreview){
+      const wasEditing = true;
+      state.isEditingPreview = false;
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      renderPreview();
+      if(wasEditing){
+        enterPreviewEditMode();
+      }
+      return;
+    }
+    if(isEmptyOverrides(state.previewState?.overrides)) return;
     if(!confirm('Reset all email preview edits?')) return;
-    state.previewPatches = new Map();
-    const itineraryId = state.previewItineraryKey || getItineraryId();
-    persistPreviewPatches(itineraryId, []);
+    commitOverrides(emptyOverrides());
     state.previewMode = 'view';
+    state.isEditingPreview = false;
     state.editing = false;
     email.contentEditable = 'false';
     email.style.outline = 'none';
     setPreviewAriaLabel();
-    updatePreviewButtons();
     renderPreview();
   }
 
-  if(editPreviewBtn){
-    editPreviewBtn.onclick=()=>{
-      if(state.previewMode==='edit') return;
-      enterPreviewEditMode();
-    };
-  }
-  if(lockPreviewBtn){
-    lockPreviewBtn.onclick=()=>{
-      lockPreviewEdits();
+  if(previewToggleBtn){
+    previewToggleBtn.onclick=()=>{
+      if(state.isEditingPreview){
+        lockPreviewEdits();
+      }else if(state.previewState?.isLocked){
+        state.previewState.isLocked = false;
+        state.previewMode = isEmptyOverrides(state.previewState?.overrides) ? 'view' : 'locked';
+        state.isEditingPreview = false;
+        state.editing = false;
+        email.contentEditable = 'false';
+        email.style.outline = 'none';
+        setPreviewAriaLabel();
+        updatePreviewButtons();
+        renderPreview();
+        enterPreviewEditMode();
+      }else{
+        enterPreviewEditMode();
+      }
     };
   }
   if(resetPreviewBtn){
@@ -5586,7 +5781,10 @@
   }
   email.addEventListener('dblclick', (e)=>{
     if(e.metaKey || e.ctrlKey){
-      if(state.previewMode==='edit'){
+      if(state.previewState?.isLocked){
+        return;
+      }
+      if(state.isEditingPreview){
         lockPreviewEdits();
       }else{
         enterPreviewEditMode();
@@ -5595,10 +5793,17 @@
   });
 
   let copyTitleTimer = null;
+  function previewHtmlToPlainText(html){
+    const scratch = document.createElement('div');
+    scratch.innerHTML = html || '';
+    return (scratch.textContent || '').split('\n').map(line=>line.trimEnd()).join('\n').replace(/\n{2,}/g,'\n').trim();
+  }
+
   copyBtn.onclick=async ()=>{
-    const html=email.innerHTML;
-    const lines=(email.textContent||'').split('\n').map(line=>line.trimEnd());
-    const clipboardText=lines.join('\n').replace(/\n{2,}/g,'\n').trim();
+    // Copy always reflects the composed preview (generator output plus overrides)
+    // so the clipboard mirrors whatever the coordinator currently sees.
+    const html = sanitizePreviewHtml(email.innerHTML);
+    const clipboardText = previewHtmlToPlainText(html);
     try{
       if(window.ClipboardItem && navigator.clipboard?.write){
         const item=new ClipboardItem({
@@ -5626,7 +5831,7 @@
     }
     copyBtn.title='Copied';
     if(copyTitleTimer) clearTimeout(copyTitleTimer);
-    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy'; },1200);
+    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy preview'; },1200);
   };
 
   if(clearAllBtn){

@@ -113,10 +113,21 @@
         </div>
       </div>
       <div class="row stick-right preview-card__actions">
-        <button id="editPreview" title="Edit Email Preview" aria-label="Edit Email Preview">Edit</button>
-        <button id="lockPreview" title="Lock Email Preview" aria-label="Lock Email Preview" disabled>Lock</button>
-        <button id="resetPreview" title="Reset Email Edits" aria-label="Reset Email Edits" disabled>Reset</button>
-        <button id="copy" title="Copy">⧉</button>
+        <button id="previewToggle" class="preview-action-btn" type="button" aria-pressed="false" aria-label="Edit preview" title="Edit preview">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit">
+            <path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="resetPreview" class="preview-action-btn" type="button" title="Reset preview edits" aria-label="Reset preview edits" disabled>
+          <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false" class="icon icon-reset">
+            <path d="M64,256H34A222,222,0,0,1,430,118.15V85h30V190H355V160h67.27A192.21,192.21,0,0,0,256,64C150.13,64,64,150.13,64,256Zm384,0c0,105.87-86.13,192-192,192A192.21,192.21,0,0,1,89.73,352H157V322H52V427H82V393.85A222,222,0,0,0,478,256Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="copy" class="preview-action-btn" type="button" title="Copy preview" aria-label="Copy preview">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon icon-copy">
+            <path d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V4zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2h-4zm4-2V4H4v10h10z" fill="currentColor"/>
+          </svg>
+        </button>
       </div>
     </section>
   </div>
