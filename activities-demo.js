@@ -479,12 +479,24 @@
 
     const { lane: guestLane } = createGuestLane(activity, log);
 
+    const main = document.createElement('div');
+    main.className = 'activity-row-main';
+    main.appendChild(body);
+
+    const trailing = document.createElement('div');
+    trailing.className = 'activity-row-trailing';
+
+    // Group the guest lane and action chips so the right rail stays pinned while
+    // letting guest pills expand leftward without nudging the add chips.
+    trailing.appendChild(guestLane);
+
     const actionCluster = document.createElement('div');
     actionCluster.className = 'activity-row-rail';
+    // When there are no add chips this rail collapses so guest pills sit flush.
+    trailing.appendChild(actionCluster);
 
-    row.appendChild(body);
-    row.appendChild(guestLane);
-    row.appendChild(actionCluster);
+    row.appendChild(main);
+    row.appendChild(trailing);
     list.appendChild(row);
 
     const setPressed = (pressed) => {

@@ -501,15 +501,13 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
  */
 #activities .activity-row,#demoActivities .activity-row{
   /*
-   * Three-track grid keeps the title/time stack fixed on the left, dedicates the
-   * middle track to the guest reveal lane, and pins the action chips to the
-   * right so the reveal never shifts the rail.
+   * Flex layout mirrors the production column: main content grows on the left
+   * while the trailing cluster hugs the right edge without affecting row height.
    */
   position:relative;
-  display:grid;
-  grid-template-columns:auto minmax(0,1fr) auto;
+  display:flex;
   align-items:center;
-  column-gap:var(--space-3);
+  gap:var(--space-3);
   padding:var(--space-4);
   min-height:5rem;
   border-radius:14px;
@@ -526,38 +524,32 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){#activities .activity-row,#demoActivities .activity-row{transition:none;}#activities .activity-row[data-pressed='true'],#demoActivities .activity-row[data-pressed='true']{transform:none;}}
 @media(hover:hover){#activities .activity-row:not([data-disabled='true']):hover,#demoActivities .activity-row:not([data-disabled='true']):hover{background:var(--activity-hover);box-shadow:var(--activity-shadow-hover);}}
 #activities .activity-row:focus-visible,#demoActivities .activity-row:focus-visible{outline:none;box-shadow:0 0 0 2px var(--activity-focus-ring),0 0 0 6px var(--activity-focus-glow);background:var(--activity-hover);}
-#activities .activity-row-body,#demoActivities .activity-row-body{display:flex;flex-direction:column;justify-content:center;gap:var(--space-2);min-width:0;}
+#activities .activity-row-main,#demoActivities .activity-row-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;}
+#activities .activity-row-body,#demoActivities .activity-row-body{display:flex;flex-direction:column;justify-content:center;gap:var(--space-2);min-width:0;flex:1 1 auto;}
 /* Stack time above title with a tight rhythm so the details read as a two-line
  * block while honoring the fixed min-height guardrail. */
 #activities .activity-row-headline,#demoActivities .activity-row-headline{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-1);min-width:0;color:var(--text-primary);}
 #activities .activity-row-time,#demoActivities .activity-row-time{font-size:.8125rem;font-weight:500;letter-spacing:.02em;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
 #activities .activity-row-title,#demoActivities .activity-row-title{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary);min-width:0;}
+#activities .activity-row-trailing,#demoActivities .activity-row-trailing{margin-left:auto;display:flex;align-items:center;gap:var(--space-2);min-width:0;}
 #activities .activity-row-guest-lane,#demoActivities .activity-row-guest-lane{
   /*
-   * The middle track stretches to absorb available width and anchors content to
-   * the right edge so expanded chips grow right → left without pushing the
-   * action rail.
+   * Guest lane flexes to the left of the action rail so reveals expand toward
+   * the body while the actions stay pinned to the right edge.
    */
-  justify-self:stretch;
   display:flex;
   align-items:center;
   justify-content:flex-end;
+  flex:0 1 clamp(10rem,34vw,18rem);
   min-width:0;
   overflow:hidden;
-  max-inline-size:clamp(10rem,34vw,18rem);
 }
-#activities .activity-row-guest-slot,#demoActivities .activity-row-guest-slot{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:var(--space-2);
-  min-width:0;
-  inline-size:100%;
-}
+#activities .activity-row-guest-slot,#demoActivities .activity-row-guest-slot{display:flex;align-items:center;justify-content:flex-end;gap:var(--space-2);min-width:0;inline-size:100%;}
 #activities .activity-row-guest-slot[data-expanded='true'],#demoActivities .activity-row-guest-slot[data-expanded='true']{
   gap:0;
 }
 #activities .activity-row-guest-cluster,#demoActivities .activity-row-guest-cluster{
+  /* Row-reverse keeps the reveal anchored to the action rail so chips grow leftward. */
   display:flex;
   flex-direction:row-reverse;
   align-items:center;
@@ -619,7 +611,8 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .activity-row-guest-cluster .chip[tabindex]{outline:none;}
 .activity-row-guest-cluster .chip:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
 /* Dedicated right rail remains auto-sized so editing chips pin right without altering row height. */
-.activity-row-rail{display:flex;align-items:center;justify-self:end;gap:var(--space-2);flex-wrap:nowrap;min-width:0;}
+.activity-row-rail{display:flex;align-items:center;gap:var(--space-2);flex-wrap:nowrap;min-width:0;}
+.activity-row-rail:empty{display:none;}
 .stick-right{justify-content:flex-end}
 .section{margin-top:16px}
 #calMonth{font-weight:700;font-size:16px}
