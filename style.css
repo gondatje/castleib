@@ -27,6 +27,13 @@
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  /* Surface the preview spacing scale to the live route so every column shares the same rhythm. */
+  --space-1:0.25rem;
+  --space-2:0.5rem;
+  --space-3:0.75rem;
+  --space-4:1rem;
+  --space-5:1.25rem;
+  --space-6:1.5rem;
   /* Responsive layout tokens keep columns balanced and gutters subtle across breakpoints. */
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
@@ -59,6 +66,12 @@
     --activity-focus-ring:rgba(148,163,255,0.7);
     --activity-focus-glow:rgba(148,163,255,0.35);
     --border:rgba(148,163,184,0.28);
+    --space-1:0.25rem;
+    --space-2:0.5rem;
+    --space-3:0.75rem;
+    --space-4:1rem;
+    --space-5:1.25rem;
+    --space-6:1.5rem;
     --space-edge:clamp(1rem,3vw,2.5rem);
     --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
     --layout-column-min:clamp(16rem,25vw,22rem);
@@ -106,6 +119,12 @@ body[data-theme='light']{
   --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
   --activity-focus-ring:rgba(42,107,255,0.55);
   --activity-focus-glow:rgba(42,107,255,0.16);
+  --space-1:0.25rem;
+  --space-2:0.5rem;
+  --space-3:0.75rem;
+  --space-4:1rem;
+  --space-5:1.25rem;
+  --space-6:1.5rem;
   /* Responsive layout tokens keep rails full-bleed while retaining a polished gutter. */
   --space-edge:clamp(1rem,3vw,2.5rem);
   --layout-gap:clamp(0.75rem,2.5vw,1.75rem);
@@ -131,6 +150,12 @@ body[data-theme='light']{
     --activity-shadow-pressed:0 8px 18px rgba(12,18,32,0.08);
     --activity-focus-ring:rgba(42,107,255,0.55);
     --activity-focus-glow:rgba(42,107,255,0.16);
+    --space-1:0.25rem;
+    --space-2:0.5rem;
+    --space-3:0.75rem;
+    --space-4:1rem;
+    --space-5:1.25rem;
+    --space-6:1.5rem;
   }
 }
 @media (prefers-color-scheme: dark){
@@ -362,7 +387,17 @@ body{
 .day-header-details #dayTitle{margin:0}
 .space-between{justify-content:space-between}
 h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.calendar-header,.card-section-header{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin:0 0 12px;padding-bottom:12px;border-bottom:1px solid var(--border-hairline);inline-size:100%}
+.calendar-header,.card-section-header{
+  display:flex;
+  align-items:center;
+  gap:var(--space-3);
+  flex-wrap:wrap;
+  margin:0;
+  margin-block-end:var(--space-4);
+  padding-block-end:var(--space-3);
+  border-bottom:1px solid var(--border-hairline);
+  inline-size:100%;
+}
 .card-section-header{padding-top:0.4375rem}
 .calendar-header h2,.card-section-header h2{margin:0}
 .calendar-header .season-indicator{margin-inline-start:auto}
@@ -375,7 +410,13 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .lock-icon{width:1em;height:1em;display:block}
 #toggleEdit{display:flex;align-items:center;justify-content:center;gap:0;line-height:1}
 .muted{color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+  margin:0;
+}
+.dow{margin:0;margin-block-end:var(--space-2)}
 .dow div{font-size:11px;color:var(--muted);text-align:center}
 .days button{aspect-ratio:1/1;border-radius:12px;background:#fff;position:relative}
 .days button.other{opacity:.45}
@@ -474,17 +515,145 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .section{margin-top:16px}
 #calMonth{font-weight:700;font-size:16px}
 #calYear{color:var(--muted);font-size:12px}
-.toolbar{margin-bottom:8px}
+.toolbar{
+  margin:0;
+  margin-block-end:var(--space-3);
+}
 .toolbar .nav-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;width:100%}
 .toolbar .monthyear-col{display:flex;flex-direction:column;line-height:1.05;align-items:center;text-align:center;flex:0 0 140px;white-space:nowrap}
 .toolbar .nav-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;padding:0}
-.calendar-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
-.calendar-actions button{height:32px;padding:0 10px;border-radius:10px}
+/* The calendar stack now uses token spacing so the live route matches the preview cadence. */
+.calendar-actions{
+  margin:0;
+  margin-block-start:var(--space-5);
+}
+/*
+ * Softly elevate the Today button and stretch it full-width so it reads as the
+ * primary action without nudging the calendar grid or nearby controls.
+ */
+.calendar-today-button{
+  display:block;
+  inline-size:100%;
+  min-height:44px;
+  padding-block:var(--space-2);
+  border-radius:14px;
+  border:1px solid var(--border-hairline);
+  background:var(--surface);
+  color:var(--brand);
+  font-weight:600;
+  letter-spacing:0.02em;
+  text-align:center;
+  box-shadow:0 10px 24px color-mix(in srgb,var(--brand) 14%, transparent);
+  transition:box-shadow 140ms ease,transform 140ms ease;
+}
+@supports(color-mix(in srgb, red 50%, white 50%)){
+  .calendar-today-button{
+    background:color-mix(in srgb,var(--brand) 16%, var(--surface));
+    border-color:color-mix(in srgb,var(--brand) 38%, transparent);
+  }
+}
+.calendar-today-button:active{
+  transform:translateY(1px);
+  box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 18%, transparent);
+}
+.stay-note-row{
+  display:flex;
+  gap:var(--space-3);
+  flex-wrap:wrap;
+  margin:0;
+  margin-block-start:var(--space-4);
+}
+.stay-note{display:flex;align-items:center;gap:var(--space-2);min-width:0}
+.stay-note-button{
+  min-height:36px;
+  padding-inline:var(--space-3);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--text-primary);
+  border:1px solid var(--border);
+}
+/* Neutralize native chrome so the time pills match the soft preview styling in every browser. */
+.stay-time-input{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  padding-inline:var(--space-3);
+  min-width:4.5rem;
+  border:1px solid var(--border-hairline);
+  border-radius:999px;
+  background:var(--surface);
+  color:var(--text-primary);
+  font:inherit;
+  font-weight:400;
+  font-size:16px;
+  letter-spacing:0.01em;
+  text-align:center;
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--text-primary) 10%, transparent);
+}
+.stay-time-input::-webkit-calendar-picker-indicator{display:none}
+.stay-time-input::-webkit-inner-spin-button,
+.stay-time-input::-webkit-clear-button,
+.stay-time-input::-webkit-outer-spin-button{display:none}
+.stay-time-input:focus{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+}
+.stay-time-input::placeholder{color:var(--text-muted);}
+@media(max-width:720px){
+  .stay-note-row{gap:var(--space-2)}
+  .stay-note{flex:1 1 100%}
+  .stay-note-button{flex:0 0 auto}
+}
+.guests-header{align-items:center;gap:var(--space-3)}
+.guests-header .guest-tools{
+  margin-inline-start:auto;
+  display:flex;
+  align-items:center;
+  gap:var(--space-2);
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.guests-header .guest-input{flex:1 1 auto;min-width:8rem}
+.guests-header .icon-btn{flex:0 0 auto}
+.stay-time-layer{position:fixed;inset:0;z-index:1200}
+.stay-time-scrim{position:absolute;inset:0;background:transparent}
+/* Anchor the floating picker near its trigger without breaking layout flow. */
+.stay-time-surface{
+  position:absolute;
+  min-width:15rem;
+  padding:1rem;
+  border-radius:16px;
+  border:1px solid var(--border-hairline);
+  background:var(--surface-elevated);
+  box-shadow:0 20px 44px color-mix(in srgb,var(--text-primary) 20%, transparent);
+  display:flex;
+  flex-direction:column;
+  gap:0.75rem;
+}
+.stay-time-actions{display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap}
+.stay-time-actions button{min-height:36px;border-radius:12px;padding:0 14px}
+.stay-time-clear{background:var(--surface);color:var(--text-muted);border:1px solid var(--border)}
+.stay-time-primary{background:var(--surface);color:var(--brand);border:1px solid var(--border)}
+@supports(color-mix(in srgb, red 50%, white 50%)){
+  .stay-time-primary{
+    background:color-mix(in srgb,var(--brand) 18%, var(--surface));
+    border-color:color-mix(in srgb,var(--brand) 35%, transparent);
+  }
+}
+.stay-time-primary:focus{outline:2px solid var(--brand);outline-offset:2px}
+.stay-time-clear:focus{outline:2px solid var(--brand);outline-offset:2px}
+.stay-time-fallback{color:var(--text-muted);font-size:0.9rem;padding:0.25rem 0}
 #actions{margin:8px 0 12px}
 .guest-section{
   /* Hairline divider + spacing align the relocated guest block with the calendar controls. */
-  margin-top:12px;
-  padding-top:12px;
+  margin:0;
+  margin-block-start:var(--space-5);
+  padding-block-start:var(--space-3);
   border-top:1px solid var(--border-hairline);
 }
 
