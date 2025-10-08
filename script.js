@@ -1043,10 +1043,16 @@
       // Split the trailing rail into guest + action clusters so chips sit to the
       // right of the title stack without affecting row height.
       const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      guestCluster.className='activity-row-guests guest-chips';
 
       const actionRail=document.createElement('div');
-      actionRail.className='activity-row-rail';
+      actionRail.className='activity-row-rail add-chips';
+
+      // Wrapper keeps the trailing controls as a single right-aligned cluster.
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(actionRail);
 
       const setPressedState = (pressed)=>{
         if(pressed){
@@ -1106,8 +1112,7 @@
       });
 
       div.appendChild(body);
-      div.appendChild(guestCluster);
-      div.appendChild(actionRail);
+      div.appendChild(trailing);
       activitiesEl.appendChild(div);
 
       if(state.guests.length>0){
@@ -1378,16 +1383,20 @@
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
       const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      guestCluster.className='activity-row-guests guest-chips';
 
       // Keep the dinner edit affordance in a dedicated rail so it pins to the right.
       const rail=document.createElement('div');
-      rail.className='activity-row-rail';
+      rail.className='activity-row-rail add-chips';
       rail.appendChild(chip);
 
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
       div.appendChild(body);
-      div.appendChild(guestCluster);
-      div.appendChild(rail);
+      div.appendChild(trailing);
       activitiesEl.appendChild(div);
     }
 
@@ -1427,16 +1436,20 @@
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
       const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      guestCluster.className='activity-row-guests guest-chips';
 
       // Share the right rail treatment so every activity action aligns consistently.
       const rail=document.createElement('div');
-      rail.className='activity-row-rail';
+      rail.className='activity-row-rail add-chips';
       rail.appendChild(chip);
 
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
       div.appendChild(body);
-      div.appendChild(guestCluster);
-      div.appendChild(rail);
+      div.appendChild(trailing);
       activitiesEl.appendChild(div);
 
       renderSpaGuestChips(guestCluster, entry, dateK);
@@ -1481,15 +1494,19 @@
       chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
 
       const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      guestCluster.className='activity-row-guests guest-chips';
 
       const rail=document.createElement('div');
-      rail.className='activity-row-rail';
+      rail.className='activity-row-rail add-chips';
       rail.appendChild(chip);
 
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
       div.appendChild(body);
-      div.appendChild(guestCluster);
-      div.appendChild(rail);
+      div.appendChild(trailing);
       activitiesEl.appendChild(div);
 
       if(state.guests.length>0){

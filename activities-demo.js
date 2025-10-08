@@ -478,13 +478,18 @@
     body.appendChild(headline);
 
     const { lane: guestLane } = createGuestLane(activity, log);
+    guestLane.classList.add('guest-chips');
 
     const actionCluster = document.createElement('div');
-    actionCluster.className = 'activity-row-rail';
+    actionCluster.className = 'activity-row-rail add-chips';
+
+    const trailing = document.createElement('div');
+    trailing.className = 'activity-row-trailing row-trailing';
+    trailing.appendChild(guestLane);
+    trailing.appendChild(actionCluster);
 
     row.appendChild(body);
-    row.appendChild(guestLane);
-    row.appendChild(actionCluster);
+    row.appendChild(trailing);
     list.appendChild(row);
 
     const setPressed = (pressed) => {
