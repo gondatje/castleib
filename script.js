@@ -5178,14 +5178,24 @@
     if(state.previewItineraryKey === itineraryId){
       return;
     }
+    const previousPatches = state.previewPatches instanceof Map ? new Map(state.previewPatches) : new Map();
     state.previewItineraryKey = itineraryId;
     const loaded = loadPreviewPatches(itineraryId);
-    const map = new Map();
+    let map = new Map();
     loaded.forEach(patch => {
       if(patch && patch.key){
         map.set(patch.key, patch);
       }
     });
+    if(map.size===0 && previousPatches.size>0){
+      // When the stay window shifts (new arrival/departure) we treat it as the same
+      // in-progress itinerary and migrate the existing overrides forward so they
+      // keep applying. Persisting under the new key means subsequent renders reuse
+      // the edits even if the page reloads mid-adjustment.
+      map = previousPatches;
+      const migrated = Array.from(map.values()).sort((a,b)=> (a.ts||0)-(b.ts||0));
+      persistPreviewPatches(itineraryId, migrated);
+    }
     state.previewPatches = map;
     if(state.previewMode!=='edit'){
       state.previewMode = map.size>0 ? 'locked' : 'view';
