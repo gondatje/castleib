@@ -1042,8 +1042,7 @@
 
       // Split the trailing rail into guest + action clusters so chips sit to the
       // right of the title stack without affecting row height.
-      const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      const guestLane=createGuestLane();
 
       const actionRail=document.createElement('div');
       actionRail.className='activity-row-rail';
@@ -1106,19 +1105,47 @@
       });
 
       div.appendChild(body);
-      div.appendChild(guestCluster);
+      // Keep the body/lane/rail columns intact so the title stack and action chips never shift.
+      div.appendChild(guestLane.lane);
       div.appendChild(actionRail);
       activitiesEl.appendChild(div);
 
       if(state.guests.length>0){
-        renderAssignments(guestCluster, entry, assignedIds, dateK);
+        renderAssignments(guestLane, entry, assignedIds, dateK);
       }
     });
 
-    function renderAssignments(container, entry, ids, dateK){
-      if(!container) return;
-      container.innerHTML='';
-      container.dataset.hasGuests='false';
+    const guestLaneControllers = new WeakMap();
+
+    function createGuestLane(){
+      // Flex lane pins the guest reveal to the right rail so the action chips stay fixed.
+      const lane=document.createElement('div');
+      lane.className='activity-row-guest-lane';
+      const slot=document.createElement('div');
+      slot.className='activity-row-guest-slot';
+      slot.dataset.expanded='false';
+      lane.appendChild(slot);
+      return { lane, slot };
+    }
+
+    function teardownGuestLane(slot){
+      if(!slot) return;
+      const controller = guestLaneControllers.get(slot);
+      if(controller && typeof controller.teardown==='function'){
+        controller.teardown();
+      }
+      guestLaneControllers.delete(slot);
+    }
+
+    function renderAssignments(laneCtx, entry, ids, dateK){
+      const slot = laneCtx?.slot || laneCtx;
+      if(!slot) return;
+      const lane = laneCtx?.lane || slot.parentElement;
+      teardownGuestLane(slot);
+      slot.innerHTML='';
+      slot.dataset.expanded='false';
+      slot.dataset.hasGuests='false';
+      slot.style.removeProperty('--guest-lane-width');
       if(!Array.isArray(ids) || ids.length===0) return;
 
       const idSet = new Set(ids);
@@ -1140,46 +1167,245 @@
       }
 
       if(plan.type===AssignmentChipMode.GROUP_BOTH || plan.type===AssignmentChipMode.GROUP_EVERYONE){
-        const pill=document.createElement('button');
-        pill.type='button';
-        pill.className='tag-everyone';
-        pill.dataset.assignmentPill = plan.type;
-        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
-        pill.setAttribute('aria-haspopup','true');
-        pill.setAttribute('aria-expanded','false');
-        pill.dataset.pressExempt='true';
-        pill.addEventListener('pointerdown', e=> e.stopPropagation());
-        pill.addEventListener('click', e=> e.stopPropagation());
-
-        const label=document.createElement('span');
-        label.textContent=plan.pillLabel || '';
-        pill.appendChild(label);
-
-        const pop=document.createElement('div');
-        pop.className='popover';
-        pop.setAttribute('role','group');
-        pop.setAttribute('aria-label','Guests assigned');
-        plan.guests.forEach(guest=>{
-          pop.appendChild(createChip(guest, entry, dateK));
+        const chips = plan.guests.map(guest=> createChip(guest, entry, dateK));
+        const guestNames = plan.guests.map(g=>g?.name).filter(Boolean).join(', ');
+        const collapsedLabel = plan.pillLabel || (plan.type===AssignmentChipMode.GROUP_BOTH ? 'Both' : 'Everyone');
+        const baseAria = plan.pillAriaLabel || collapsedLabel;
+        const ariaLabel = guestNames ? `${baseAria} — ${guestNames}` : baseAria;
+        const controller = setupGuestGroupReveal({
+          lane,
+          slot,
+          chips,
+          collapsedLabel,
+          ariaLabel,
+          overflowLabelPrefix: 'More assigned guests'
         });
-        pill.appendChild(pop);
-
-        attachGroupPillInteractions(pill);
-
-        container.appendChild(pill);
-        container.dataset.hasGuests='true';
+        guestLaneControllers.set(slot, controller);
+        slot.dataset.hasGuests='true';
         return;
       }
 
       const chips = plan.guests.map(guest=> createChip(guest, entry, dateK));
-      layoutGuestCluster(container, chips, {
+      const cluster=document.createElement('div');
+      cluster.className='activity-row-guests';
+      layoutGuestCluster(cluster, chips, {
         popoverLabel: 'Assigned guests',
         ariaLabelPrefix: 'More assigned guests'
       });
+      if(cluster.childNodes.length>0){
+        slot.appendChild(cluster);
+        slot.dataset.hasGuests='true';
+      }
     }
 
-    // Measure the guest rail and collapse overflow into a +N pill whose popover
-    // keeps the hidden chips interactive without altering the row height.
+    function setupGuestGroupReveal({ lane, slot, chips, collapsedLabel, ariaLabel, overflowLabelPrefix }){
+      const cluster=document.createElement('div');
+      // Row-reverse cluster lets chips slide left into the lane without nudging the action rail.
+      cluster.className='activity-row-guest-cluster';
+      slot.appendChild(cluster);
+
+      const pill=document.createElement('button');
+      pill.type='button';
+      pill.className='tag-everyone guest-reveal-pill';
+      pill.dataset.pressExempt='true';
+      pill.textContent=collapsedLabel;
+      pill.setAttribute('aria-expanded','false');
+      if(ariaLabel){
+        pill.setAttribute('aria-label', ariaLabel);
+        pill.title=ariaLabel;
+      }
+      const stopPropagation = event => event.stopPropagation();
+      pill.addEventListener('pointerdown', stopPropagation);
+      slot.appendChild(pill);
+
+      let expanded=false;
+      let availableWidth=0;
+      let focusIndex=0;
+
+      const getFocusTargets = () => Array.from(cluster.querySelectorAll('[data-guest-chip="true"]'));
+
+      const focusByIndex = index => {
+        const targets = getFocusTargets();
+        if(targets.length===0) return;
+        const nextIndex = Math.max(0, Math.min(index, targets.length-1));
+        const target = targets[nextIndex];
+        if(target){
+          focusWithoutScroll(target);
+          focusIndex = nextIndex;
+        }
+      };
+
+      const syncFocusIndex = () => {
+        const active = document.activeElement;
+        const targets = getFocusTargets();
+        const current = targets.indexOf(active);
+        if(current>=0){
+          focusIndex=current;
+        }else{
+          focusIndex=Math.min(focusIndex, Math.max(0, targets.length-1));
+        }
+      };
+
+      const renderCluster = () => {
+        if(!expanded) return;
+        const width = availableWidth>0 ? availableWidth : lane?.getBoundingClientRect()?.width || cluster.clientWidth;
+        if(width<=0){
+          if(typeof requestAnimationFrame==='function'){
+            requestAnimationFrame(renderCluster);
+          }
+          return;
+        }
+        cluster.style.width=`${width}px`;
+        if(slot){
+          slot.style.setProperty('--guest-lane-width', `${width}px`);
+        }
+        layoutGuestCluster(cluster, chips, {
+          popoverLabel: 'Assigned guests',
+          ariaLabelPrefix: overflowLabelPrefix,
+          availableWidth: width
+        });
+        syncFocusIndex();
+      };
+
+      const updateAvailableWidth = width => {
+        const normalized = Math.max(0, Math.floor(width));
+        if(normalized===availableWidth) return;
+        availableWidth=normalized;
+        renderCluster();
+      };
+
+      const disposers=[];
+
+      if(typeof ResizeObserver==='function' && lane){
+        const observer=new ResizeObserver(entries=>{
+          entries.forEach(entry=> updateAvailableWidth(entry.contentRect.width));
+        });
+        observer.observe(lane);
+        disposers.push(()=>observer.disconnect());
+      }else if(lane){
+        const resizeHandler=()=> updateAvailableWidth(lane.getBoundingClientRect().width);
+        window.addEventListener('resize', resizeHandler);
+        disposers.push(()=>window.removeEventListener('resize', resizeHandler));
+      }
+
+      if(typeof requestAnimationFrame==='function' && lane){
+        requestAnimationFrame(()=> updateAvailableWidth(lane.getBoundingClientRect().width));
+      }else if(lane){
+        updateAvailableWidth(lane.getBoundingClientRect().width);
+      }
+
+      const open = ({ focusFirst=false }={}) => {
+        if(expanded) return;
+        expanded=true;
+        slot.dataset.expanded='true';
+        pill.setAttribute('aria-expanded','true');
+        renderCluster();
+        if(focusFirst){
+          focusIndex=0;
+          if(typeof requestAnimationFrame==='function'){
+            requestAnimationFrame(()=> focusByIndex(0));
+          }else{
+            focusByIndex(0);
+          }
+        }
+      };
+
+      const close = ({ restoreFocus=true }={}) => {
+        if(!expanded) return;
+        expanded=false;
+        slot.dataset.expanded='false';
+        pill.setAttribute('aria-expanded','false');
+        cluster.style.width='';
+        slot.style.removeProperty('--guest-lane-width');
+        focusIndex=0;
+        if(restoreFocus){
+          focusWithoutScroll(pill);
+        }
+      };
+
+      const onMouseEnter = () => open();
+      const onFocus = () => open({ focusFirst:true });
+      const onClick = event => {
+        event.stopPropagation();
+        if(expanded){
+          close({ restoreFocus:false });
+        }else{
+          open({ focusFirst:true });
+        }
+      };
+      const onKeyDown = event => {
+        if(event.key===' ' || event.key==='Spacebar' || event.key==='Enter'){
+          event.preventDefault();
+        }
+        if(event.key==='Enter' || event.key===' ' || event.key==='Spacebar'){
+          if(expanded){
+            close();
+          }else{
+            open({ focusFirst:true });
+          }
+        }
+      };
+      const onLaneLeave = () => {
+        if(lane && lane.matches(':focus-within')) return;
+        close({ restoreFocus:false });
+      };
+      const onLaneFocusOut = event => {
+        if(event.relatedTarget && lane && lane.contains(event.relatedTarget)) return;
+        close({ restoreFocus:false });
+      };
+      const onLaneKeyDown = event => {
+        if(event.key==='Escape' && expanded){
+          event.preventDefault();
+          close();
+          return;
+        }
+        if(!expanded) return;
+        if(event.key==='ArrowLeft' || event.key==='ArrowRight'){
+          const delta = event.key==='ArrowRight' ? -1 : 1;
+          event.preventDefault();
+          focusByIndex(focusIndex + delta);
+        }
+      };
+
+      pill.addEventListener('mouseenter', onMouseEnter);
+      pill.addEventListener('focus', onFocus);
+      pill.addEventListener('click', onClick);
+      pill.addEventListener('keydown', onKeyDown);
+      disposers.push(()=>{
+        pill.removeEventListener('pointerdown', stopPropagation);
+        pill.removeEventListener('mouseenter', onMouseEnter);
+        pill.removeEventListener('focus', onFocus);
+        pill.removeEventListener('click', onClick);
+        pill.removeEventListener('keydown', onKeyDown);
+      });
+
+      if(lane){
+        lane.addEventListener('mouseleave', onLaneLeave);
+        lane.addEventListener('focusout', onLaneFocusOut);
+        lane.addEventListener('keydown', onLaneKeyDown);
+        disposers.push(()=>{
+          lane.removeEventListener('mouseleave', onLaneLeave);
+          lane.removeEventListener('focusout', onLaneFocusOut);
+          lane.removeEventListener('keydown', onLaneKeyDown);
+        });
+      }
+
+      return {
+        open,
+        close,
+        teardown(){
+          disposers.splice(0).forEach(fn=>{
+            try{ fn(); }catch(err){}
+          });
+          cluster.remove();
+          pill.remove();
+          slot.style.removeProperty('--guest-lane-width');
+          slot.dataset.expanded='false';
+        }
+      };
+    }
+
+    // Measure the guest rail and trade overflow for a +N pill so the lane never wraps.
     function layoutGuestCluster(container, chips, options={}){
       if(!container) return;
       const items = Array.isArray(chips) ? chips.filter(Boolean) : [];
@@ -1191,9 +1417,14 @@
 
       const visible = items.slice();
       const hidden = [];
-      const measurementPadding = 1;
       let overflowButton = null;
-      let rafToken = null;
+      const measurementPadding = 1;
+      const measureWidth = () => {
+        if(typeof options.availableWidth==='number' && options.availableWidth>0){
+          return options.availableWidth;
+        }
+        return container.clientWidth;
+      };
 
       const applyLayout = () => {
         container.innerHTML='';
@@ -1208,25 +1439,18 @@
         container.dataset.hasGuests='true';
       };
 
-      const scheduleReflow = () => {
-        if(rafToken!==null) return;
-        if(typeof requestAnimationFrame==='function'){
-          rafToken = requestAnimationFrame(()=>{
-            rafToken = null;
-            layoutGuestCluster(container, items, options);
-          });
-        }
-      };
-
       applyLayout();
 
-      if(container.clientWidth<=0){
-        scheduleReflow();
+      if(measureWidth()<=0){
+        if(typeof requestAnimationFrame==='function'){
+          requestAnimationFrame(()=> layoutGuestCluster(container, items, options));
+        }
         return;
       }
 
-      let guard = 0;
-      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+      let guard=0;
+      while(visible.length>0 && container.scrollWidth>measureWidth()+measurementPadding && guard<items.length){
+        // Peel chips from the far left until the +N overflow pill can hold the extras on a single line.
         hidden.unshift(visible.pop());
         guard+=1;
         applyLayout();
@@ -1237,8 +1461,8 @@
         return;
       }
 
-      guard = 0;
-      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+      guard=0;
+      while(visible.length>0 && container.scrollWidth>measureWidth()+measurementPadding && guard<items.length){
         hidden.unshift(visible.pop());
         guard+=1;
         applyLayout();
@@ -1253,6 +1477,8 @@
       button.className='tag-everyone guest-overflow-pill';
       button.dataset.pressExempt='true';
       button.dataset.overflowChip='true';
+      button.dataset.guestChip='true';
+      button.tabIndex=-1;
       button.setAttribute('aria-haspopup','true');
       button.setAttribute('aria-expanded','false');
       button.addEventListener('pointerdown', e=> e.stopPropagation());
@@ -1299,9 +1525,14 @@
     function createChip(guest, entry, dateK){
       const c=document.createElement('span');
       c.className='chip';
+      c.dataset.guestChip='true';
+      c.tabIndex=-1;
       c.style.borderColor = guest.color;
       c.style.color = guest.color;
       c.title = guest.name;
+      if(guest?.name){
+        c.setAttribute('aria-label', guest.name);
+      }
 
       const initial=document.createElement('span');
       initial.className='initial';
@@ -1377,8 +1608,7 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
-      const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      const guestLane=createGuestLane();
 
       // Keep the dinner edit affordance in a dedicated rail so it pins to the right.
       const rail=document.createElement('div');
@@ -1386,7 +1616,8 @@
       rail.appendChild(chip);
 
       div.appendChild(body);
-      div.appendChild(guestCluster);
+      // Preserve the body → guest lane → action rail grid so nothing reflows when guests toggle.
+      div.appendChild(guestLane.lane);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
     }
@@ -1426,8 +1657,7 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
-      const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      const guestLane=createGuestLane();
 
       // Share the right rail treatment so every activity action aligns consistently.
       const rail=document.createElement('div');
@@ -1435,11 +1665,11 @@
       rail.appendChild(chip);
 
       div.appendChild(body);
-      div.appendChild(guestCluster);
+      div.appendChild(guestLane.lane);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
 
-      renderSpaGuestChips(guestCluster, entry, dateK);
+      renderSpaGuestChips(guestLane, entry, dateK);
     }
 
     function renderCustom(entry){
@@ -1480,27 +1710,31 @@
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
 
-      const guestCluster=document.createElement('div');
-      guestCluster.className='activity-row-guests';
+      const guestLane=createGuestLane();
 
       const rail=document.createElement('div');
       rail.className='activity-row-rail';
       rail.appendChild(chip);
 
       div.appendChild(body);
-      div.appendChild(guestCluster);
+      div.appendChild(guestLane.lane);
       div.appendChild(rail);
       activitiesEl.appendChild(div);
 
       if(state.guests.length>0){
-        renderAssignments(guestCluster, entry, guestIds, dateK);
+        renderAssignments(guestLane, entry, guestIds, dateK);
       }
     }
 
-    function renderSpaGuestChips(container, entry, dateK){
-      if(!container || !entry) return;
-      container.innerHTML='';
-      container.dataset.hasGuests='false';
+    function renderSpaGuestChips(laneCtx, entry, dateK){
+      const slot = laneCtx?.slot || laneCtx;
+      if(!slot || !entry) return;
+      const lane = laneCtx?.lane || slot.parentElement;
+      teardownGuestLane(slot);
+      slot.innerHTML='';
+      slot.dataset.expanded='false';
+      slot.dataset.hasGuests='false';
+      slot.style.removeProperty('--guest-lane-width');
       const guestIds = Array.from(entry.guestIds || []);
       if(guestIds.length===0) return;
       const idSet = new Set(guestIds);
@@ -1530,46 +1764,48 @@
         return;
       }
       if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
-        const pill = document.createElement('button');
-        pill.type='button';
-        pill.className='tag-everyone';
-        pill.dataset.assignmentPill = plan.type;
-        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
-        pill.setAttribute('aria-haspopup','true');
-        pill.setAttribute('aria-expanded','false');
-        pill.dataset.pressExempt='true';
-        pill.addEventListener('pointerdown', e=> e.stopPropagation());
-        pill.addEventListener('click', e=> e.stopPropagation());
-        const label=document.createElement('span');
-        label.textContent = plan.pillLabel || '';
-        pill.appendChild(label);
-        const pop=document.createElement('div');
-        pop.className='popover';
-        pop.setAttribute('role','group');
-        pop.setAttribute('aria-label','Guests assigned');
-        plan.guests.forEach(guest => {
-          pop.appendChild(createSpaAssignmentChip(guest, entry, dateK));
+        const chips = plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK));
+        const guestNames = plan.guests.map(g=>g?.name).filter(Boolean).join(', ');
+        const collapsedLabel = plan.pillLabel || (plan.type===AssignmentChipMode.GROUP_BOTH ? 'Both' : 'Everyone');
+        const baseAria = plan.pillAriaLabel || collapsedLabel;
+        const ariaLabel = guestNames ? `${baseAria} — ${guestNames}` : baseAria;
+        const controller = setupGuestGroupReveal({
+          lane,
+          slot,
+          chips,
+          collapsedLabel,
+          ariaLabel,
+          overflowLabelPrefix: 'More assigned guests'
         });
-        pill.appendChild(pop);
-        attachGroupPillInteractions(pill);
-        container.appendChild(pill);
-        container.dataset.hasGuests='true';
+        guestLaneControllers.set(slot, controller);
+        slot.dataset.hasGuests='true';
         return;
       }
       const chips = plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK));
-      layoutGuestCluster(container, chips, {
+      const cluster=document.createElement('div');
+      cluster.className='activity-row-guests';
+      layoutGuestCluster(cluster, chips, {
         popoverLabel: 'Assigned guests',
         ariaLabelPrefix: 'More assigned guests'
       });
+      if(cluster.childNodes.length>0){
+        slot.appendChild(cluster);
+        slot.dataset.hasGuests='true';
+      }
     }
 
     function createSpaAssignmentChip(guest, entry, dateK){
       if(!guest) return document.createElement('span');
       const chip=document.createElement('span');
       chip.className='chip';
+      chip.dataset.guestChip='true';
+      chip.tabIndex=-1;
       chip.style.borderColor = guest.color;
       chip.style.color = guest.color;
       chip.title = guest.name;
+      if(guest?.name){
+        chip.setAttribute('aria-label', guest.name);
+      }
       const initial=document.createElement('span');
       initial.className='initial';
       initial.textContent = guest.name.charAt(0).toUpperCase();
