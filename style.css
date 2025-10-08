@@ -235,6 +235,8 @@ body{
 .left,.center,.right{
   /* Allow cards to shrink within their tracks so content wraps instead of overflowing. */
   min-inline-size:0;
+  /* min-block-size keeps the preview scroller honest when grid rows share the track. */
+  min-block-size:0;
 }
 
 /*
@@ -318,10 +320,6 @@ body{
     min-block-size:0;
   }
   .right.card.preview-card{
-    overflow:auto;
-    overscroll-behavior:contain;
-    scrollbar-gutter:stable both-edges;
-    -webkit-overflow-scrolling:touch;
     block-size:calc(100vh - var(--app-block-padding));
     block-size:calc(100svh - var(--app-block-padding));
     block-size:calc(100dvh - var(--app-block-padding));
@@ -356,6 +354,77 @@ body{
   flex-direction:column;
   block-size:100%;
   min-block-size:0;
+}
+
+/* Preview containment: outer card masks overflow while inner scroller handles the scroll. */
+.preview-card{
+  /* Hide anything escaping and isolate paint so calendar/activities stay unaffected. */
+  overflow:hidden;
+  isolation:isolate;
+  contain:content;
+  /* Remove the default padding so the scroll container can own spacing without jitter. */
+  padding:0;
+}
+
+.preview-card__scroll{
+  /* Inner scroller: fills the card while keeping layout localized. */
+  flex:1 1 auto;
+  min-block-size:0;
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+  -webkit-overflow-scrolling:touch;
+  padding:var(--space-4);
+  background:var(--surface);
+}
+
+/* Sticky header remains local to the preview instead of the document. */
+.preview-card__header{
+  position:sticky;
+  top:0;
+  z-index:var(--z-sticky, 1);
+  background:var(--surface);
+}
+
+/* Content wrapper prevents margin-collapse and wraps long HTML fragments safely. */
+.preview-card__body{
+  /* Layout column keeps actions attached to the preview content. */
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-4);
+  flex:1 1 auto;
+  min-block-size:0;
+}
+
+.preview-card__content{
+  /* flow-root stops the email markup from collapsing margins into the header. */
+  display:flow-root;
+  max-inline-size:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  min-block-size:0;
+}
+
+.preview-card__content img,
+.preview-card__content table,
+.preview-card__content iframe,
+.preview-card__content video{
+  max-inline-size:100%;
+  block-size:auto;
+}
+
+.preview-card__content pre,
+.preview-card__content code{
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+
+.preview-card__actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
 }
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 /*
