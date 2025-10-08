@@ -442,16 +442,20 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.arrival,.days button.departure{background:var(--stayEdge);box-shadow:inset 0 0 0 2px var(--brand)}
 .days button.stay{background:var(--stayBand)}
 #dayTitle{font-weight:600}
-.email{background:#fff;border:1px solid var(--border);padding:20px;border-radius:12px;min-height:260px;font-size:15px;line-height:1.6;color:var(--ink)}
+.email{background:#fff;border:1px solid var(--border);padding:20px;border-radius:12px;min-height:260px;font-size:15px;line-height:var(--line-tight,1.35);color:var(--ink)}
+/* Reset browser margins inside the preview only so headers/lines sit back-to-back without extra gaps. */
+.email h1,.email h2,.email h3,.email h4,.email h5,.email h6,.email p,.email ul,.email ol,.email li,.email div{margin-block:0}
+.email ul,.email ol{padding-inline-start:0;list-style:none}
 .email:focus{outline:none}
-.email .email-body{margin:0 0 12px;font-size:15px;line-height:1.6}
+.email .email-body{margin-block:0;font-size:15px;line-height:1.6}
+.email .email-body:not(:last-of-type){margin-block-end:12px}
 .email .email-section-title{margin:16px 0 12px;font-size:18px;font-weight:700;text-decoration:underline}
-.email .email-day{margin-bottom:20px}
-.email .email-day:last-of-type{margin-bottom:0}
-.email .email-day-title{margin:0 0 10px;font-size:17px;font-weight:700;text-decoration:none}
+.email .email-day{display:flex;flex-direction:column;margin-block-end:var(--preview-day-gap,16px);gap:0}
+.email .email-day:last-of-type{margin-block-end:0}
+.email .email-day-title{font-weight:var(--text-strong,600);font-size:var(--preview-day-size,calc(1rem + 2px));text-decoration:none}
 .email sup{font-size:0.65em;vertical-align:super;line-height:0}
 #dayTitle sup{font-size:0.65em;vertical-align:super;line-height:0}
-.email .email-activity{margin:6px 0;font-size:16px}
+.email .email-activity{font-size:16px}
 .email .email-activity .email-activity-time{
   /* Reset itinerary times to regular weight without touching other bold treatments. */
   font-weight:400;
