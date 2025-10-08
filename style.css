@@ -424,7 +424,6 @@ h2{margin:0 0 12px 0;font-size:12px;letter-spacing:.08em;text-transform:uppercas
 button{border:1px solid var(--border);background:#f1f5f9;border-radius:10px;padding:8px 10px;cursor:pointer;touch-action:manipulation}
 button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .lock-icon{width:1em;height:1em;display:block}
-#toggleEdit{display:flex;align-items:center;justify-content:center;gap:0;line-height:1}
 .muted{color:var(--muted)}
 .grid{
   display:grid;
