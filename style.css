@@ -22,6 +22,8 @@
   --chipText:#1e1b4b;
   --fg:var(--text-primary);
   --hairline:var(--border-hairline);
+  /* Slightly stronger hairline for elements that need an outline against accent fills. */
+  --hairline-strong:color-mix(in srgb,var(--text-primary) 12%,transparent);
   --surface-tint:color-mix(in srgb,var(--surface) 92%,var(--brand) 8%);
   --activity-divider:var(--border-hairline);
   --activity-hover:rgba(42,107,255,0.06);
@@ -47,6 +49,8 @@
   --ink:var(--text-primary);
   --muted:var(--text-muted);
   --border:#e2e8f0;
+  /* On-accent text token keeps icons legible atop saturated guest colors. */
+  --on-accent-text:#ffffff;
   --chip-size:26px;
 }
 @media (prefers-color-scheme: dark){
@@ -62,6 +66,7 @@
     --chipBorder:rgba(148,163,184,0.45);
     --chipText:#e0e7ff;
     --activity-divider:var(--border-hairline);
+    --hairline-strong:color-mix(in srgb,var(--text-primary) 18%,transparent);
     --activity-hover:rgba(255,255,255,0.06);
     --activity-pressed:rgba(255,255,255,0.1);
     --activity-shadow-hover:0 18px 40px rgba(0,0,0,0.35);
@@ -147,6 +152,7 @@ body[data-theme='light']{
     --chipText:#1e1b4b;
     --border:#e2e8f0;
     --activity-divider:var(--border-hairline);
+    --hairline-strong:color-mix(in srgb,var(--text-primary) 18%,transparent);
     --activity-hover:rgba(42,107,255,0.06);
     --activity-pressed:rgba(42,107,255,0.12);
     --activity-shadow-hover:0 14px 32px rgba(12,18,32,0.14);
@@ -1137,18 +1143,22 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-guest-chip.confirmed .guest-pill{border-color:color-mix(in srgb,var(--brand) 60%,var(--border));}
 .spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;}
 .spa-guest-pill-static{cursor:default;pointer-events:none;}
-.spa-guest-pill:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+.spa-guest-pill:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 /* Center the confirmation affordance within the chip so the checkmark stays
- * perfectly aligned with the pill visuals pulled in from the roster. */
-.spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1px solid var(--border);background:var(--surface,#fff);color:var(--muted);display:flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease,background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease;z-index:1;}
+ * perfectly aligned with the pill visuals pulled in from the roster. The
+ * button reads the guest pill's CSS variables so the fill tracks the guest
+ * color while the hairline and icon lean on global tokens for contrast. */
+.spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1px solid var(--hairline-strong);background:var(--pill-accent,var(--pillColor,var(--brand)));color:var(--on-accent-text,#fff);display:flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease,background-color .12s ease,box-shadow .12s ease,color .12s ease;z-index:1;box-shadow:0 0 0 0 transparent;}
 .spa-guest-confirm-toggle svg{width:12px;height:12px;display:block;}
-.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{opacity:1;border-color:var(--brand);color:var(--brand);}
-.spa-guest-chip.confirmed .spa-guest-confirm-toggle{opacity:1;background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 6px 14px rgba(42,107,255,.25);}
+.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{opacity:1;box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 40%,transparent);}
+.spa-guest-chip.confirmed .spa-guest-confirm-toggle{opacity:1;box-shadow:0 6px 14px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 28%,transparent);}
 .spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}
-.spa-guest-confirm-toggle:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+/* Share the global focus color so keyboard users see the same highlight they
+ * get on the roster chips. */
+.spa-guest-confirm-toggle:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 @media(hover:hover){
-  .spa-guest-chip.included:hover .spa-guest-confirm-toggle{opacity:.9;}
-  .spa-guest-confirm-toggle:hover{border-color:var(--brand);color:var(--brand);}
+  .spa-guest-chip.included:hover .spa-guest-confirm-toggle{opacity:.95;}
+  .spa-guest-confirm-toggle:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 55%,transparent);}
 }
 @media(hover:none){
   .spa-guest-chip.included .spa-guest-confirm-toggle{opacity:.85;}

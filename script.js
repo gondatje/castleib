@@ -2351,6 +2351,11 @@
           const pill=document.createElement('span');
           pill.className='guest-pill spa-guest-pill spa-guest-pill-static';
           pill.style.setProperty('--pillColor', solo.color);
+          // Mirror the roster color palette for static pills so the modal can
+          // expose the same accent via CSS variables.
+          wrapper.style.setProperty('--pill-bg', solo.color);
+          wrapper.style.setProperty('--pill-fg', solo.color);
+          wrapper.style.setProperty('--pill-accent', solo.color);
           if(solo.primary){
             const star=document.createElement('span');
             star.className='star';
@@ -2399,8 +2404,11 @@
         pill.type='button';
         pill.className='guest-pill spa-guest-pill';
         // Reuse the roster palette so the modal pills stay color-synced with the
-        // main guest chips.
+        // main guest chips and expose that accent to the confirmation control.
         pill.style.setProperty('--pillColor', guest.color);
+        wrapper.style.setProperty('--pill-bg', guest.color);
+        wrapper.style.setProperty('--pill-fg', guest.color);
+        wrapper.style.setProperty('--pill-accent', guest.color);
         pill.setAttribute('aria-pressed', included ? 'true' : 'false');
         pill.classList.toggle('active', included);
         if(guest.primary){
