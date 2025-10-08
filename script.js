@@ -1234,10 +1234,18 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
-      tagWrap.appendChild(chip);
 
-      body.appendChild(tagWrap);
+      if(tagWrap.childElementCount>0){
+        body.appendChild(tagWrap);
+      }
+
+      // Keep the dinner edit affordance in a dedicated rail so it pins to the right.
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail';
+      rail.appendChild(chip);
+
       div.appendChild(body);
+      div.appendChild(rail);
       activitiesEl.appendChild(div);
     }
 
@@ -1311,10 +1319,18 @@
       chip.dataset.pressExempt='true';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
-      tagWrap.appendChild(chip);
 
-      body.appendChild(tagWrap);
+      if(tagWrap.childElementCount>0){
+        body.appendChild(tagWrap);
+      }
+
+      // Share the right rail treatment so every activity action aligns consistently.
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail';
+      rail.appendChild(chip);
+
       div.appendChild(body);
+      div.appendChild(rail);
       activitiesEl.appendChild(div);
     }
 
@@ -1363,10 +1379,17 @@
       chip.title='Edit custom activity';
       chip.addEventListener('pointerdown', e=> e.stopPropagation());
       chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
-      tagWrap.appendChild(chip);
 
-      body.appendChild(tagWrap);
+      if(tagWrap.childElementCount>0){
+        body.appendChild(tagWrap);
+      }
+
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail';
+      rail.appendChild(chip);
+
       div.appendChild(body);
+      div.appendChild(rail);
       activitiesEl.appendChild(div);
     }
 
