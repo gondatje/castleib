@@ -2660,6 +2660,10 @@
         const wrapper=document.createElement('div');
         wrapper.className='spa-guest-chip';
         wrapper.dataset.guestId = guest.id;
+        if(guest.color){
+          // Propagate the roster color so the confirmation bubble can reuse the token.
+          wrapper.style.setProperty('--guest-color', guest.color);
+        }
         if(included) wrapper.classList.add('included');
         if(included && confirmed) wrapper.classList.add('confirmed');
         if(included && !confirmed && !uniform) wrapper.classList.add('needs-confirm');
@@ -2721,11 +2725,16 @@
           // while still exposing a separate button for confirmation.
           const confirmBtn=document.createElement('button');
           confirmBtn.type='button';
-          confirmBtn.className='spa-guest-confirm-toggle';
+          confirmBtn.className='spa-guest-confirm-toggle spa-guest__bubble';
+          confirmBtn.classList.toggle('spa-guest__bubble--filled', confirmed);
           confirmBtn.dataset.spaNoSubmit='true';
+          confirmBtn.dataset.guestId = guest.id;
+          if(guest.color){
+            confirmBtn.style.setProperty('--guest-color', guest.color);
+          }
           confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
-          confirmBtn.setAttribute('aria-label', confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`);
-          confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">${confirmed ? `Unconfirm ${guest.name}'s selections` : `Confirm ${guest.name}'s selections`}</span>`;
+          confirmBtn.setAttribute('aria-label', `Confirm ${guest.name}`);
+          confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">Confirm ${guest.name}</span>`;
           confirmBtn.addEventListener('click',e=>{
             e.stopPropagation();
             setGuestConfirmed(guest.id, !confirmed);

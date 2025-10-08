@@ -1488,25 +1488,16 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;}
 .spa-guest-pill-static{cursor:default;pointer-events:none;}
 .spa-guest-pill:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
-/* Center the confirmation affordance within the chip so the checkmark stays
- * perfectly aligned with the pill visuals pulled in from the roster. The
- * button reads the guest pill's CSS variables so the fill tracks the guest
- * color while the hairline and icon lean on global tokens for contrast. */
-.spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1px solid var(--hairline-strong);background:var(--pill-accent,var(--pillColor,var(--brand)));color:var(--on-accent-text,#fff);display:flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease,background-color .12s ease,box-shadow .12s ease,color .12s ease;z-index:1;box-shadow:0 0 0 0 transparent;}
-.spa-guest-confirm-toggle svg{width:12px;height:12px;display:block;}
-.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{opacity:1;box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 40%,transparent);}
-.spa-guest-chip.confirmed .spa-guest-confirm-toggle{opacity:1;box-shadow:0 6px 14px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 28%,transparent);}
-.spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}
-/* Share the global focus color so keyboard users see the same highlight they
- * get on the roster chips. */
+/* Pin the confirmation bubble to the edge of each guest chip so it mirrors the roster pill spacing without shifting layout. */
+.spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);padding:0;border:0;background:none;display:inline-flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease;z-index:1;}
+/* Bubble inherits the guest pill color via CSS variables so we can animate between outline and fill without extra DOM. */
+.spa-guest__bubble{inline-size:18px;block-size:18px;border-radius:50%;border:2px solid var(--guest-color,var(--pillColor,var(--brand)));background:transparent;display:inline-flex;align-items:center;justify-content:center;transition:background-color .12s ease,border-color .12s ease,transform .12s ease,color .12s ease;color:transparent;}
+.spa-guest__bubble svg{width:12px;height:12px;display:block;transition:opacity .12s ease;opacity:0;}
+.spa-guest__bubble--filled{background:var(--guest-color,var(--pillColor,var(--brand)));border-color:var(--guest-color,var(--pillColor,var(--brand)));color:#fff;}
+.spa-guest__bubble--filled svg{opacity:1;}
+.spa-guest__bubble:active{transform:scale(.96);}
+.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle,.spa-guest-chip.confirmed .spa-guest-confirm-toggle,.spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}
 .spa-guest-confirm-toggle:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
-@media(hover:hover){
-  .spa-guest-chip.included:hover .spa-guest-confirm-toggle{opacity:.95;}
-  .spa-guest-confirm-toggle:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 55%,transparent);}
-}
-@media(hover:none){
-  .spa-guest-chip.included .spa-guest-confirm-toggle{opacity:.85;}
-}
 .spa-guest-hint{margin-top:-4px;}
 .spa-helper-error{color:var(--brand);font-weight:600;}
 .spa-service-card{display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;overflow:hidden;}
