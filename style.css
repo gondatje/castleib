@@ -707,16 +707,25 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #activities{
   /*
    * Flex growth grants the list the remaining column height so header/actions
-   * stay pinned while the body scrolls. Overflow containment keeps scroll
-   * chaining off the page and reserves scrollbar gutter to prevent reflow.
+   * stay pinned while the body scrolls. The dedicated .activities-scroll class
+   * now handles the scrollbar presentation so these layout constraints remain.
    */
   flex:1 1 auto;
   min-block-size:0;
-  overflow-y:auto;
-  overscroll-behavior:contain;
-  scrollbar-gutter:stable both-edges;
-  -webkit-overflow-scrolling:touch;
 }
+/* Activities scroller container */
+.activities-scroll{
+  overflow:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable both-edges;
+}
+/* Hide when idle (Firefox/legacy/Chrome WebKit) */
+.activities-scroll{scrollbar-width:none;-ms-overflow-style:none;}
+.activities-scroll::-webkit-scrollbar{width:0;height:0;}
+/* Show only while "in use" */
+.activities-scroll.is-scrolling{scrollbar-width:thin;}
+.activities-scroll.is-scrolling::-webkit-scrollbar{width:8px;height:8px;}
 /*
  * Grid gives us a stable left stack + right rail while preserving the fixed
  * min-height so chips never resize the lane. Padding + divider offsets lean on

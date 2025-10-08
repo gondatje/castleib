@@ -418,6 +418,28 @@
   calGrid.setAttribute('tabindex','0');
   const calendarCard=document.querySelector('.left.card');
   const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
+
+  if(activitiesEl){
+    activitiesEl.classList.add('activities-scroll');
+    // Mirror the native overlay scrollbar behavior: show during interaction,
+    // then hide again without nudging layout once activity stops.
+    let hideActivitiesScrollbar;
+    const revealActivitiesScrollbar=()=>{
+      activitiesEl.classList.add('is-scrolling');
+      clearTimeout(hideActivitiesScrollbar);
+      hideActivitiesScrollbar=window.setTimeout(()=>{
+        activitiesEl.classList.remove('is-scrolling');
+      },900);
+    };
+    const scrollKeys=['ArrowDown','ArrowUp','PageDown','PageUp','Home','End'];
+    activitiesEl.addEventListener('scroll',revealActivitiesScrollbar,{passive:true});
+    activitiesEl.addEventListener('wheel',revealActivitiesScrollbar,{passive:true});
+    activitiesEl.addEventListener('keydown',event=>{
+      if(scrollKeys.includes(event.key)){
+        revealActivitiesScrollbar();
+      }
+    });
+  }
   const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
   const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
