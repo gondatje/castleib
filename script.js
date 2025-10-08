@@ -353,9 +353,12 @@
     data: null,
     dataStatus: 'loading',
     editing: false,
-    userEdited: '',
+    previewMode: 'view',
+    previewPatches: new Map(),
+    previewBaseSnapshot: new Map(),
+    previewItineraryKey: null,
+    previewStalePatchKeys: new Set(),
     previewDirty: true,
-    previewFrozen: false,
     spaCatalog: null,
     customCatalog: { titles: [], locations: [] }
   };
@@ -368,7 +371,9 @@
   const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
-  const toggleEditBtn=$('#toggleEdit');
+  const editPreviewBtn=$('#editPreview');
+  const lockPreviewBtn=$('#lockPreview');
+  const resetPreviewBtn=$('#resetPreview');
   const copyBtn=$('#copy');
   const addDinnerBtn=$('#addDinner');
   const addSpaBtn=$('#addSpa');
@@ -387,9 +392,11 @@
   decorateToolbarButton(addSpaBtn, spaIconSvg, 'Add SPA Service');
   decorateToolbarButton(addCustomBtn, customChipIconSvg, 'Add Custom Activity');
   decorateToolbarButton(clearAllBtn, clearToolbarSvg, 'Clear all itinerary data');
-  toggleEditBtn.textContent='✎';
-  toggleEditBtn.title='Edit';
-  toggleEditBtn.setAttribute('aria-pressed','false');
+  if(email){
+    email.contentEditable = 'false';
+    setPreviewAriaLabel();
+  }
+  updatePreviewButtons();
   calGrid.setAttribute('tabindex','0');
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
@@ -5016,6 +5023,207 @@
   }
 
   // ---------- Preview ----------
+  const PREVIEW_PATCH_STORAGE_PREFIX = 'chs.previewPatches:v1:';
+
+  function stableHash(input){
+    const str = String(input || '');
+    let hash = 0;
+    for(let i=0;i<str.length;i+=1){
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function cssEscape(value){
+    if(typeof CSS !== 'undefined' && CSS.escape){
+      return CSS.escape(value);
+    }
+    return String(value || '').replace(/"/g,'\\"');
+  }
+
+  function sanitizePreviewHtml(html){
+    const template = document.createElement('template');
+    template.innerHTML = html || '';
+    const blocked = new Set(['SCRIPT','STYLE','LINK','META','IFRAME','OBJECT','EMBED']);
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null);
+    const removals = [];
+    while(walker.nextNode()){
+      const el = walker.currentNode;
+      if(!el) continue;
+      if(blocked.has(el.tagName)){
+        removals.push(el);
+        continue;
+      }
+      Array.from(el.attributes).forEach(attr => {
+        const name = attr.name ? attr.name.toLowerCase() : '';
+        if(name.startsWith('on')){
+          el.removeAttribute(attr.name);
+        }else if(name==='style'){
+          el.removeAttribute(attr.name);
+        }
+      });
+    }
+    removals.forEach(node => node.remove());
+    return template.innerHTML;
+  }
+
+  function getItineraryId(){
+    const arrivalKey = state.arrival ? keyDate(state.arrival) : 'na';
+    const departureKey = state.departure ? keyDate(state.departure) : 'na';
+    const guestNames = state.guests.map(g => (g.name || '').trim().toLowerCase()).sort();
+    const raw = [arrivalKey, departureKey, ...guestNames].join('|');
+    return stableHash(raw);
+  }
+
+  function previewStorageKey(itineraryId){
+    return `${PREVIEW_PATCH_STORAGE_PREFIX}${itineraryId}`;
+  }
+
+  function loadPreviewPatches(itineraryId){
+    if(!itineraryId || typeof localStorage==='undefined') return [];
+    try{
+      const raw = localStorage.getItem(previewStorageKey(itineraryId));
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){
+      return [];
+    }
+  }
+
+  // Persist per-itinerary so edits travel with the stay regardless of browser reloads.
+  function persistPreviewPatches(itineraryId, patches){
+    if(!itineraryId || typeof localStorage==='undefined') return;
+    try{
+      if(!patches || patches.length===0){
+        localStorage.removeItem(previewStorageKey(itineraryId));
+      }else{
+        localStorage.setItem(previewStorageKey(itineraryId), JSON.stringify(patches));
+      }
+    }catch(e){
+      // Ignore persistence errors so the preview keeps rendering without blocking UX.
+    }
+  }
+
+  function collectPreviewAnchors(root){
+    if(!root) return [];
+    return Array.from(root.querySelectorAll('.pv-day, .pv-line'));
+  }
+
+  function anchorKeyFromElement(el){
+    if(!el) return null;
+    if(el.classList.contains('pv-day')){
+      const day = el.dataset.day || '';
+      return day ? `day:${day}` : null;
+    }
+    if(el.dataset.itemId){
+      return `item:${el.dataset.itemId}`;
+    }
+    if(el.dataset.system){
+      return `system:${el.dataset.system}`;
+    }
+    return null;
+  }
+
+  function findPreviewAnchorByKey(key){
+    if(!email || !key) return null;
+    const [type, value] = key.split(':');
+    if(!type || value===undefined) return null;
+    const safe = cssEscape(value);
+    if(type==='day') return email.querySelector(`.pv-day[data-day="${safe}"]`);
+    if(type==='item') return email.querySelector(`.pv-line[data-item-id="${safe}"]`);
+    if(type==='system') return email.querySelector(`.pv-line[data-system="${safe}"]`);
+    return null;
+  }
+
+  // Reapply edits per anchor so item insertions or reorders do not disturb
+  // existing overrides. Missing anchors simply mark the patch as stale until the
+  // item reappears.
+  function applyPreviewPatches(){
+    if(!state.previewPatches || state.previewPatches.size===0) return;
+    if(!(state.previewStalePatchKeys instanceof Set)){
+      state.previewStalePatchKeys = new Set();
+    }else{
+      state.previewStalePatchKeys.clear();
+    }
+    for(const patch of state.previewPatches.values()){
+      if(!patch || !patch.key) continue;
+      const target = findPreviewAnchorByKey(patch.key);
+      if(!target){
+        state.previewStalePatchKeys.add(patch.key);
+        continue;
+      }
+      if(patch.type==='replaceText'){
+        target.textContent = patch.payload ?? '';
+      }else{
+        target.innerHTML = sanitizePreviewHtml(patch.payload ?? '');
+      }
+    }
+  }
+
+  // Preview anchors derive from immutable schedule traits so an item keeps the
+  // same data-item-id even if the day re-renders or moves in the DOM. This keeps
+  // user edits attached to the logical item rather than its position.
+  function computePreviewItemAnchor(entry, dateKey){
+    if(!entry) return null;
+    if(entry.id) return entry.id;
+    const type = entry.type || 'activity';
+    const raw = [type, dateKey || '', entry.title || '', entry.start || '', entry.end || '', entry.location || ''].join('|');
+    return `${type}-${stableHash(raw)}`;
+  }
+
+  function ensurePreviewPatchesLoaded(){
+    const itineraryId = getItineraryId();
+    if(state.previewItineraryKey === itineraryId){
+      return;
+    }
+    state.previewItineraryKey = itineraryId;
+    const loaded = loadPreviewPatches(itineraryId);
+    const map = new Map();
+    loaded.forEach(patch => {
+      if(patch && patch.key){
+        map.set(patch.key, patch);
+      }
+    });
+    state.previewPatches = map;
+    if(state.previewMode!=='edit'){
+      state.previewMode = map.size>0 ? 'locked' : 'view';
+    }
+  }
+
+  function updatePreviewButtons(){
+    const hasPatches = state.previewPatches && state.previewPatches.size>0;
+    if(editPreviewBtn){
+      editPreviewBtn.disabled = state.previewMode==='edit';
+    }
+    if(lockPreviewBtn){
+      lockPreviewBtn.disabled = state.previewMode!=='edit';
+    }
+    if(resetPreviewBtn){
+      resetPreviewBtn.disabled = !hasPatches;
+    }
+  }
+
+  function setPreviewAriaLabel(){
+    if(!email) return;
+    if(state.previewMode==='edit'){
+      email.setAttribute('aria-label','Editing email preview');
+    }else if(state.previewMode==='locked'){
+      email.setAttribute('aria-label','Email preview (locked)');
+    }else{
+      email.setAttribute('aria-label','Email preview');
+    }
+  }
+
+  function registerPreviewBase(key, el, baseMap){
+    if(!key || !el) return;
+    baseMap.set(key, {
+      type: 'replaceInner',
+      payload: el.innerHTML
+    });
+  }
+
   function getStayKeys(){
     const keys=[];
     const { arrival, departure } = state;
@@ -5033,11 +5241,11 @@
   }
 
   function renderPreview(){
-    if(state.editing) return;
-    if(state.previewFrozen && !state.previewDirty){
-      if(state.userEdited!==undefined) email.innerHTML = state.userEdited;
+    if(state.previewMode==='edit'){
+      state.previewDirty = true;
       return;
     }
+    ensurePreviewPatchesLoaded();
     const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
     const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
 
@@ -5062,19 +5270,24 @@
 
     if(stayKeys.length===0){
       email.appendChild(makeEl('p','email-empty','Set Arrival and Departure to build your preview.'));
-      state.userEdited = email.innerHTML;
-      state.previewFrozen = false;
+      state.previewBaseSnapshot = new Map();
       state.previewDirty = false;
+      setPreviewAriaLabel();
+      updatePreviewButtons();
       return;
     }
 
+    const baseMap = new Map();
     stayKeys.forEach((k)=>{
       const [y,m,d] = k.split('-').map(Number);
       const date = new Date(y, m-1, d);
       const w = weekdayName(date);
       const daySection = makeEl('section','email-day');
       const monthLabel = date.toLocaleString(undefined,{month:'long'});
-      daySection.appendChild(
+      // Wrap the renderable header so it has a stable anchor for diffing and copy.
+      const dayWrapper = makeEl('div','pv-day');
+      dayWrapper.dataset.day = k;
+      dayWrapper.appendChild(
         makeEl(
           'h4',
           'email-day-title',
@@ -5082,20 +5295,30 @@
           {html:true}
         )
       );
+      registerPreviewBase(`day:${k}`, dayWrapper, baseMap);
+      daySection.appendChild(dayWrapper);
 
       const checkoutLine = () => {
+        const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.system = 'departure';
         const row = makeEl('div', 'email-activity');
         row.appendChild(document.createTextNode(`${formatTimeDisplay('11:00')} Check-Out | Welcome to stay on property until `));
         const stayWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('13:00'));
         row.appendChild(stayWindow);
-        return row;
+        wrapper.appendChild(row);
+        registerPreviewBase('system:departure', wrapper, baseMap);
+        return wrapper;
       };
       const checkinLine = () => {
+        const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.system = 'arrival';
         const row = makeEl('div', 'email-activity');
         row.appendChild(document.createTextNode(`${formatTimeDisplay('16:00')} Guaranteed Check-In | Welcome to arrive as early as `));
         const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('12:00'));
         row.appendChild(arrivalWindow);
-        return row;
+        wrapper.appendChild(row);
+        registerPreviewBase('system:arrival', wrapper, baseMap);
+        return wrapper;
       };
 
       if(state.departure && keyDate(state.departure)===k)
@@ -5110,10 +5333,17 @@
         const isDinner = it.type==='dinner';
         if(it.type==='spa'){
           const spaLines = buildSpaPreviewLines(it, { cabanaVisibility });
-          spaLines.forEach(line => {
-            daySection.appendChild(
+          const baseAnchor = computePreviewItemAnchor(it, k);
+          spaLines.forEach((line, idx) => {
+            const wrapper = makeEl('div','pv-line');
+            const anchorValue = baseAnchor ? `${baseAnchor}::${idx}` : null;
+            if(anchorValue) wrapper.dataset.itemId = anchorValue;
+            wrapper.appendChild(
               makeEl('div','email-activity', line, {html:true})
             );
+            const key = anchorValue ? `item:${anchorValue}` : null;
+            if(key) registerPreviewBase(key, wrapper, baseMap);
+            daySection.appendChild(wrapper);
           });
           return;
         }
@@ -5161,7 +5391,10 @@
           // Avoid injecting empty divs so the preview stays a continuous stack with no phantom gaps.
           return;
         }
-        daySection.appendChild(
+        const wrapper = makeEl('div','pv-line');
+        const anchorValue = computePreviewItemAnchor(it, k);
+        if(anchorValue) wrapper.dataset.itemId = anchorValue;
+        wrapper.appendChild(
           makeEl(
             'div',
             'email-activity',
@@ -5169,14 +5402,18 @@
             {html:true}
           )
         );
+        const key = anchorValue ? `item:${anchorValue}` : null;
+        if(key) registerPreviewBase(key, wrapper, baseMap);
+        daySection.appendChild(wrapper);
       });
 
       email.appendChild(daySection);
     });
-
-    state.userEdited = email.innerHTML;
-    state.previewFrozen = false;
+    state.previewBaseSnapshot = baseMap;
+    applyPreviewPatches();
     state.previewDirty = false;
+    setPreviewAriaLabel();
+    updatePreviewButtons();
   }
 
   // ---------- Nav + Stay ----------
@@ -5232,54 +5469,126 @@
   updateStayNoteInputs();
 
   // ---------- Edit / Copy / Clear ----------
-  const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="5.75" y="11" width="12.5" height="9" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
-
-  function setEditButton(editing){
-    if(editing){
-      toggleEditBtn.innerHTML = lockSvg;
-      toggleEditBtn.title = 'Lock';
-      toggleEditBtn.setAttribute('aria-pressed','true');
-    }else{
-      toggleEditBtn.textContent = '✎';
-      toggleEditBtn.title = 'Edit';
-      toggleEditBtn.setAttribute('aria-pressed','false');
-    }
+  // Diff the live DOM against the canonical render so we only persist the blocks
+  // the coordinator touched. Storing sanitized payloads keeps the preview safe to
+  // reapply after every render cycle.
+  function capturePreviewPatchesFromDom(){
+    const baseMap = state.previewBaseSnapshot instanceof Map ? state.previewBaseSnapshot : new Map();
+    const anchors = collectPreviewAnchors(email);
+    const patches = state.previewPatches instanceof Map ? new Map(state.previewPatches) : new Map();
+    const now = Date.now();
+    anchors.forEach(anchor => {
+      const key = anchorKeyFromElement(anchor);
+      if(!key) return;
+      const baseEntry = baseMap.get(key);
+      if(!baseEntry) return;
+      const sanitized = sanitizePreviewHtml(anchor.innerHTML);
+      if(anchor.innerHTML !== sanitized){
+        anchor.innerHTML = sanitized;
+      }
+      const hasMarkup = sanitized.includes('<');
+      if(!hasMarkup){
+        const textPayload = anchor.textContent ?? '';
+        const scratch = document.createElement('div');
+        scratch.innerHTML = baseEntry.payload ?? '';
+        const baseText = scratch.textContent ?? '';
+        if(textPayload === baseText){
+          patches.delete(key);
+        }else{
+          patches.set(key, {
+            key,
+            type: 'replaceText',
+            payload: textPayload,
+            ts: now
+          });
+        }
+        return;
+      }
+      if((baseEntry.payload ?? '') === sanitized){
+        patches.delete(key);
+        return;
+      }
+      patches.set(key, {
+        key,
+        type: 'replaceInner',
+        payload: sanitized,
+        ts: now
+      });
+    });
+    state.previewPatches = patches;
+    const itineraryId = state.previewItineraryKey || getItineraryId();
+    const persisted = Array.from(patches.values()).sort((a,b)=> (a.ts||0)-(b.ts||0));
+    persistPreviewPatches(itineraryId, persisted);
   }
 
-  function enterEditMode(){
-    state.userEdited = email.innerHTML;
+  function enterPreviewEditMode(){
+    state.previewMode = 'edit';
     state.editing = true;
     email.contentEditable = 'true';
     email.style.outline = '2px dashed #bbb';
-    setEditButton(true);
+    setPreviewAriaLabel();
+    updatePreviewButtons();
+    email.focus({preventScroll:true});
   }
 
-  function exitEditMode(){
+  function lockPreviewEdits(){
+    if(state.previewMode!=='edit') return;
+    capturePreviewPatchesFromDom();
+    state.previewMode = state.previewPatches.size>0 ? 'locked' : 'view';
     state.editing = false;
-    state.userEdited = email.innerHTML;
-    state.previewFrozen = true;
-    state.previewDirty = false;
     email.contentEditable = 'false';
     email.style.outline = 'none';
-    setEditButton(false);
+    setPreviewAriaLabel();
+    updatePreviewButtons();
+    renderPreview();
   }
 
-  toggleEditBtn.onclick=()=>{
-    if(state.editing){
-      exitEditMode();
-    }else{
-      enterEditMode();
-    }
-  };
+  function resetPreviewEdits(){
+    if(!state.previewPatches || state.previewPatches.size===0) return;
+    if(!confirm('Reset all email preview edits?')) return;
+    state.previewPatches = new Map();
+    const itineraryId = state.previewItineraryKey || getItineraryId();
+    persistPreviewPatches(itineraryId, []);
+    state.previewMode = 'view';
+    state.editing = false;
+    email.contentEditable = 'false';
+    email.style.outline = 'none';
+    setPreviewAriaLabel();
+    updatePreviewButtons();
+    renderPreview();
+  }
+
+  if(editPreviewBtn){
+    editPreviewBtn.onclick=()=>{
+      if(state.previewMode==='edit') return;
+      enterPreviewEditMode();
+    };
+  }
+  if(lockPreviewBtn){
+    lockPreviewBtn.onclick=()=>{
+      lockPreviewEdits();
+    };
+  }
+  if(resetPreviewBtn){
+    resetPreviewBtn.onclick=()=>{
+      resetPreviewEdits();
+    };
+  }
   email.addEventListener('dblclick', (e)=>{
-    if(e.metaKey || e.ctrlKey) toggleEditBtn.click();
+    if(e.metaKey || e.ctrlKey){
+      if(state.previewMode==='edit'){
+        lockPreviewEdits();
+      }else{
+        enterPreviewEditMode();
+      }
+    }
   });
 
   let copyTitleTimer = null;
   copyBtn.onclick=async ()=>{
     const html=email.innerHTML;
-    // Collapse stray blank lines so clipboard copy mirrors the on-screen, gap-free itinerary.
-    const clipboardText=(email.textContent||'').replace(/\n{2,}/g,'\n').trim();
+    const lines=(email.textContent||'').split('\n').map(line=>line.trimEnd());
+    const clipboardText=lines.join('\n').replace(/\n{2,}/g,'\n').trim();
     try{
       if(window.ClipboardItem && navigator.clipboard?.write){
         const item=new ClipboardItem({
