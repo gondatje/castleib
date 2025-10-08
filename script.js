@@ -2103,13 +2103,19 @@
       const baseDuration = Array.isArray(svc?.durations) && svc.durations.length ? svc.durations[0] : 60;
       const duration = overrides.durationMinutes ?? baseDuration;
       const start = overrides.start || defaultSpaStartTime;
+      const derivedEnd = addMinutesToTime(start, duration);
+      const overrideEnd = overrides.end ? String(overrides.end).trim() : '';
+      const hasOverrideEnd = overrideEnd !== '';
+      const explicitEnd = overrides.explicitEnd ?? (hasOverrideEnd && overrideEnd !== derivedEnd);
+      const end = explicitEnd ? overrideEnd : derivedEnd;
       return {
         guestId: overrides.guestId || '',
         serviceName: svc?.name || overrides.serviceName || '',
         serviceCategory: svc?.category || overrides.serviceCategory || '',
         durationMinutes: duration,
         start,
-        end: addMinutesToTime(start, duration),
+        end,
+        explicitEnd,
         therapist: overrides.therapist || 'no-preference',
         location: overrides.location || 'same-cabana',
         supportsInRoom: svc?.supportsInRoom !== false
@@ -2117,6 +2123,8 @@
     };
 
     const TEMPLATE_ID = '__template__';
+    // Modal form state lives in `selections`; every time-related update mutates
+    // these entries so the save handler can diff against this single source of truth.
     const selections = new Map();
     assignedIds.forEach(id => {
       const existingSelection = existing?.appointments?.find(app => app.guestId===id);
@@ -2128,11 +2136,12 @@
           serviceCategory: existingSelection.serviceCategory,
           durationMinutes: existingSelection.durationMinutes,
           start: existingSelection.start,
+          end: existingSelection.end,
+          explicitEnd: existingSelection.explicitEnd === true,
           therapist: existingSelection.therapist,
           location: existingSelection.location,
           supportsInRoom: svc?.supportsInRoom !== false
         });
-        selection.end = existingSelection.end || addMinutesToTime(selection.start, selection.durationMinutes);
         if(selection.location==='in-room' && selection.supportsInRoom===false){
           selection.location = 'same-cabana';
         }
@@ -3038,24 +3047,30 @@
 
     const handleTimeChange = value => {
       const targets = resolveEditableTargets();
+      const assigned = orderedAssigned();
+      const effectiveTargets = targets.length>0
+        ? targets
+        : (assigned.length>0 ? assigned : [TEMPLATE_ID]);
       const nextStart = to24Time(value);
       let touched = false;
-      targets.forEach(id => {
+      effectiveTargets.forEach(id => {
         const selection = getSelectionFor(id);
         const prevStart = selection.start;
         const prevEnd = selection.end;
-        const nextEnd = addMinutesToTime(nextStart, selection.durationMinutes);
         selection.start = nextStart;
-        // Duration drives end time: recompute whenever start shifts so the preview stays live.
-        selection.end = nextEnd;
+        if(selection.explicitEnd){
+          // Manual end times should persist unless explicitly changed by the user.
+        }else{
+          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        }
         if(prevStart !== selection.start || prevEnd !== selection.end){
           touched = true;
         }
       });
-      const sourceId = targets[0] || TEMPLATE_ID;
+      const sourceId = effectiveTargets.find(id => id!==TEMPLATE_ID) || effectiveTargets[0] || TEMPLATE_ID;
       syncTemplateFromSourceId(sourceId);
       if(touched){
-        markGuestsDirty(targets);
+        markGuestsDirty(effectiveTargets);
       }else{
         updateConfirmState();
       }
@@ -3477,7 +3492,9 @@
           selection.durationMinutes = durations[0] || selection.durationMinutes;
         }
         // Whenever duration shifts, recompute the derived end time so the preview follows.
-        selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        if(!selection.explicitEnd){
+          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        }
         if(selection.location==='in-room' && selection.supportsInRoom===false){
           selection.location='same-cabana';
         }
@@ -3504,7 +3521,9 @@
         const prevDuration = selection.durationMinutes;
         const prevEnd = selection.end;
         selection.durationMinutes = minutes;
-        selection.end = addMinutesToTime(selection.start, minutes);
+        if(!selection.explicitEnd){
+          selection.end = addMinutesToTime(selection.start, minutes);
+        }
         if(selection.durationMinutes!==prevDuration || selection.end!==prevEnd){
           touched = true;
         }
@@ -3598,7 +3617,9 @@
       const snapshots = assigned.map(id => {
         const base = confirmedCount===0 ? canonical : (selections.get(id) || canonical);
         const startValue = base.start || defaultSpaStartTime;
-        const endValue = addMinutesToTime(startValue, base.durationMinutes);
+        const computedEnd = addMinutesToTime(startValue, base.durationMinutes);
+        const hasExplicitEnd = base.explicitEnd && !!base.end;
+        const endValue = hasExplicitEnd ? base.end : computedEnd;
         const snapshot = {
           guestId: id,
           serviceName: base.serviceName,
@@ -3607,9 +3628,16 @@
           start: startValue,
           end: endValue,
           therapist: base.therapist,
-          location: base.location
+          location: base.location,
+          explicitEnd: hasExplicitEnd
         };
-        selections.set(id, { ...base, guestId: id, start: startValue, end: endValue });
+        selections.set(id, {
+          ...base,
+          guestId: id,
+          start: startValue,
+          end: endValue,
+          explicitEnd: hasExplicitEnd
+        });
         return snapshot;
       });
 
@@ -3628,6 +3656,8 @@
         removeSpaEntry(targetDateKey, existing.id);
       }
 
+      // Persist by patching the existing schedule entry so activities + preview
+      // immediately redraw from the updated state (the store handles resorting).
       if(allIdentical){
         const entryId = existing?.id || null;
         upsertSpaEntry(targetDateKey, { id: entryId, appointments: snapshots });
@@ -4620,6 +4650,7 @@
       safe(app.durationMinutes),
       safe(app.start),
       safe(app.end),
+      safe(app.explicitEnd ? 'explicit' : ''),
       safe(app.therapist),
       safe(app.location)
     ].join('|');
