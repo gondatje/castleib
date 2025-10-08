@@ -416,9 +416,12 @@
   }
   updatePreviewButtons();
   calGrid.setAttribute('tabindex','0');
-  const calendarScroll=document.querySelector('.calendar-scroll');
+  const calendarCard=document.querySelector('.left.card');
+  const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
+  const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
+  const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
-  if(calendarScroll && calendarScrollThumb){
+  if(calendarCard && calendarContainer && calendarScroll && calendarScrollContent && calendarScrollThumb){
     const rootStyle=getComputedStyle(document.documentElement);
     const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
     const parseTokenSize=value=>{
@@ -457,6 +460,13 @@
       });
     };
     const applyThumbMetrics=()=>{
+      if(!calendarContainer.classList.contains('calendar--scrollable')){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
       const { clientHeight, scrollHeight, scrollTop } = calendarScroll;
       if(scrollHeight <= clientHeight + 1){
         calendarScrollThumb.setAttribute('hidden','');
@@ -509,16 +519,58 @@
     calendarScroll.addEventListener('pointerleave',()=>{
       beginIdleCountdown();
     });
-    const resizeObserver=new ResizeObserver(()=>{
+    const scrollResizeObserver=new ResizeObserver(()=>{
       scheduleThumbUpdate();
     });
-    resizeObserver.observe(calendarScroll);
+    scrollResizeObserver.observe(calendarScroll);
     const mutationObserver=new MutationObserver(()=>{
       scheduleThumbUpdate();
     });
     mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
     window.addEventListener('resize', scheduleThumbUpdate);
-    scheduleThumbUpdate();
+    // Desktop-only compaction: gate density changes behind the desktop media query so tablet/iPad keep the roomy layout.
+    const desktopQuery=window.matchMedia('(min-width: 1024px)');
+    const applyCalendarDensity=()=>{
+      const cardHeight=calendarCard.clientHeight;
+      const isDesktop=desktopQuery.matches;
+      // Container breakpoints: <=900px tightens spacing, <=840px enables the fully compressed token set.
+      let density='regular';
+      if(isDesktop && cardHeight<=840){
+        density='compressed';
+      }else if(isDesktop && cardHeight<=900){
+        density='compact';
+      }
+      calendarContainer.dataset.density=density;
+      // Scroll fallback only kicks in below 800px tall viewports so the column stays static at the target desktop sizes.
+      const shouldEnableScroll=cardHeight<800;
+      calendarContainer.classList.toggle('calendar--scrollable', shouldEnableScroll);
+      if(!shouldEnableScroll){
+        calendarScroll.scrollTop=0;
+      }
+      let scale=1;
+      if(!shouldEnableScroll && isDesktop){
+        const { clientHeight } = calendarScroll;
+        const contentHeight=calendarScrollContent.scrollHeight;
+        if(contentHeight>clientHeight+1){
+          // Scale fallback mirrors the spec clamp: never shrink below 90% so day buttons stay at least 40px tall.
+          scale=Math.max(0.9, Math.min(clientHeight / contentHeight, 1));
+        }
+      }
+      calendarContainer.style.setProperty('--calendar-grid-scale', scale.toFixed(3));
+      scheduleThumbUpdate();
+    };
+    const onDesktopQueryChange=()=>applyCalendarDensity();
+    if(typeof desktopQuery.addEventListener==='function'){
+      desktopQuery.addEventListener('change', onDesktopQueryChange);
+    }else if(typeof desktopQuery.addListener==='function'){
+      desktopQuery.addListener(onDesktopQueryChange);
+    }
+    // Observe the calendar card height so density + scale respond to window and content changes.
+    const densityObserver=new ResizeObserver(()=>{
+      applyCalendarDensity();
+    });
+    densityObserver.observe(calendarCard);
+    applyCalendarDensity();
   }
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
