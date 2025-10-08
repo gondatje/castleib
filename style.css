@@ -162,15 +162,22 @@ body[data-theme='light']{
   .dinner-item,
   .spa-item,
   .custom-item{
-    background:linear-gradient(135deg,rgba(99,127,255,0.22),rgba(99,127,255,0.08));
-    box-shadow:inset 0 0 0 1px rgba(148,163,255,0.32);
+    /* Previously these rows had a gradient card treatment; reset to transparent so
+     * the shared `.activity-row` background + separator styling comes through. */
+    background:transparent;
+    /* Drop the inset border/shadow so added activities no longer look elevated. */
+    box-shadow:none;
+    /* Align the hit-area radius with the base activity row (was 16px for the card). */
+    border-radius:14px;
   }
 }
 body[data-theme='dark'] .dinner-item,
 body[data-theme='dark'] .spa-item,
 body[data-theme='dark'] .custom-item{
-  background:linear-gradient(135deg,rgba(99,127,255,0.22),rgba(99,127,255,0.08));
-  box-shadow:inset 0 0 0 1px rgba(148,163,255,0.32);
+  /* Dark mode uses the same reset so added rows stay visually flat. */
+  background:transparent;
+  box-shadow:none;
+  border-radius:14px;
 }
 *{box-sizing:border-box}
 html{
@@ -501,9 +508,17 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 #activities .activity-row-time,#demoActivities .activity-row-time{font-weight:600;font-variant-numeric:tabular-nums;}
 #activities .activity-row-title,#demoActivities .activity-row-title{flex:1 1 auto;min-width:0;}
 #activities .activity-row .tag-row,#demoActivities .activity-row .tag-row{margin-top:2px;}
-.dinner-item,.spa-item,.custom-item{cursor:default;background:linear-gradient(135deg,rgba(42,107,255,.08),rgba(42,107,255,.02));box-shadow:inset 0 0 0 1px rgba(42,107,255,.16);border-radius:16px;}
-.dinner-item::after,.spa-item::after,.custom-item::after{content:none;}
-.dinner-item .tag-row,.spa-item .tag-row,.custom-item .tag-row{margin-top:6px;}
+.dinner-item,
+.spa-item,
+.custom-item{
+  cursor:default;
+  /* Reset the added rows to the flat list background instead of the old gradient. */
+  background:transparent;
+  /* Remove the faux border/shadow so the list hairlines provide the only separators. */
+  box-shadow:none;
+  /* Match the shared .activity-row radius for a consistent hit area. */
+  border-radius:14px;
+}
 .spa-item .spa-meta{margin-top:4px;font-size:13px;color:var(--muted);}
 .tag-everyone{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:4px 12px;border-radius:999px;border:1px solid var(--chipBorder);background:#fff;font-weight:600;color:var(--chipText);cursor:pointer;appearance:none;font:inherit;line-height:1;transition:box-shadow .2s ease;}
 .tag-everyone:focus{outline:2px solid var(--brand);outline-offset:2px;}
