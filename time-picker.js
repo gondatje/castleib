@@ -776,7 +776,7 @@
     // Derive the first render snapshot (hour/minute/meridiem + disabled minutes)
     // synchronously so we never paint a greyed-out selection before the state is
     // ready. The fallback minute search also resolves blocked defaults up front,
-    // so opening at 7:00 PM lands perfectly centred with no transient grey :00.
+    // so opening at 7:00pm lands perfectly centred with no transient grey :00.
     const initialHour = defaultHour;
     const initialMeridiem = defaultMeridiem;
     let disabledMinutes = computeDisabledMinutes(initialHour, initialMeridiem);
