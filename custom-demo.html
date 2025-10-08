@@ -96,10 +96,18 @@
       </div>
 
       <div id="actions" class="row">
-        <button id="addDinner" title="Add Dinner" disabled>Dinner</button>
-        <button id="addSpa" title="Add Spa" disabled>Spa</button>
-        <button id="addCustom" title="Add Custom" disabled>Custom</button>
-        <button id="clearAll" title="Clear all itinerary data">Clear</button>
+        <button id="addDinner" class="toolbar-icon-btn" title="Add Dinner" aria-label="Add Dinner" disabled>
+          <span class="sr-only">Add Dinner</span>
+        </button>
+        <button id="addSpa" class="toolbar-icon-btn" title="Add SPA Service" aria-label="Add SPA Service" disabled>
+          <span class="sr-only">Add SPA Service</span>
+        </button>
+        <button id="addCustom" class="toolbar-icon-btn" title="Add Custom Activity" aria-label="Add Custom Activity" disabled>
+          <span class="sr-only">Add Custom Activity</span>
+        </button>
+        <button id="clearAll" class="toolbar-icon-btn" title="Clear all itinerary data" aria-label="Clear all itinerary data">
+          <span class="sr-only">Clear all itinerary data</span>
+        </button>
       </div>
 
       <div id="activities" class="list" aria-label="Available activities"></div>

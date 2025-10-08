@@ -671,6 +671,47 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .stay-time-clear:focus{outline:2px solid var(--brand);outline-offset:2px}
 .stay-time-fallback{color:var(--text-muted);font-size:0.9rem;padding:0.25rem 0}
 #actions{margin:8px 0 12px}
+/* Activities toolbar icons reuse the chip glyphs so the action row stays visually aligned */
+.toolbar-icon-btn{
+  inline-size:2.75rem;
+  block-size:2.75rem;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:var(--space-3);
+  background:var(--surface);
+  color:var(--text-primary);
+  transition:transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+.toolbar-icon-btn .toolbar-icon{
+  inline-size:1.375rem;
+  block-size:1.375rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.toolbar-icon-btn .toolbar-icon svg{inline-size:100%;block-size:100%;display:block;}
+@media(hover:hover){
+  .toolbar-icon-btn:not(:disabled):hover{
+    background:color-mix(in srgb,var(--brand) 14%, var(--surface));
+    box-shadow:0 10px 24px color-mix(in srgb,var(--text-primary) 18%, transparent);
+    transform:translateY(-1px);
+  }
+}
+.toolbar-icon-btn:not(:disabled):active{
+  background:color-mix(in srgb,var(--brand) 20%, var(--surface));
+  transform:translateY(0);
+}
+.toolbar-icon-btn:focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+}
+.toolbar-icon-btn:disabled{
+  opacity:0.45;
+  cursor:default;
+  box-shadow:none;
+}
 .guest-section{
   /* Hairline divider + spacing align the relocated guest block with the calendar controls. */
   margin:0;
