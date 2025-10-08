@@ -3,6 +3,9 @@
   // ---------- Utils ----------
   const pad = n => String(n).padStart(2,'0');
   const zero = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
+  // Calendar navigation reuses a single helper so month/year rollover flows through the
+  // same code path everywhere we add or subtract days.
+  const addDays = (date, amount) => { const next = new Date(date); next.setDate(next.getDate()+amount); return next; };
   const monthName = (y,m) => new Date(y,m,1).toLocaleString(undefined,{month:'long'});
   const weekdayName = d => d.toLocaleDateString(undefined,{weekday:'long'});
   const ordinalSuffix = n => { const s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0]; };
@@ -342,11 +345,54 @@
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
-  calGrid.addEventListener('keydown',e=>{
-    if(e.target.tagName==='BUTTON' && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
-      e.preventDefault();
-      e.target.click();
+  calGrid.setAttribute('tabindex','0');
+  calGrid.addEventListener('focus',event=>{
+    if(event.target===calGrid){
+      const activeCell = calGrid.querySelector(`[data-date-key="${keyDate(state.focus)}"]`);
+      focusWithoutScroll(activeCell);
     }
+  }, true);
+
+  // Track whether the calendar needs to restore focus after a re-render. Arrow navigation
+  // updates state then triggers a full render, so we keep this flag outside the handler.
+  let calendarFocusIntent = false;
+  const calendarFocusExemptSelector = 'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="spinbutton"]';
+  // Calendar keyboard handling lives on the grid container so both the roving cell and
+  // the grid itself can move the focus date with arrow keys.
+  calGrid.addEventListener('keydown',event=>{
+    const key = event.key;
+    const target = event.target;
+    const cellButton = target && target.closest('[data-date-key]');
+    const isDayCell = !!cellButton;
+    const isGridFocused = target === calGrid;
+    if(!isDayCell && !isGridFocused){
+      return;
+    }
+    if(target.closest(calendarFocusExemptSelector)){
+      return;
+    }
+
+    if(key==='Enter' || key===' ' || key==='Spacebar'){
+      event.preventDefault();
+      if(isDayCell){
+        cellButton.click();
+      }
+      return;
+    }
+
+    const deltas = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 };
+    const delta = deltas[key];
+    if(typeof delta !== 'number'){
+      return;
+    }
+
+    event.preventDefault();
+    calendarFocusIntent = true;
+    // Date math helper manages month/year transitions so the render pipeline refreshes
+    // the visible month before we restore focus to the new active cell.
+    const next = addDays(state.focus, delta);
+    state.focus = zero(next);
+    renderAll();
   });
 
   // DOW header
@@ -671,6 +717,8 @@
   // ---------- Calendar ----------
   function renderCalendar(){
     const y=state.focus.getFullYear(), m=state.focus.getMonth();
+    const focusKey = keyDate(state.focus);
+    const shouldRestoreFocus = calendarFocusIntent || calGrid.contains(document.activeElement);
     calMonth.textContent = monthName(y,m); calYear.textContent = y;
     calGrid.innerHTML='';
     const first=new Date(y,m,1), startOffset=first.getDay();
@@ -679,7 +727,12 @@
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
       btn.setAttribute('role','gridcell');
-      btn.setAttribute('tabindex','0');
+      const dateKey = keyDate(d);
+      btn.dataset.dateKey = dateKey;
+      const isFocusDate = dateKey===focusKey;
+      // Roving tabindex: only the active date stays in the tab order so keyboard focus
+      // always lands on the highlighted cell.
+      btn.setAttribute('tabindex', isFocusDate ? '0' : '-1');
       btn.setAttribute('aria-selected','false');
       btn.setAttribute('aria-label', d.toDateString());
       if(d.getMonth()!==m) btn.classList.add('other');
@@ -687,7 +740,7 @@
         btn.classList.add('today');
         btn.setAttribute('aria-current','date');
       }
-      if(d.getTime()===state.focus.getTime()){
+      if(isFocusDate){
         btn.classList.add('focus');
         btn.setAttribute('aria-selected','true');
       }
@@ -699,9 +752,19 @@
       if(state.arrival && d.getTime()===state.arrival.getTime()) btn.classList.add('arrival');
       if(state.departure && d.getTime()===state.departure.getTime()) btn.classList.add('departure');
 
-      btn.addEventListener('click',()=>{ state.focus=zero(d); renderAll(); });
+      btn.addEventListener('click',()=>{
+        state.focus=zero(d);
+        renderAll();
+      });
       calGrid.appendChild(btn);
     }
+    if(shouldRestoreFocus){
+      // After rebuilding the grid, re-focus the active cell without scrolling so arrow
+      // key presses and clicks keep the visible focus ring in place across month changes.
+      const activeCell = calGrid.querySelector(`[data-date-key="${focusKey}"]`);
+      focusWithoutScroll(activeCell);
+    }
+    calendarFocusIntent = false;
     updateStayNoteInputs();
   }
 
