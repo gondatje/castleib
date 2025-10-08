@@ -430,20 +430,19 @@
       // disturbing layout, letting us reserve space only when a classic bar
       // would otherwise overlay content.
       const probe=document.createElement('div');
-      probe.style.cssText=`
-      position:absolute; top:-9999px; left:-9999px;
-      width:100px; height:100px; overflow:scroll;`;
+      probe.style.cssText='position:absolute;top:-9999px;left:-9999px;width:100px;height:100px;overflow:scroll;';
       document.body.appendChild(probe);
       const sbw=probe.offsetWidth-probe.clientWidth;
-      document.body.removeChild(probe);
+      probe.remove();
       return sbw;
     }
 
     function applyCompensation(){
       const sbw=computeScrollbarWidth();
-      // Overlay scrollbars (macOS) yield 0, so padding stays neutral; classic
-      // scrollbars (Windows) reserve width to keep the content from shifting.
-      scroller.style.setProperty('--sbw',supportsGutter?'0px':`${sbw}px`);
+      // WebKit relies on ::-webkit-scrollbar width while legacy engines need
+      // explicit padding when they ignore `scrollbar-gutter`, so expose both.
+      scroller.style.setProperty('--sbw',`${sbw}px`);
+      scroller.style.setProperty('--scrollbar-fallback-padding',supportsGutter?'0px':`${sbw}px`);
     }
 
     applyCompensation();
