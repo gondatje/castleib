@@ -634,7 +634,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days{
   --weeks:6;
   --daycell-h:120px;
-  grid-template-rows:repeat(var(--weeks, 6), minmax(40px, var(--daycell-h)));
+  grid-template-rows:repeat(6, minmax(40px, var(--daycell-h)));
 }
 .days button{
   border-radius:12px;

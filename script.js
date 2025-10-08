@@ -424,13 +424,14 @@
   const calendarWeekdayRow=calendarScrollContent && calendarScrollContent.querySelector('.dow');
   const MIN_DAYCELL_HEIGHT=40;
   const MAX_DAYCELL_HEIGHT=120;
-  let calendarVisibleWeeks=6;
+  const CALENDAR_WEEKS=6;
   let calendarRowHeightRaf=0;
   const updateCalendarRowHeights=()=>{
     if(!calendarScrollContent) return;
     const hostHeight=calendarScrollContent.clientHeight;
     if(hostHeight<=0) return;
-    const weeks=Math.max(1, calendarVisibleWeeks || 6);
+    // Row height measurement always divides the host into six rows to match the fixed grid footprint.
+    const weeks=CALENDAR_WEEKS;
     const weekdayHeaderHeight=calendarWeekdayRow ? calendarWeekdayRow.getBoundingClientRect().height : 0;
     const hostStyles=getComputedStyle(calendarScrollContent);
     const hostGap=parseFloat(hostStyles.rowGap || hostStyles.gap || '0') || 0;
@@ -441,6 +442,7 @@
     const available=hostHeight - weekdayHeaderHeight - hostGap - totalRowGaps;
     const rawRow=Math.floor(available / weeks);
     const clamped=Math.max(MIN_DAYCELL_HEIGHT, Math.min(MAX_DAYCELL_HEIGHT, Number.isFinite(rawRow) ? rawRow : MAX_DAYCELL_HEIGHT));
+    // Expose the measured row height to CSS so the fixed 6-row grid can resize without touching layout elsewhere.
     calGrid.style.setProperty('--daycell-h', `${clamped}px`);
   };
   const scheduleCalendarRowHeightUpdate=()=>{
@@ -984,15 +986,21 @@
     const shouldRestoreFocus = calendarFocusIntent || calGrid.contains(document.activeElement);
     calMonth.textContent = monthName(y,m); calYear.textContent = y;
     calGrid.innerHTML='';
-    const first=new Date(y,m,1), startOffset=first.getDay();
-    const daysInMonth=new Date(y,m+1,0).getDate();
-    // visibleWeeks tracks whether the active month spans five or six rows so the grid can compress rows without scrolling.
-    const visibleWeeks=Math.max(5, Math.ceil((startOffset + daysInMonth) / 7));
-    calendarVisibleWeeks=visibleWeeks;
-    calGrid.style.setProperty('--weeks', `${visibleWeeks}`);
-    const totalCells=visibleWeeks * 7;
+    const first=new Date(y,m,1);
+    // Months always render as a fixed 6×7 grid. We anchor the first cell to the
+    // Sunday on/preceding the 1st so the 42-day range covers leading + trailing months.
+    const startOfGrid=new Date(first);
+    startOfGrid.setDate(startOfGrid.getDate() - startOfGrid.getDay());
+    const totalCells=42;
+    calGrid.style.setProperty('--weeks', '6');
+    const days=[];
+    // Build the inclusive 42-day range so leading/trailing days keep the grid full without altering interactions.
     for(let i=0;i<totalCells;i++){
-      const d=new Date(y,m,1 - startOffset + i);
+      const d=new Date(startOfGrid);
+      d.setDate(startOfGrid.getDate() + i);
+      days.push(d);
+    }
+    for(const d of days){
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
       btn.setAttribute('role','gridcell');
