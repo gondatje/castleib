@@ -7,6 +7,119 @@
         return { dispose(){} };
       };
 
+  const attachGroupPillInteractions = (window.AssignmentChipLogic && typeof window.AssignmentChipLogic.attachGroupPillInteractions === 'function')
+    ? window.AssignmentChipLogic.attachGroupPillInteractions
+    : () => ({ open: () => {}, close: () => {} });
+
+  // Mirror the production overflow controller so the preview keeps the guest
+  // rail locked to one line and trades excess chips for a +N popover.
+  const layoutGuestCluster = (container, chips, options = {}) => {
+    if(!container) return;
+    const items = Array.isArray(chips) ? chips.filter(Boolean) : [];
+    container.innerHTML = '';
+    if(items.length === 0){
+      container.dataset.hasGuests = 'false';
+      return;
+    }
+
+    const visible = items.slice();
+    const hidden = [];
+    let overflowButton = null;
+    const measurementPadding = 1;
+
+    const applyLayout = () => {
+      container.innerHTML = '';
+      visible.forEach(chip => container.appendChild(chip));
+      if(hidden.length > 0){
+        if(!overflowButton){
+          overflowButton = buildOverflowButton(options);
+        }
+        updateOverflowButton(overflowButton, hidden, options);
+        container.appendChild(overflowButton);
+      }
+      container.dataset.hasGuests = 'true';
+    };
+
+    applyLayout();
+
+    if(container.clientWidth <= 0){
+      if(typeof requestAnimationFrame === 'function'){
+        requestAnimationFrame(() => layoutGuestCluster(container, items, options));
+      }
+      return;
+    }
+
+    let guard = 0;
+    while(visible.length > 0 && container.scrollWidth > container.clientWidth + measurementPadding && guard < items.length){
+      hidden.unshift(visible.pop());
+      guard += 1;
+      applyLayout();
+    }
+
+    if(hidden.length === 0){
+      container.dataset.hasGuests = 'true';
+      return;
+    }
+
+    guard = 0;
+    while(visible.length > 0 && container.scrollWidth > container.clientWidth + measurementPadding && guard < items.length){
+      hidden.unshift(visible.pop());
+      guard += 1;
+      applyLayout();
+    }
+
+    applyLayout();
+  };
+
+  const buildOverflowButton = (options = {}) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tag-everyone guest-overflow-pill';
+    button.dataset.pressExempt = 'true';
+    button.dataset.overflowChip = 'true';
+    button.setAttribute('aria-haspopup', 'true');
+    button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('pointerdown', event => event.stopPropagation());
+    button.addEventListener('click', event => event.stopPropagation());
+
+    const label = document.createElement('span');
+    label.className = 'guest-overflow-label';
+    button.appendChild(label);
+
+    const popover = document.createElement('div');
+    popover.className = 'popover';
+    popover.setAttribute('role', 'group');
+    popover.setAttribute('aria-label', options.popoverLabel || 'Additional guests');
+    button.appendChild(popover);
+
+    attachGroupPillInteractions(button);
+    return button;
+  };
+
+  const updateOverflowButton = (button, hiddenChips, options = {}) => {
+    if(!button) return;
+    const count = hiddenChips.length;
+    const label = button.querySelector('.guest-overflow-label');
+    if(label){
+      label.textContent = `+${count}`;
+    }
+    const popover = button.querySelector('.popover');
+    if(popover){
+      popover.innerHTML = '';
+      hiddenChips.forEach(chip => popover.appendChild(chip));
+    }
+    const tooltipNames = hiddenChips.map(chip => chip?.title || chip?.getAttribute?.('aria-label') || chip?.textContent || '').filter(Boolean);
+    const prefix = options.ariaLabelPrefix || 'More guests';
+    if(tooltipNames.length > 0){
+      const joined = tooltipNames.join(', ');
+      button.title = joined;
+      button.setAttribute('aria-label', `${prefix}: ${joined}`);
+    }else{
+      button.removeAttribute('title');
+      button.setAttribute('aria-label', `${prefix} (${count})`);
+    }
+  };
+
   const list = document.getElementById('demoActivities');
   const logEl = document.getElementById('demoLog');
   if(!list || !logEl) return;
@@ -80,8 +193,11 @@
 
     body.appendChild(headline);
 
-    const tagRow = document.createElement('div');
-    tagRow.className = 'tag-row';
+    const guestCluster = document.createElement('div');
+    guestCluster.className = 'activity-row-guests';
+
+    const actionCluster = document.createElement('div');
+    actionCluster.className = 'activity-row-rail';
 
     if(activity.pill){
       const pill = document.createElement('button');
@@ -95,11 +211,12 @@
         e.stopPropagation();
         log(`Previewed group pill: ${activity.pill.label}`);
       });
-      tagRow.appendChild(pill);
+      guestCluster.appendChild(pill);
+      guestCluster.dataset.hasGuests = 'true';
     }
 
-    if(Array.isArray(activity.guests)){
-      activity.guests.forEach(guest => {
+    if(Array.isArray(activity.guests) && activity.guests.length > 0){
+      const chips = activity.guests.map(guest => {
         const chip = document.createElement('span');
         chip.className = 'chip';
         chip.style.borderColor = guest.color;
@@ -123,12 +240,25 @@
         });
         chip.appendChild(remove);
 
-        tagRow.appendChild(chip);
+        return chip;
+      });
+
+      const targetCluster = activity.pill ? (() => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'activity-row-guests';
+        guestCluster.appendChild(wrapper);
+        return wrapper;
+      })() : guestCluster;
+
+      layoutGuestCluster(targetCluster, chips, {
+        popoverLabel: 'Guests',
+        ariaLabelPrefix: 'More guests'
       });
     }
 
-    body.appendChild(tagRow);
     row.appendChild(body);
+    row.appendChild(guestCluster);
+    row.appendChild(actionCluster);
     list.appendChild(row);
 
     const setPressed = (pressed) => {
