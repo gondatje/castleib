@@ -30,6 +30,12 @@
     }
     return (hour * 60) + minute;
   };
+  const rangesOverlap = (aStart, aEnd, bStart, bEnd) => {
+    if(!Number.isFinite(aStart) || !Number.isFinite(aEnd) || !Number.isFinite(bStart) || !Number.isFinite(bEnd)){
+      return false;
+    }
+    return aStart < bEnd && bStart < aEnd;
+  };
   const to24Time = ({ hour, minute, meridiem }) => {
     let h = Number(hour) || 0;
     const m = Number(minute) || 0;
@@ -2049,6 +2055,7 @@
     const existing = entryId ? getSpaEntry(targetDateKey, entryId) : null;
     const catalog = state.spaCatalog;
     const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const singleGuestStay = state.guests.length === 1;
     const normalizeGuestIds = ids => {
       const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
       const requestedSet = new Set(requested);
@@ -3402,18 +3409,23 @@
       const supportsInRoom = service?.supportsInRoom !== false;
       locationList.querySelectorAll('.spa-radio').forEach(btn => {
         const value = btn.dataset.value;
-        const disabled = value==='in-room' && !supportsInRoom;
+        const singleGuestLocked = singleGuestStay && value !== 'in-room';
+        const disabled = (value==='in-room' && !supportsInRoom) || singleGuestLocked;
         btn.classList.toggle('selected', selection?.location===value);
         btn.setAttribute('aria-pressed', selection?.location===value ? 'true' : 'false');
         btn.disabled = disabled;
+        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
       });
       // The helper content remains present for screen readers only; visually the
       // layout stays fixed because the element never takes up space.
+      const helperMessages = [];
       if(!supportsInRoom){
-        locationHelper.textContent='In-Room service is unavailable for this treatment.';
-      }else{
-        locationHelper.textContent='';
+        helperMessages.push('In-Room service is unavailable for this treatment.');
       }
+      if(singleGuestStay){
+        helperMessages.push('Cabana sharing is available once another guest is added to the stay.');
+      }
+      locationHelper.textContent = helperMessages.join(' ');
     }
 
     function refreshTimePickerSelection(){
@@ -3560,6 +3572,11 @@
     }
 
     function selectLocation(id){
+      if(singleGuestStay && id !== 'in-room'){
+        // Single-guest stays only allow in-room treatments; other cabana choices
+        // remain visible but locked so ignore programmatic attempts as well.
+        return;
+      }
       const canonical = getCanonicalSelection();
       const canonicalService = canonical ? findService(canonical.serviceName) || defaultService : defaultService;
       // Location gating mirrors the data model: if the current service blocks in-room,
@@ -4793,7 +4810,7 @@
       for(let j=i+1;j<windows.length;j+=1){
         const b = windows[j];
         if(a.guestId && b.guestId && a.guestId===b.guestId) continue;
-        if(a.start < b.end && a.end > b.start){
+        if(rangesOverlap(a.start, a.end, b.start, b.end)){
           if(overlapMap.has(a.entryId)) overlapMap.set(a.entryId, true);
           if(overlapMap.has(b.entryId)) overlapMap.set(b.entryId, true);
         }
@@ -4877,7 +4894,63 @@
     return buildAssignedGuestNames(ids, options);
   }
 
-  function buildSpaPreviewLines(entry){
+  const spaCabanaKey = (entryId, guestId) => `${entryId || 'unknown'}::${guestId || 'unknown'}`;
+
+  // Preview-only helper that flags which appointment rows should surface a cabana
+  // label. Activities rendering keeps its existing overlap rules so the column
+  // stays untouched.
+  function computeSpaCabanaVisibility(entries){
+    const visibility = new Map();
+    const windows = [];
+    (entries || []).forEach(entry => {
+      if(!entry || entry.type!=='spa') return;
+      const entryId = entry.id || '';
+      const apps = Array.isArray(entry.appointments) ? entry.appointments : [];
+      apps.forEach(app => {
+        if(!app) return;
+        const guestId = app.guestId || '';
+        const key = spaCabanaKey(entryId, guestId);
+        const locationId = app.location || 'same-cabana';
+        const isInRoom = locationId === 'in-room';
+        if(isInRoom){
+          visibility.set(key, true);
+        }else if(!visibility.has(key)){
+          visibility.set(key, false);
+        }
+        const start = minutesFromTime(app.start);
+        const end = minutesFromTime(app.end);
+        if(!Number.isFinite(start) || !Number.isFinite(end)) return;
+        windows.push({
+          key,
+          guestId,
+          start,
+          end,
+          isInRoom
+        });
+      });
+    });
+    for(let i=0;i<windows.length;i+=1){
+      const a = windows[i];
+      if(!a) continue;
+      for(let j=i+1;j<windows.length;j+=1){
+        const b = windows[j];
+        if(!b) continue;
+        if(!a.guestId || !b.guestId) continue;
+        if(a.guestId === b.guestId) continue;
+        if(rangesOverlap(a.start, a.end, b.start, b.end)){
+          if(!a.isInRoom){
+            visibility.set(a.key, true);
+          }
+          if(!b.isInRoom){
+            visibility.set(b.key, true);
+          }
+        }
+      }
+    }
+    return visibility;
+  }
+
+  function buildSpaPreviewLines(entry, options){
     if(!entry || !Array.isArray(entry.appointments)) return [];
     const appointments = entry.appointments.slice();
     if(appointments.length===0) return [];
@@ -4885,6 +4958,7 @@
     const base = appointments[0];
     const everyoneMatches = appointments.every(app => app.serviceName===base.serviceName && app.durationMinutes===base.durationMinutes && app.start===base.start && app.end===base.end && app.therapist===base.therapist && app.location===base.location);
     const lines = [];
+    const cabanaVisibility = options?.cabanaVisibility;
     if(everyoneMatches){
       // When every guest shares the same configuration, pluralise the service label
       // and append the same guest label string the activities row surfaces so the
@@ -4900,8 +4974,13 @@
       const timeRangeStart = escapeHtml(formatTimeDisplay(base.start));
       const timeRangeEnd = escapeHtml(formatTimeDisplay(base.end));
       const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
+      const showCabana = base.location === 'in-room' || appointments.length >= 2;
+      const segments = [timeRange, escapeHtml(serviceTitle), escapeHtml(therapist)];
+      if(showCabana){
+        segments.push(escapeHtml(location));
+      }
       // Wrap the spa time range so we can normalize its weight in the preview email.
-      lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
+      lines.push(`${segments.join(' | ')}${guestLabel}`);
       return lines;
     }
     const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
@@ -4916,8 +4995,14 @@
       const timeRangeStart = escapeHtml(formatTimeDisplay(app.start));
       const timeRangeEnd = escapeHtml(formatTimeDisplay(app.end));
       const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
+      const key = spaCabanaKey(entry.id, id);
+      const showCabana = app.location === 'in-room' || (cabanaVisibility && cabanaVisibility.get(key));
+      const segments = [timeRange, escapeHtml(serviceTitle), escapeHtml(therapist)];
+      if(showCabana){
+        segments.push(escapeHtml(location));
+      }
       // Wrap the per-guest spa time so its font weight matches the rest of the itinerary line.
-      lines.push(`${timeRange} | ${escapeHtml(serviceTitle)} | ${escapeHtml(therapist)} | ${escapeHtml(location)}${guestLabel}`);
+      lines.push(`${segments.join(' | ')}${guestLabel}`);
     });
     return lines;
   }
@@ -5012,10 +5097,11 @@
         daySection.appendChild(checkinLine());
 
       const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      const cabanaVisibility = computeSpaCabanaVisibility(items.filter(item => item?.type==='spa'));
       items.forEach(it=>{
         const isDinner = it.type==='dinner';
         if(it.type==='spa'){
-          const spaLines = buildSpaPreviewLines(it);
+          const spaLines = buildSpaPreviewLines(it, { cabanaVisibility });
           spaLines.forEach(line => {
             daySection.appendChild(
               makeEl('div','email-activity', line, {html:true})
