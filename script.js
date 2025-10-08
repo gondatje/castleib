@@ -421,6 +421,37 @@
   const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
   const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
   const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
+  const calendarWeekdayRow=calendarScrollContent && calendarScrollContent.querySelector('.dow');
+  const MIN_DAYCELL_HEIGHT=40;
+  const MAX_DAYCELL_HEIGHT=120;
+  const CALENDAR_WEEKS=6;
+  let calendarRowHeightRaf=0;
+  const updateCalendarRowHeights=()=>{
+    if(!calendarScrollContent) return;
+    const hostHeight=calendarScrollContent.clientHeight;
+    if(hostHeight<=0) return;
+    // Row height measurement always divides the host into six rows to match the fixed grid footprint.
+    const weeks=CALENDAR_WEEKS;
+    const weekdayHeaderHeight=calendarWeekdayRow ? calendarWeekdayRow.getBoundingClientRect().height : 0;
+    const hostStyles=getComputedStyle(calendarScrollContent);
+    const hostGap=parseFloat(hostStyles.rowGap || hostStyles.gap || '0') || 0;
+    const gridStyles=getComputedStyle(calGrid);
+    const rowGap=parseFloat(gridStyles.rowGap || '0') || 0;
+    const totalRowGaps=Math.max(0,(weeks-1))*rowGap;
+    // available trims the weekday header + vertical gaps so the remaining block can be evenly divided between week rows.
+    const available=hostHeight - weekdayHeaderHeight - hostGap - totalRowGaps;
+    const rawRow=Math.floor(available / weeks);
+    const clamped=Math.max(MIN_DAYCELL_HEIGHT, Math.min(MAX_DAYCELL_HEIGHT, Number.isFinite(rawRow) ? rawRow : MAX_DAYCELL_HEIGHT));
+    // Expose the measured row height to CSS so the fixed 6-row grid can resize without touching layout elsewhere.
+    calGrid.style.setProperty('--daycell-h', `${clamped}px`);
+  };
+  const scheduleCalendarRowHeightUpdate=()=>{
+    if(calendarRowHeightRaf) cancelAnimationFrame(calendarRowHeightRaf);
+    calendarRowHeightRaf=requestAnimationFrame(()=>{
+      calendarRowHeightRaf=0;
+      updateCalendarRowHeights();
+    });
+  };
   if(calendarCard && calendarContainer && calendarScroll && calendarScrollContent && calendarScrollThumb){
     const rootStyle=getComputedStyle(document.documentElement);
     const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
@@ -528,6 +559,7 @@
     });
     mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
     window.addEventListener('resize', scheduleThumbUpdate);
+    window.addEventListener('resize', scheduleCalendarRowHeightUpdate);
     // Desktop-only compaction: gate density changes behind the desktop media query so tablet/iPad keep the roomy layout.
     const desktopQuery=window.matchMedia('(min-width: 1024px)');
     const applyCalendarDensity=()=>{
@@ -557,6 +589,7 @@
         }
       }
       calendarContainer.style.setProperty('--calendar-grid-scale', scale.toFixed(3));
+      scheduleCalendarRowHeightUpdate();
       scheduleThumbUpdate();
     };
     const onDesktopQueryChange=()=>applyCalendarDensity();
@@ -570,7 +603,13 @@
       applyCalendarDensity();
     });
     densityObserver.observe(calendarCard);
+    const gridHostObserver=new ResizeObserver(()=>{
+      // ResizeObserver keeps the calendar row height in sync with viewport + layout changes.
+      scheduleCalendarRowHeightUpdate();
+    });
+    gridHostObserver.observe(calendarScroll);
     applyCalendarDensity();
+    scheduleCalendarRowHeightUpdate();
   }
   calGrid.addEventListener('focus',event=>{
     if(event.target===calGrid){
@@ -947,9 +986,21 @@
     const shouldRestoreFocus = calendarFocusIntent || calGrid.contains(document.activeElement);
     calMonth.textContent = monthName(y,m); calYear.textContent = y;
     calGrid.innerHTML='';
-    const first=new Date(y,m,1), startOffset=first.getDay();
-    for(let i=0;i<42;i++){
-      const d=new Date(y,m,1 - startOffset + i);
+    const first=new Date(y,m,1);
+    // Months always render as a fixed 6×7 grid. We anchor the first cell to the
+    // Sunday on/preceding the 1st so the 42-day range covers leading + trailing months.
+    const startOfGrid=new Date(first);
+    startOfGrid.setDate(startOfGrid.getDate() - startOfGrid.getDay());
+    const totalCells=42;
+    calGrid.style.setProperty('--weeks', '6');
+    const days=[];
+    // Build the inclusive 42-day range so leading/trailing days keep the grid full without altering interactions.
+    for(let i=0;i<totalCells;i++){
+      const d=new Date(startOfGrid);
+      d.setDate(startOfGrid.getDate() + i);
+      days.push(d);
+    }
+    for(const d of days){
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
       btn.setAttribute('role','gridcell');
@@ -984,6 +1035,7 @@
       });
       calGrid.appendChild(btn);
     }
+    scheduleCalendarRowHeightUpdate();
     if(shouldRestoreFocus){
       // After rebuilding the grid, re-focus the active cell without scrolling so arrow
       // key presses and clicks keep the visible focus ring in place across month changes.
