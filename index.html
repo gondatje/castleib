@@ -33,24 +33,35 @@
         <div id="dow" class="grid dow" aria-hidden="true"></div>
         <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
         <div class="calendar-actions">
-          <button id="btnToday" title="Today" aria-label="Today">Today</button>
-          <button id="btnArrival" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
-          <button id="btnDeparture" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
+          <!-- Full-width Today button anchors the control stack so it reads as the primary action without shifting nearby content. -->
+          <button id="btnToday" class="calendar-today-button" title="Today" aria-label="Today">Today</button>
+        </div>
+        <div class="stay-note-row" aria-label="Stay arrival and departure tools">
+          <!-- Group arrival controls so the note input sits inline with the button while keeping keyboard order logical. -->
+          <div class="stay-note">
+            <button id="btnArrival" class="stay-note-button" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
+            <input id="arrivalEta" class="stay-time-input" type="text" placeholder="ETA" aria-label="Arrival time note" aria-haspopup="dialog" readonly>
+          </div>
+          <div class="stay-note">
+            <button id="btnDeparture" class="stay-note-button" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
+            <input id="departureEtd" class="stay-time-input" type="text" placeholder="ETD" aria-label="Departure time note" aria-haspopup="dialog" readonly>
+          </div>
         </div>
         <!-- Guest tools sit in the calendar flow so iPad can stack header → nav → grid → controls → guests without JS shuffles. -->
         <div class="section guest-section">
-          <div class="card-section-header">
+          <div class="card-section-header guests-header">
             <h2>Guests</h2>
-          </div>
-          <div class="row">
-            <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
-            <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
+            <!-- Keep guest entry inline with the header so the divider still separates chips from controls. -->
+            <div class="guest-tools">
+              <input id="guestName" class="guest-input" type="text" placeholder="Who..?" aria-label="Guest name">
+              <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
               <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
                 <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
                 <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
               </svg>
-            </button>
+              </button>
+            </div>
           </div>
           <div id="guests" class="chips" aria-label="Guests"></div>
         </div>

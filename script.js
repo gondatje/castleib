@@ -311,6 +311,8 @@
     focus: zero(new Date()),
     arrival: null,
     departure: null,
+    arrivalNote: null, // Visual ETA note only; intentionally not wired into stay logic.
+    departureNote: null, // Visual ETD note only; intentionally not wired into stay logic.
     guests: [], // {id,name,color,active,primary}
     colors: ['#6366f1','#06b6d4','#22c55e','#f59e0b','#ef4444','#a855f7','#10b981','#f43f5e','#0ea5e9'],
     schedule: {}, // dateKey -> [{type:'activity',title,start,end,guestIds:Set}]
@@ -327,6 +329,7 @@
   // ---------- DOM ----------
   const $ = sel => document.querySelector(sel);
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
+  const arrivalEtaInput=$('#arrivalEta'), departureEtdInput=$('#departureEtd');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
   const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
@@ -347,9 +350,214 @@
   });
 
   // DOW header
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(t=>{
-    const d=document.createElement('div'); d.textContent=t; dow.appendChild(d);
+  // Surface compact weekday initials while keeping full names available for assistive tech + tooltips.
+  const weekdayInitials=['S','M','T','W','T','F','S'];
+  const weekdayFull=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  weekdayInitials.forEach((abbr,ix)=>{
+    const d=document.createElement('div');
+    d.textContent=abbr;
+    d.setAttribute('aria-label', weekdayFull[ix]);
+    d.title = weekdayFull[ix];
+    dow.appendChild(d);
   });
+
+  let stayNotePicker=null;
+  function updateStayNoteInputs(){
+    if(arrivalEtaInput){
+      const display = state.arrivalNote ? fmt12(state.arrivalNote) : '';
+      arrivalEtaInput.value = display;
+      arrivalEtaInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='arrivalNote' ? 'true' : 'false');
+    }
+    if(departureEtdInput){
+      const display = state.departureNote ? fmt12(state.departureNote) : '';
+      departureEtdInput.value = display;
+      departureEtdInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='departureNote' ? 'true' : 'false');
+    }
+  }
+
+  function closeStayNotePicker({ returnFocus=false }={}){
+    if(!stayNotePicker) return;
+    const { overlay, anchor, timePicker, handleKeydown, handleViewport } = stayNotePicker;
+    document.removeEventListener('keydown', handleKeydown, true);
+    window.removeEventListener('resize', handleViewport, true);
+    window.removeEventListener('scroll', handleViewport, true);
+    if(timePicker && typeof timePicker.dispose==='function'){
+      timePicker.dispose();
+    }
+    if(overlay?.parentNode){
+      overlay.parentNode.removeChild(overlay);
+    }
+    if(anchor){
+      anchor.setAttribute('aria-expanded','false');
+      if(returnFocus){
+        focusWithoutScroll(anchor);
+      }
+    }
+    stayNotePicker=null;
+    updateStayNoteInputs();
+  }
+
+  function openStayNotePicker({ anchor, stateKey, label }){
+    if(!anchor){
+      return;
+    }
+    if(stayNotePicker && stayNotePicker.anchor===anchor){
+      closeStayNotePicker({ returnFocus:true });
+      return;
+    }
+    closeStayNotePicker();
+    if(typeof createTimePicker!=='function'){
+      return;
+    }
+
+    const overlay=document.createElement('div');
+    overlay.className='stay-time-layer';
+    const scrim=document.createElement('div');
+    scrim.className='stay-time-scrim';
+    overlay.appendChild(scrim);
+
+    const surface=document.createElement('div');
+    surface.className='stay-time-surface';
+    surface.setAttribute('role','dialog');
+    surface.setAttribute('aria-modal','true');
+    const labelId=`${stateKey}-stay-time-label`;
+    const srLabel=document.createElement('div');
+    srLabel.className='sr-only';
+    srLabel.id=labelId;
+    srLabel.textContent=label;
+    surface.setAttribute('aria-labelledby', labelId);
+    surface.appendChild(srLabel);
+
+    const pickerHost=document.createElement('div');
+    surface.appendChild(pickerHost);
+
+    const storedValue = state[stateKey];
+    const defaultSnapshot = storedValue ? from24Time(storedValue) : { hour:12, minute:0, meridiem:'PM' };
+    const ariaBase = stateKey==='arrivalNote' ? 'Arrival' : 'Departure';
+    let pendingValue = defaultSnapshot;
+
+    // Match the shared picker physics: 1–12 hours, 5-minute steps, AM/PM toggle.
+    const pickerInstance=createTimePicker({
+      hourRange:[1,12],
+      minuteStep:5,
+      showAmPm:true,
+      defaultValue: defaultSnapshot,
+      ariaLabels:{ hours:`${ariaBase} hour`, minutes:`${ariaBase} minutes`, meridiem:'AM or PM' },
+      onChange:value=>{ pendingValue = value; }
+    });
+
+    if(pickerInstance && pickerInstance.element){
+      pickerHost.appendChild(pickerInstance.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='stay-time-fallback';
+      fallback.textContent='Time picker unavailable.';
+      pickerHost.appendChild(fallback);
+    }
+
+    const actions=document.createElement('div');
+    actions.className='stay-time-actions';
+
+    const clearBtn=document.createElement('button');
+    clearBtn.type='button';
+    clearBtn.className='stay-time-clear';
+    clearBtn.textContent='Clear';
+    clearBtn.setAttribute('aria-label',`Clear ${ariaBase.toLowerCase()} time note`);
+    clearBtn.addEventListener('click',()=>{
+      state[stateKey]=null;
+      closeStayNotePicker({ returnFocus:true });
+      updateStayNoteInputs();
+    });
+    actions.appendChild(clearBtn);
+
+    const saveBtn=document.createElement('button');
+    saveBtn.type='button';
+    saveBtn.className='stay-time-primary';
+    saveBtn.textContent='Save';
+    saveBtn.setAttribute('aria-label',`Save ${ariaBase.toLowerCase()} time note`);
+    saveBtn.addEventListener('click',()=>{
+      const snapshot = (pickerInstance && typeof pickerInstance.getValue==='function') ? pickerInstance.getValue() : pendingValue;
+      if(snapshot){
+        state[stateKey]=to24Time(snapshot);
+      }
+      closeStayNotePicker({ returnFocus:true });
+      updateStayNoteInputs();
+    });
+    actions.appendChild(saveBtn);
+
+    surface.appendChild(actions);
+
+    overlay.appendChild(surface);
+    document.body.appendChild(overlay);
+
+    const reposition=()=>{
+      const rect=anchor.getBoundingClientRect();
+      const surfaceRect=surface.getBoundingClientRect();
+      const viewportWidth=window.innerWidth || document.documentElement.clientWidth;
+      const viewportHeight=window.innerHeight || document.documentElement.clientHeight;
+      let left=rect.left+window.scrollX;
+      let top=rect.bottom+window.scrollY+8;
+      const maxLeft=window.scrollX+viewportWidth-surfaceRect.width-16;
+      left=Math.min(Math.max(left, window.scrollX+16), Math.max(window.scrollX+16, maxLeft));
+      if(top+surfaceRect.height>window.scrollY+viewportHeight-16){
+        top=rect.top+window.scrollY-surfaceRect.height-8;
+      }
+      top=Math.max(top, window.scrollY+16);
+      surface.style.left=`${left}px`;
+      surface.style.top=`${top}px`;
+    };
+
+    // Delay positioning until the picker paints so measurements are accurate.
+    requestAnimationFrame(()=>{
+      reposition();
+      pickerInstance?.focus?.({ preventScroll:true });
+    });
+
+    const getFocusableElements=()=> Array.from(surface.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.hasAttribute('disabled') && el.getAttribute('aria-hidden')!=='true');
+
+    const handleKeydown=e=>{
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeStayNotePicker({ returnFocus:true });
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable=getFocusableElements();
+        if(!focusable.length) return;
+        const active=document.activeElement;
+        let index=focusable.indexOf(active);
+        if(index===-1){
+          index = e.shiftKey ? focusable.length-1 : 0;
+        }else{
+          index += e.shiftKey ? -1 : 1;
+          if(index<0) index = focusable.length-1;
+          if(index>=focusable.length) index = 0;
+        }
+        e.preventDefault();
+        const target=focusable[index];
+        if(target){
+          focusWithoutScroll(target);
+        }
+      }
+    };
+    const handleViewport=()=>{ reposition(); };
+
+    document.addEventListener('keydown', handleKeydown, true);
+    window.addEventListener('resize', handleViewport, true);
+    window.addEventListener('scroll', handleViewport, true);
+
+    scrim.addEventListener('pointerdown', e=>{
+      if(e.target===scrim){
+        closeStayNotePicker({ returnFocus:true });
+      }
+    });
+    surface.addEventListener('pointerdown', e=> e.stopPropagation());
+
+    anchor.setAttribute('aria-expanded','true');
+
+    stayNotePicker={ overlay, anchor, timePicker: pickerInstance, stateKey, handleKeydown, handleViewport };
+    updateStayNoteInputs();
+  }
 
   // ---------- Data load ----------
 
@@ -494,6 +702,7 @@
       btn.addEventListener('click',()=>{ state.focus=zero(d); renderAll(); });
       calGrid.appendChild(btn);
     }
+    updateStayNoteInputs();
   }
 
   // ---------- Guests ----------
@@ -4475,6 +4684,29 @@
   }
   $('#btnArrival').onclick=setArrival; $('#btnDeparture').onclick=setDeparture;
 
+  if(arrivalEtaInput){
+    const openArrivalNote=()=> openStayNotePicker({ anchor: arrivalEtaInput, stateKey:'arrivalNote', label:'Set arrival time note' });
+    arrivalEtaInput.addEventListener('click', openArrivalNote);
+    arrivalEtaInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        openArrivalNote();
+      }
+    });
+  }
+  if(departureEtdInput){
+    const openDepartureNote=()=> openStayNotePicker({ anchor: departureEtdInput, stateKey:'departureNote', label:'Set departure time note' });
+    departureEtdInput.addEventListener('click', openDepartureNote);
+    departureEtdInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        openDepartureNote();
+      }
+    });
+  }
+
+  updateStayNoteInputs();
+
   // ---------- Edit / Copy / Clear ----------
   const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 11V8a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="5.75" y="11" width="12.5" height="9" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
@@ -4548,7 +4780,7 @@
 
   $('#clearAll').onclick=()=>{
     if(!confirm('Clear all itinerary data?')) return;
-    state.arrival=null; state.departure=null; state.guests.length=0; state.schedule={};
+    state.arrival=null; state.departure=null; state.arrivalNote=null; state.departureNote=null; state.guests.length=0; state.schedule={};
     markPreviewDirty();
     renderAll();
   };
