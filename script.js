@@ -5157,6 +5157,10 @@
           const guestSegment = guestNames.map(name => escapeHtml(name)).join(' | ');
           lineMarkup = lineMarkup ? `${lineMarkup} | ${guestSegment}` : guestSegment;
         }
+        if(!lineMarkup){
+          // Avoid injecting empty divs so the preview stays a continuous stack with no phantom gaps.
+          return;
+        }
         daySection.appendChild(
           makeEl(
             'div',
@@ -5274,24 +5278,32 @@
   let copyTitleTimer = null;
   copyBtn.onclick=async ()=>{
     const html=email.innerHTML;
-    const text=email.textContent;
+    // Collapse stray blank lines so clipboard copy mirrors the on-screen, gap-free itinerary.
+    const clipboardText=(email.textContent||'').replace(/\n{2,}/g,'\n').trim();
     try{
       if(window.ClipboardItem && navigator.clipboard?.write){
         const item=new ClipboardItem({
           'text/html': new Blob([html], {type:'text/html'}),
-          'text/plain': new Blob([text], {type:'text/plain'})
+          'text/plain': new Blob([clipboardText], {type:'text/plain'})
         });
         await navigator.clipboard.write([item]);
       }else if(navigator.clipboard?.writeText){
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(clipboardText);
       }else{
         throw new Error('Clipboard API unavailable');
       }
     }
     catch(e){
-      const range=document.createRange(); range.selectNodeContents(email);
-      const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      document.execCommand('copy'); sel.removeAllRanges();
+      // Legacy execCommand fallback still copies the sanitized text so older browsers get the gap-free output too.
+      const fallback=document.createElement('textarea');
+      fallback.value=clipboardText;
+      fallback.setAttribute('readonly','');
+      fallback.style.position='absolute';
+      fallback.style.left='-9999px';
+      document.body.appendChild(fallback);
+      fallback.select();
+      document.execCommand('copy');
+      document.body.removeChild(fallback);
     }
     copyBtn.title='Copied';
     if(copyTitleTimer) clearTimeout(copyTitleTimer);
