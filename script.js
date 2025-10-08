@@ -122,6 +122,8 @@
   const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor" stroke="currentColor"/></svg>';
   const trashSvg = `<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g fill="currentColor"><path d="M0.982,5.073 L2.007,15.339 C2.007,15.705 2.314,16 2.691,16 L10.271,16 C10.648,16 10.955,15.705 10.955,15.339 L11.98,5.073 L0.982,5.073 L0.982,5.073 Z M7.033,14.068 L5.961,14.068 L5.961,6.989 L7.033,6.989 L7.033,14.068 L7.033,14.068 Z M9.033,14.068 L7.961,14.068 L8.961,6.989 L10.033,6.989 L9.033,14.068 L9.033,14.068 Z M5.033,14.068 L3.961,14.068 L2.961,6.989 L4.033,6.989 L5.033,14.068 L5.033,14.068 Z"/><path d="M12.075,2.105 L8.937,2.105 L8.937,0.709 C8.937,0.317 8.481,0 8.081,0 L4.986,0 C4.586,0 4.031,0.225 4.031,0.615 L4.031,2.011 L0.886,2.105 C0.485,2.105 0.159,2.421 0.159,2.813 L0.159,3.968 L12.8,3.968 L12.8,2.813 C12.801,2.422 12.477,2.105 12.075,2.105 L12.075,2.105 Z M4.947,1.44 C4.947,1.128 5.298,0.875 5.73,0.875 L7.294,0.875 C7.726,0.875 8.076,1.129 8.076,1.44 L8.076,2.105 L4.946,2.105 L4.946,1.44 L4.947,1.44 Z"/></g></svg>`;
+  // Toolbar clear button uses the MIT-licensed Ant Design delete glyph so destructive affordances stay readable at small sizes.
+  const clearToolbarSvg = '<svg viewBox="0 0 1024 1024" aria-hidden="true" focusable="false"><path fill="currentColor" d="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z"/></svg>';
   const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
 
   const dinnerMinutes = [0,15,30,45];
@@ -342,6 +344,23 @@
   const addDinnerBtn=$('#addDinner');
   const addSpaBtn=$('#addSpa');
   const addCustomBtn=$('#addCustom');
+  const clearAllBtn=$('#clearAll');
+  if(addDinnerBtn){
+    // Reuse the dinner chip glyph inside the toolbar trigger so icon updates stay centralized.
+    addDinnerBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${dinnerIconSvg}</span><span class="sr-only">Add Dinner</span>`;
+  }
+  if(addSpaBtn){
+    // Spa trigger mirrors the chip art and keeps the sr-only label aligned with the aria-label for assistive tech.
+    addSpaBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${spaIconSvg}</span><span class="sr-only">Add SPA Service</span>`;
+  }
+  if(addCustomBtn){
+    // Custom trigger leans on the shared chip SVG so styling and accessibility stay in sync across contexts.
+    addCustomBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${customChipIconSvg}</span><span class="sr-only">Add Custom Activity</span>`;
+  }
+  if(clearAllBtn){
+    // Clear trigger leans on the destructive icon while keeping the sr-only label aligned with the aria attributes.
+    clearAllBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${clearToolbarSvg}</span><span class="sr-only">Clear all itinerary data</span>`;
+  }
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
@@ -4841,12 +4860,14 @@
     copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy'; },1200);
   };
 
-  $('#clearAll').onclick=()=>{
-    if(!confirm('Clear all itinerary data?')) return;
-    state.arrival=null; state.departure=null; state.arrivalNote=null; state.departureNote=null; state.guests.length=0; state.schedule={};
-    markPreviewDirty();
-    renderAll();
-  };
+  if(clearAllBtn){
+    clearAllBtn.onclick=()=>{
+      if(!confirm('Clear all itinerary data?')) return;
+      state.arrival=null; state.departure=null; state.arrivalNote=null; state.departureNote=null; state.guests.length=0; state.schedule={};
+      markPreviewDirty();
+      renderAll();
+    };
+  }
 
   // ---------- Shortcuts (guard against browser defaults) ----------
   window.addEventListener('keydown', (e)=>{
