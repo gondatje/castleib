@@ -345,22 +345,19 @@
   const addSpaBtn=$('#addSpa');
   const addCustomBtn=$('#addCustom');
   const clearAllBtn=$('#clearAll');
-  if(addDinnerBtn){
-    // Reuse the dinner chip glyph inside the toolbar trigger so icon updates stay centralized.
-    addDinnerBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${dinnerIconSvg}</span><span class="sr-only">Add Dinner</span>`;
+  function decorateToolbarButton(button, iconSvg, srText){
+    if(!button){
+      return;
+    }
+    // Toolbar triggers borrow the chip art so icon swaps stay centralized while the sr-only label mirrors aria-label/title.
+    const srLabel = srText || button.getAttribute('aria-label') || '';
+    button.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${iconSvg}</span><span class="sr-only">${srLabel}</span>`;
   }
-  if(addSpaBtn){
-    // Spa trigger mirrors the chip art and keeps the sr-only label aligned with the aria-label for assistive tech.
-    addSpaBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${spaIconSvg}</span><span class="sr-only">Add SPA Service</span>`;
-  }
-  if(addCustomBtn){
-    // Custom trigger leans on the shared chip SVG so styling and accessibility stay in sync across contexts.
-    addCustomBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${customChipIconSvg}</span><span class="sr-only">Add Custom Activity</span>`;
-  }
-  if(clearAllBtn){
-    // Clear trigger leans on the destructive icon while keeping the sr-only label aligned with the aria attributes.
-    clearAllBtn.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${clearToolbarSvg}</span><span class="sr-only">Clear all itinerary data</span>`;
-  }
+
+  decorateToolbarButton(addDinnerBtn, dinnerIconSvg, 'Add Dinner');
+  decorateToolbarButton(addSpaBtn, spaIconSvg, 'Add SPA Service');
+  decorateToolbarButton(addCustomBtn, customChipIconSvg, 'Add Custom Activity');
+  decorateToolbarButton(clearAllBtn, clearToolbarSvg, 'Clear all itinerary data');
   toggleEditBtn.textContent='✎';
   toggleEditBtn.title='Edit';
   toggleEditBtn.setAttribute('aria-pressed','false');
