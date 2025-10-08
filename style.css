@@ -529,6 +529,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .days button.stay{background:var(--stayBand)}
 #dayTitle{font-weight:600}
 .email{background:#fff;border:1px solid var(--border);padding:20px;border-radius:12px;min-height:260px;font-size:15px;line-height:var(--line-tight,1.35);color:var(--ink)}
+.email.preview-locked{background:color-mix(in srgb,var(--surface) 92%,var(--text-muted) 8%);box-shadow:inset 0 0 0 1px var(--hairline-strong);cursor:default}
 /* Reset browser margins inside the preview only so headers/lines sit back-to-back without extra gaps. */
 .email h1,.email h2,.email h3,.email h4,.email h5,.email h6,.email p,.email ul,.email ol,.email li,.email div{margin-block:0}
 .email ul,.email ol{padding-inline-start:0;list-style:none}

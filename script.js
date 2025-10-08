@@ -360,6 +360,10 @@
     previewMode: 'view',
     // Single boolean keeps the toggle icon + label in sync without juggling two buttons.
     isEditingPreview: false,
+    previewState: {
+      isLocked: false,
+      lockedHtml: ''
+    },
     previewPatches: new Map(),
     previewBaseSnapshot: new Map(),
     previewItineraryKey: null,
@@ -5211,7 +5215,7 @@
       persistPreviewPatches(itineraryId, migrated);
     }
     state.previewPatches = map;
-    if(state.previewMode!=='edit'){
+    if(state.previewMode!=='edit' && !state.previewState?.isLocked){
       state.previewMode = map.size>0 ? 'locked' : 'view';
       state.isEditingPreview = false;
     }
@@ -5219,18 +5223,30 @@
 
   function updatePreviewButtons(){
     const hasPatches = state.previewPatches && state.previewPatches.size>0;
+    const isLocked = !!state.previewState?.isLocked;
     if(previewToggleBtn){
       // One button swaps glyph + label instead of juggling separate edit/lock controls.
       const isEditing = !!state.isEditingPreview;
       previewToggleBtn.disabled = false;
       previewToggleBtn.setAttribute('aria-pressed', String(isEditing));
-      const label = isEditing ? 'Lock preview' : 'Edit preview';
+      let label;
+      let iconMarkup;
+      if(isEditing){
+        label = 'Lock preview';
+        iconMarkup = lockIconSvg;
+      }else if(isLocked){
+        label = 'Unlock preview';
+        iconMarkup = lockIconSvg;
+      }else{
+        label = 'Edit preview';
+        iconMarkup = editIconSvg;
+      }
       previewToggleBtn.setAttribute('aria-label', label);
       previewToggleBtn.title = label;
-      previewToggleBtn.innerHTML = isEditing ? lockIconSvg : editIconSvg;
+      previewToggleBtn.innerHTML = iconMarkup;
     }
     if(resetPreviewBtn){
-      resetPreviewBtn.disabled = !hasPatches;
+      resetPreviewBtn.disabled = !hasPatches && !isLocked;
     }
   }
 
@@ -5238,7 +5254,7 @@
     if(!email) return;
     if(state.isEditingPreview){
       email.setAttribute('aria-label','Editing email preview');
-    }else if(state.previewMode==='locked'){
+    }else if(state.previewState?.isLocked || state.previewMode==='locked'){
       email.setAttribute('aria-label','Email preview (locked)');
     }else{
       email.setAttribute('aria-label','Email preview');
@@ -5270,6 +5286,27 @@
   }
 
   function renderPreview(){
+    if(state.previewState?.isLocked){
+      // When locked we skip the generator entirely and render from the frozen snapshot.
+      const lockedHtml = typeof state.previewState.lockedHtml === 'string' ? state.previewState.lockedHtml : '';
+      if(email && email.innerHTML !== lockedHtml){
+        email.innerHTML = lockedHtml;
+      }
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      state.previewMode = 'locked';
+      state.isEditingPreview = false;
+      state.previewDirty = false;
+      setPreviewAriaLabel();
+      updatePreviewButtons();
+      if(email){
+        email.classList.add('preview-locked');
+      }
+      return;
+    }
+    if(email){
+      email.classList.remove('preview-locked');
+    }
     if(state.isEditingPreview){
       state.previewDirty = true;
       return;
@@ -5551,6 +5588,9 @@
   }
 
   function enterPreviewEditMode(){
+    if(state.previewState?.isLocked){
+      return;
+    }
     state.previewMode = 'edit';
     state.isEditingPreview = true;
     state.editing = true;
@@ -5564,7 +5604,15 @@
   function lockPreviewEdits(){
     if(state.previewMode!=='edit') return;
     capturePreviewPatchesFromDom();
-    state.previewMode = state.previewPatches.size>0 ? 'locked' : 'view';
+    const sanitizedSnapshot = sanitizePreviewHtml(email.innerHTML);
+    if(email.innerHTML !== sanitizedSnapshot){
+      email.innerHTML = sanitizedSnapshot;
+    }
+    // Persist a sanitized snapshot so locking re-renders from a frozen payload without
+    // re-running the live generator or leaking script/style tags.
+    state.previewState.isLocked = true;
+    state.previewState.lockedHtml = sanitizedSnapshot;
+    state.previewMode = 'locked';
     state.isEditingPreview = false;
     state.editing = false;
     email.contentEditable = 'false';
@@ -5575,6 +5623,42 @@
   }
 
   function resetPreviewEdits(){
+    if(state.previewState?.isLocked){
+      // Reset while locked clears the authoritative snapshot and restores live rendering.
+      if(!confirm('Unlock and discard the locked preview?')) return;
+      state.previewState.isLocked = false;
+      state.previewState.lockedHtml = '';
+      state.previewPatches = new Map();
+      const itineraryIdLocked = state.previewItineraryKey || getItineraryId();
+      persistPreviewPatches(itineraryIdLocked, []);
+      state.previewMode = state.previewPatches && state.previewPatches.size>0 ? 'locked' : 'view';
+      state.isEditingPreview = false;
+      state.editing = false;
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      setPreviewAriaLabel();
+      updatePreviewButtons();
+      state.previewDirty = true;
+      renderPreview();
+      return;
+    }
+    if(state.isEditingPreview){
+      state.previewPatches = new Map();
+      const itineraryIdEditing = state.previewItineraryKey || getItineraryId();
+      persistPreviewPatches(itineraryIdEditing, []);
+      const wasEditing = state.isEditingPreview;
+      state.isEditingPreview = false;
+      state.previewMode = 'view';
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      setPreviewAriaLabel();
+      updatePreviewButtons();
+      renderPreview();
+      if(wasEditing){
+        enterPreviewEditMode();
+      }
+      return;
+    }
     if(!state.previewPatches || state.previewPatches.size===0) return;
     if(!confirm('Reset all email preview edits?')) return;
     state.previewPatches = new Map();
@@ -5594,6 +5678,18 @@
     previewToggleBtn.onclick=()=>{
       if(state.isEditingPreview){
         lockPreviewEdits();
+      }else if(state.previewState?.isLocked){
+        state.previewState.isLocked = false;
+        state.previewState.lockedHtml = '';
+        state.previewMode = state.previewPatches && state.previewPatches.size>0 ? 'locked' : 'view';
+        state.isEditingPreview = false;
+        state.editing = false;
+        email.contentEditable = 'false';
+        email.style.outline = 'none';
+        setPreviewAriaLabel();
+        updatePreviewButtons();
+        renderPreview();
+        enterPreviewEditMode();
       }else{
         enterPreviewEditMode();
       }
@@ -5606,6 +5702,9 @@
   }
   email.addEventListener('dblclick', (e)=>{
     if(e.metaKey || e.ctrlKey){
+      if(state.previewState?.isLocked){
+        return;
+      }
       if(state.isEditingPreview){
         lockPreviewEdits();
       }else{
@@ -5615,10 +5714,17 @@
   });
 
   let copyTitleTimer = null;
+  function lockedHtmlToPlainText(html){
+    const scratch = document.createElement('div');
+    scratch.innerHTML = html || '';
+    return (scratch.textContent || '').split('\n').map(line=>line.trimEnd()).join('\n').replace(/\n{2,}/g,'\n').trim();
+  }
+
   copyBtn.onclick=async ()=>{
-    const html=email.innerHTML;
-    const lines=(email.textContent||'').split('\n').map(line=>line.trimEnd());
-    const clipboardText=lines.join('\n').replace(/\n{2,}/g,'\n').trim();
+    const lockedHtml = state.previewState?.isLocked ? state.previewState.lockedHtml : null;
+    // Copy honors the authoritative snapshot so the clipboard never drifts from the visible lock state.
+    const html = lockedHtml ?? email.innerHTML;
+    const clipboardText = lockedHtmlToPlainText(html);
     try{
       if(window.ClipboardItem && navigator.clipboard?.write){
         const item=new ClipboardItem({
