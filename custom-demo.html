@@ -120,10 +120,22 @@
       </div>
       <div id="email" class="email" spellcheck="false"></div>
       <div class="row stick-right">
-        <button id="editPreview" title="Edit Email Preview" aria-label="Edit Email Preview">Edit</button>
-        <button id="lockPreview" title="Lock Email Preview" aria-label="Lock Email Preview" disabled>Lock</button>
-        <button id="resetPreview" title="Reset Email Edits" aria-label="Reset Email Edits" disabled>Reset</button>
-        <button id="copy" title="Copy">⧉</button>
+        <button id="previewToggle" class="preview-action-btn" type="button" aria-pressed="false" aria-label="Edit preview" title="Edit preview">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit">
+            <path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="resetPreview" class="preview-action-btn" type="button" title="Reset preview edits" aria-label="Reset preview edits" disabled>
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-reset">
+            <path d="M28.707,10.293l-5-5A1,1,0,0,0,22,5V8.09A12,12,0,1,0,28,16a1,1,0,0,0-2,0,10,10,0,1,1-3.764-7.8L20.586,9.852A1,1,0,0,0,22,11.266h6a1,1,0,0,0,.707-1.707Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="copy" class="preview-action-btn" type="button" title="Copy preview" aria-label="Copy preview">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-copy">
+            <path d="M12,6a3,3,0,0,1,3-3H27a3,3,0,0,1,3,3V25a3,3,0,0,1-3,3H15a3,3,0,0,1-3-3ZM15,5a1,1,0,0,0-1,1V25a1,1,0,0,0,1,1H27a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z" fill="currentColor"/>
+            <path d="M5,9A3,3,0,0,1,8,6h4V8H8a1,1,0,0,0-1,1V26a1,1,0,0,0,1,1H23a1,1,0,0,0,1-1V25h2v1a3,3,0,0,1-3,3H8a3,3,0,0,1-3-3Z" fill="currentColor"/>
+          </svg>
+        </button>
       </div>
     </section>
   </div>

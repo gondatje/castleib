@@ -123,7 +123,11 @@
   // Spec-supplied custom chip icon swaps in a unique glyph until hover/keyboard
   // focus reveals the standard pencil affordance for editing.
   const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  const pencilSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 16.75 3 21l4.25-1.5L19.5 7.25 16.75 4.5 4.5 16.75Zm12.5-12.5 2.75 2.75 1-1a1.88 1.88 0 0 0 0-2.62l-.88-.88a1.88 1.88 0 0 0-2.62 0l-1 1Z" fill="currentColor" stroke="currentColor"/></svg>';
+  // Shared edit glyph ensures every edit affordance uses the same SVG + token sizing.
+  const editIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit"><path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/></svg>';
+  const lockIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-lock"><path d="M16 4a6 6 0 0 0-6 6v4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V16a2 2 0 0 0-2-2h-2v-4a6 6 0 0 0-6-6zm0 2a4 4 0 0 1 4 4v4h-8v-4a4 4 0 0 1 4-4zm-8 10h16v12H8V16zm8 2a2 2 0 0 0-2 2 2 2 0 0 0 1 1.732V24h2v-2.268A2 2 0 0 0 16 18z" fill="currentColor"/></svg>';
+  const resetIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-reset"><path d="M28.707,10.293l-5-5A1,1,0,0,0,22,5V8.09A12,12,0,1,0,28,16a1,1,0,0,0-2,0,10,10,0,1,1-3.764-7.8L20.586,9.852A1,1,0,0,0,22,11.266h6a1,1,0,0,0,.707-1.707Z" fill="currentColor"/></svg>';
+  const copyIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-copy"><path d="M12,6a3,3,0,0,1,3-3H27a3,3,0,0,1,3,3V25a3,3,0,0,1-3,3H15a3,3,0,0,1-3-3ZM15,5a1,1,0,0,0-1,1V25a1,1,0,0,0,1,1H27a1,1,0,0,0,1-1V6a1,1,0,0,0-1-1Z" fill="currentColor"/><path d="M5,9A3,3,0,0,1,8,6h4V8H8a1,1,0,0,0-1,1V26a1,1,0,0,0,1,1H23a1,1,0,0,0,1-1V25h2v1a3,3,0,0,1-3,3H8a3,3,0,0,1-3-3Z" fill="currentColor"/></svg>';
   // Shared modal glyphs keep every destructive/save affordance visually in sync while
   // letting the CSS drive color via `currentColor` so themes remain consistent.
   const saveIconSvg = '<svg viewBox="-3 -3 24 24" aria-hidden="true" focusable="false"><path d="M2 0h11.22a2 2 0 0 1 1.345.52l2.78 2.527A2 2 0 0 1 18 4.527V16a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 2v14h14V4.527L13.22 2H2zm4 8h6a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm0 2v4h6v-4H6zm7-9a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1zM5 3h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 3h3V5H6v1z" fill="currentColor"/></svg>';
@@ -354,6 +358,8 @@
     dataStatus: 'loading',
     editing: false,
     previewMode: 'view',
+    // Single boolean keeps the toggle icon + label in sync without juggling two buttons.
+    isEditingPreview: false,
     previewPatches: new Map(),
     previewBaseSnapshot: new Map(),
     previewItineraryKey: null,
@@ -371,14 +377,22 @@
   const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
-  const editPreviewBtn=$('#editPreview');
-  const lockPreviewBtn=$('#lockPreview');
+  const previewToggleBtn=$('#previewToggle');
   const resetPreviewBtn=$('#resetPreview');
   const copyBtn=$('#copy');
   const addDinnerBtn=$('#addDinner');
   const addSpaBtn=$('#addSpa');
   const addCustomBtn=$('#addCustom');
   const clearAllBtn=$('#clearAll');
+
+  if(resetPreviewBtn){
+    resetPreviewBtn.innerHTML = resetIconSvg;
+  }
+  if(copyBtn){
+    copyBtn.innerHTML = copyIconSvg;
+    copyBtn.title = 'Copy preview';
+    copyBtn.setAttribute('aria-label','Copy preview');
+  }
   function decorateToolbarButton(button, iconSvg, srText){
     if(!button){
       return;
@@ -1562,7 +1576,7 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='dinner-chip';
-      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${pencilSvg}</span><span class="sr-only">Edit dinner time</span>`;
+      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${editIconSvg}</span><span class="sr-only">Edit dinner time</span>`;
       chip.setAttribute('aria-label','Edit dinner time');
       chip.title='Edit dinner time';
       chip.dataset.pressExempt='true';
@@ -1615,7 +1629,7 @@
       const chip=document.createElement('button');
       chip.type='button';
       chip.className='spa-chip chip chip--spa';
-      chip.innerHTML = `<span class="icon icon-spa" aria-hidden="true">${spaIconSvg}</span><span class="icon icon-pencil" aria-hidden="true">${pencilSvg}</span><span class="sr-only">Edit spa appointment</span>`;
+      chip.innerHTML = `<span class="chip-layer chip-layer--spa" aria-hidden="true">${spaIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span><span class="sr-only">Edit spa appointment</span>`;
       chip.setAttribute('aria-label','Edit spa appointment');
       chip.title='Edit spa appointment';
       chip.dataset.pressExempt='true';
@@ -1672,7 +1686,7 @@
       chip.className='chip chip--custom';
       // Layer both icons so the custom glyph renders immediately and we can flip
       // to the pencil via hover/:focus-visible without resizing the pill.
-      chip.innerHTML = `<span class="icon icon-custom" aria-hidden="true">${customChipIconSvg}</span><span class="icon icon-pencil" aria-hidden="true">${pencilSvg}</span>`;
+      chip.innerHTML = `<span class="chip-layer chip-layer--custom" aria-hidden="true">${customChipIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span>`;
       chip.dataset.pressExempt='true';
       chip.setAttribute('aria-label','Edit custom activity');
       chip.title='Edit custom activity';
@@ -5199,16 +5213,21 @@
     state.previewPatches = map;
     if(state.previewMode!=='edit'){
       state.previewMode = map.size>0 ? 'locked' : 'view';
+      state.isEditingPreview = false;
     }
   }
 
   function updatePreviewButtons(){
     const hasPatches = state.previewPatches && state.previewPatches.size>0;
-    if(editPreviewBtn){
-      editPreviewBtn.disabled = state.previewMode==='edit';
-    }
-    if(lockPreviewBtn){
-      lockPreviewBtn.disabled = state.previewMode!=='edit';
+    if(previewToggleBtn){
+      // One button swaps glyph + label instead of juggling separate edit/lock controls.
+      const isEditing = !!state.isEditingPreview;
+      previewToggleBtn.disabled = false;
+      previewToggleBtn.setAttribute('aria-pressed', String(isEditing));
+      const label = isEditing ? 'Lock preview' : 'Edit preview';
+      previewToggleBtn.setAttribute('aria-label', label);
+      previewToggleBtn.title = label;
+      previewToggleBtn.innerHTML = isEditing ? lockIconSvg : editIconSvg;
     }
     if(resetPreviewBtn){
       resetPreviewBtn.disabled = !hasPatches;
@@ -5217,7 +5236,7 @@
 
   function setPreviewAriaLabel(){
     if(!email) return;
-    if(state.previewMode==='edit'){
+    if(state.isEditingPreview){
       email.setAttribute('aria-label','Editing email preview');
     }else if(state.previewMode==='locked'){
       email.setAttribute('aria-label','Email preview (locked)');
@@ -5251,7 +5270,7 @@
   }
 
   function renderPreview(){
-    if(state.previewMode==='edit'){
+    if(state.isEditingPreview){
       state.previewDirty = true;
       return;
     }
@@ -5533,6 +5552,7 @@
 
   function enterPreviewEditMode(){
     state.previewMode = 'edit';
+    state.isEditingPreview = true;
     state.editing = true;
     email.contentEditable = 'true';
     email.style.outline = '2px dashed #bbb';
@@ -5545,6 +5565,7 @@
     if(state.previewMode!=='edit') return;
     capturePreviewPatchesFromDom();
     state.previewMode = state.previewPatches.size>0 ? 'locked' : 'view';
+    state.isEditingPreview = false;
     state.editing = false;
     email.contentEditable = 'false';
     email.style.outline = 'none';
@@ -5560,6 +5581,7 @@
     const itineraryId = state.previewItineraryKey || getItineraryId();
     persistPreviewPatches(itineraryId, []);
     state.previewMode = 'view';
+    state.isEditingPreview = false;
     state.editing = false;
     email.contentEditable = 'false';
     email.style.outline = 'none';
@@ -5568,15 +5590,13 @@
     renderPreview();
   }
 
-  if(editPreviewBtn){
-    editPreviewBtn.onclick=()=>{
-      if(state.previewMode==='edit') return;
-      enterPreviewEditMode();
-    };
-  }
-  if(lockPreviewBtn){
-    lockPreviewBtn.onclick=()=>{
-      lockPreviewEdits();
+  if(previewToggleBtn){
+    previewToggleBtn.onclick=()=>{
+      if(state.isEditingPreview){
+        lockPreviewEdits();
+      }else{
+        enterPreviewEditMode();
+      }
     };
   }
   if(resetPreviewBtn){
@@ -5586,7 +5606,7 @@
   }
   email.addEventListener('dblclick', (e)=>{
     if(e.metaKey || e.ctrlKey){
-      if(state.previewMode==='edit'){
+      if(state.isEditingPreview){
         lockPreviewEdits();
       }else{
         enterPreviewEditMode();
@@ -5626,7 +5646,7 @@
     }
     copyBtn.title='Copied';
     if(copyTitleTimer) clearTimeout(copyTitleTimer);
-    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy'; },1200);
+    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy preview'; },1200);
   };
 
   if(clearAllBtn){
