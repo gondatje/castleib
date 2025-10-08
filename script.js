@@ -1144,35 +1144,21 @@
         return;
       }
 
-      if(plan.type===AssignmentChipMode.GROUP_BOTH || plan.type===AssignmentChipMode.GROUP_EVERYONE){
-        const pill=document.createElement('button');
-        pill.type='button';
-        pill.className='tag-everyone';
-        pill.dataset.assignmentPill = plan.type;
-        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
-        pill.setAttribute('aria-haspopup','true');
-        pill.setAttribute('aria-expanded','false');
-        pill.dataset.pressExempt='true';
-        pill.addEventListener('pointerdown', e=> e.stopPropagation());
-        pill.addEventListener('click', e=> e.stopPropagation());
+      if(container.__groupInlineCleanup){
+        container.__groupInlineCleanup();
+      }
 
-        const label=document.createElement('span');
-        label.textContent=plan.pillLabel || '';
-        pill.appendChild(label);
+      const handledGroup = renderGroupInlineSwap(container, plan, {
+        createChips: ()=> plan.guests.map(guest=> createChip(guest, entry, dateK)),
+        focusSelector: '.chip .x',
+        hideDelay: 260,
+        clusterOptions: {
+          popoverLabel: 'Assigned guests',
+          ariaLabelPrefix: 'More assigned guests'
+        }
+      });
 
-        const pop=document.createElement('div');
-        pop.className='popover';
-        pop.setAttribute('role','group');
-        pop.setAttribute('aria-label','Guests assigned');
-        plan.guests.forEach(guest=>{
-          pop.appendChild(createChip(guest, entry, dateK));
-        });
-        pill.appendChild(pop);
-
-        attachGroupPillInteractions(pill);
-
-        container.appendChild(pill);
-        container.dataset.hasGuests='true';
+      if(handledGroup){
         return;
       }
 
@@ -1250,6 +1236,170 @@
       }
 
       applyLayout();
+    }
+
+    function renderGroupInlineSwap(container, plan, options={}){
+      if(!container || !plan) return false;
+      const isGroup = plan.type===AssignmentChipMode.GROUP_BOTH || plan.type===AssignmentChipMode.GROUP_EVERYONE;
+      if(!isGroup) return false;
+
+      const {
+        createChips,
+        focusSelector = '.chip .x',
+        hideDelay = 260,
+        clusterOptions = {}
+      } = options || {};
+
+      if(typeof createChips !== 'function'){
+        return false;
+      }
+
+      const mergedClusterOptions = Object.assign({
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
+      }, clusterOptions);
+
+      let expanded = false;
+      let hideTimer = null;
+      const cleanupFns = [];
+      const register = (target, type, handler, opts) => {
+        if(!target) return;
+        target.addEventListener(type, handler, opts);
+        cleanupFns.push(()=> target.removeEventListener(type, handler, opts));
+      };
+
+      const cancelHide = () => {
+        if(hideTimer){
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+      };
+
+      const collapse = (opts={}) => {
+        cancelHide();
+        renderPill(opts);
+      };
+
+      const scheduleHide = () => {
+        // Delay collapsing so brief exits (especially across chips) do not immediately snap back.
+        cancelHide();
+        hideTimer = setTimeout(() => {
+          if(!expanded) return;
+          if(typeof document !== 'undefined' && container.contains(document.activeElement)){
+            return;
+          }
+          collapse();
+        }, hideDelay);
+      };
+
+      const pill = document.createElement('button');
+      pill.type='button';
+      pill.className='tag-everyone';
+      pill.dataset.assignmentPill = plan.type;
+      pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
+      pill.setAttribute('aria-expanded','false');
+      pill.dataset.pressExempt='true';
+      pill.addEventListener('pointerdown', e=> e.stopPropagation());
+      pill.addEventListener('click', e=> e.stopPropagation());
+
+      const label=document.createElement('span');
+      label.textContent=plan.pillLabel || '';
+      pill.appendChild(label);
+
+      const focusFirstChip = () => {
+        if(!focusSelector) return;
+        const firstAction = container.querySelector(focusSelector);
+        if(firstAction && typeof firstAction.focus==='function'){
+          firstAction.focus();
+        }
+      };
+
+      const renderChips = (opts={}) => {
+        expanded = true;
+        pill.setAttribute('aria-expanded','true');
+        // Swap the pill inline for the real guest chips so the layout slot stays fixed
+        // while reusing layoutGuestCluster for +N overflow handling.
+        layoutGuestCluster(container, createChips(), mergedClusterOptions);
+        container.dataset.groupExpanded='true';
+        if(opts.focusFirst){
+          const focusTask = () => focusFirstChip();
+          if(typeof requestAnimationFrame==='function'){
+            requestAnimationFrame(()=> focusTask());
+          }else{
+            focusTask();
+          }
+        }
+      };
+
+      const renderPill = (opts={}) => {
+        expanded = false;
+        pill.setAttribute('aria-expanded','false');
+        container.innerHTML='';
+        container.appendChild(pill);
+        container.dataset.groupExpanded='false';
+        container.dataset.hasGuests='true';
+        if(opts.focusPill && typeof pill.focus==='function'){
+          pill.focus();
+        }
+      };
+
+      const expand = (opts={}) => {
+        cancelHide();
+        if(expanded) return;
+        renderChips(opts);
+      };
+
+      register(container,'pointerenter',()=> cancelHide());
+      register(container,'pointerleave',()=>{
+        if(expanded){
+          scheduleHide();
+        }
+      });
+
+      register(container,'focusin',()=> cancelHide());
+      register(container,'focusout',()=>{
+        if(expanded){
+          scheduleHide();
+        }
+      });
+
+      register(container,'keydown',(event)=>{
+        if(event.key==='Escape' && expanded){
+          event.preventDefault();
+          collapse({ focusPill:true });
+        }
+      }, true);
+
+      register(pill,'pointerenter',()=> expand());
+      register(pill,'focus',()=>{
+        const shouldFocusChips=!pill.matches(':hover');
+        expand({ focusFirst: shouldFocusChips });
+      });
+      register(pill,'keydown',(event)=>{
+        if(event.key==='Enter' || event.key===' '){
+          event.preventDefault();
+          expand({ focusFirst:true });
+        }else if(event.key==='Escape' && expanded){
+          event.preventDefault();
+          collapse({ focusPill:true });
+        }
+      });
+
+      register(container,'click',(event)=>{
+        if(event.target && event.target.matches('.chip, .chip *')){
+          cancelHide();
+        }
+      });
+
+      renderPill();
+
+      container.__groupInlineCleanup=()=>{
+        cancelHide();
+        cleanupFns.forEach(fn=>fn());
+        delete container.__groupInlineCleanup;
+      };
+
+      return true;
     }
 
     function buildOverflowButton(options={}){
@@ -1546,31 +1696,21 @@
       if(plan.type === AssignmentChipMode.NONE || plan.guests.length===0){
         return;
       }
-      if(plan.type === AssignmentChipMode.GROUP_BOTH || plan.type === AssignmentChipMode.GROUP_EVERYONE){
-        const pill = document.createElement('button');
-        pill.type='button';
-        pill.className='tag-everyone';
-        pill.dataset.assignmentPill = plan.type;
-        pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
-        pill.setAttribute('aria-haspopup','true');
-        pill.setAttribute('aria-expanded','false');
-        pill.dataset.pressExempt='true';
-        pill.addEventListener('pointerdown', e=> e.stopPropagation());
-        pill.addEventListener('click', e=> e.stopPropagation());
-        const label=document.createElement('span');
-        label.textContent = plan.pillLabel || '';
-        pill.appendChild(label);
-        const pop=document.createElement('div');
-        pop.className='popover';
-        pop.setAttribute('role','group');
-        pop.setAttribute('aria-label','Guests assigned');
-        plan.guests.forEach(guest => {
-          pop.appendChild(createSpaAssignmentChip(guest, entry, dateK));
-        });
-        pill.appendChild(pop);
-        attachGroupPillInteractions(pill);
-        container.appendChild(pill);
-        container.dataset.hasGuests='true';
+      if(container.__groupInlineCleanup){
+        container.__groupInlineCleanup();
+      }
+
+      const handledGroup = renderGroupInlineSwap(container, plan, {
+        createChips: () => plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK)),
+        focusSelector: '.chip .x',
+        hideDelay: 260,
+        clusterOptions: {
+          popoverLabel: 'Assigned guests',
+          ariaLabelPrefix: 'More assigned guests'
+        }
+      });
+
+      if(handledGroup){
         return;
       }
       const chips = plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK));
