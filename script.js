@@ -2294,7 +2294,7 @@
 
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
-    dialog.appendChild(footer);
+    form.appendChild(footer);
 
     const previousFocus = document.activeElement;
 
@@ -2535,6 +2535,9 @@
     dialog.className='spa-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
+    const form = document.createElement('form');
+    form.noValidate = true;
+    dialog.appendChild(form);
 
     const header = document.createElement('div');
     header.className='modal-header';
@@ -2550,11 +2553,11 @@
     const closeBtn=createModalCloseButton(()=> closeSpaEditor({returnFocus:true}));
     header.appendChild(title);
     header.appendChild(closeBtn);
-    dialog.appendChild(header);
+    form.appendChild(header);
 
     const body = document.createElement('div');
     body.className='modal-body spa-body';
-    dialog.appendChild(body);
+    form.appendChild(body);
 
     // Compose the SPA flow left-to-right so each decision feeds the next stage:
     // service → duration → start time → therapist → location. Mutating one
@@ -3210,6 +3213,7 @@
     const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
     const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    confirmBtn.type='submit';
     confirmBtn.setAttribute('aria-describedby', guestHint.id);
     footerEnd.appendChild(confirmBtn);
     let removeBtn=null;
@@ -3221,7 +3225,7 @@
     }
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
-    dialog.appendChild(footer);
+    form.appendChild(footer);
 
     const previousFocus=document.activeElement;
 
@@ -3897,6 +3901,14 @@
     }
 
     confirmBtn.addEventListener('click', confirmSelection);
+    const handleFormSubmit = event => {
+      event.preventDefault();
+      if(confirmBtn.disabled || confirmBtn.getAttribute('aria-disabled') === 'true'){
+        return;
+      }
+      confirmSelection();
+    };
+    form.addEventListener('submit', handleFormSubmit);
 
     if(removeBtn){
       removeBtn.addEventListener('click',()=>{
@@ -3914,14 +3926,27 @@
       }
     });
 
+    // Form submit + keydown-capture fallback to trigger existing primary action on Enter/Return.
+    const handleEnterCapture = event => {
+      const key = event.key;
+      if(key !== 'Enter' && key !== 'NumpadEnter' && key !== 'Return') return;
+      if(event.ctrlKey || event.altKey || event.metaKey) return;
+      if(event.isComposing) return;
+      const target = event.target;
+      if(target === confirmBtn) return;
+      if(isMultilineField(target)) return;
+      if(target && typeof target.closest === 'function' && target.closest('[data-spa-no-submit="true"]')) return;
+      const role = typeof target?.getAttribute === 'function' ? target.getAttribute('role') : null;
+      if(target && (target.tagName === 'BUTTON' || role === 'button')) return;
+      if(confirmBtn.disabled || confirmBtn.getAttribute('aria-disabled') === 'true') return;
+      event.preventDefault();
+      confirmBtn.click();
+    };
+
     const handleKeyDown = e => {
       if(e.key==='Escape'){
         e.preventDefault();
         closeSpaEditor({returnFocus:true});
-        return;
-      }
-      // SPA/Custom modals: Enter triggers existing primary action.
-      if(handlePrimaryKeyActivation(e, confirmBtn, { shouldIgnoreTarget: target => target?.dataset?.spaNoSubmit === 'true' })){
         return;
       }
       if(e.key==='Tab'){
@@ -3943,6 +3968,7 @@
       }
     };
 
+    dialog.addEventListener('keydown', handleEnterCapture, true);
     dialog.addEventListener('keydown', handleKeyDown);
 
     spaDialog = {
@@ -3950,7 +3976,9 @@
       dialog,
       previousFocus,
       cleanup(){
+        dialog.removeEventListener('keydown', handleEnterCapture, true);
         dialog.removeEventListener('keydown', handleKeyDown);
+        form.removeEventListener('submit', handleFormSubmit);
         timePicker?.dispose?.();
       }
     };
@@ -4038,6 +4066,9 @@
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
+    const form=document.createElement('form');
+    form.noValidate=true;
+    dialog.appendChild(form);
 
     const header=document.createElement('div');
     header.className='modal-header custom-header';
@@ -4137,12 +4168,12 @@
 
     header.appendChild(titleSection);
 
-    dialog.appendChild(header);
+    form.appendChild(header);
 
     const body=document.createElement('div');
     // Body scroll mirrors Spa so header/footer remain anchored while the cards scroll independently.
     body.className='modal-body spa-body custom-body';
-    dialog.appendChild(body);
+    form.appendChild(body);
 
     const layout=document.createElement('div');
     layout.className='custom-layout';
@@ -4347,6 +4378,7 @@
     const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
     const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
     const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
+    saveBtn.type='submit';
     footerEnd.appendChild(saveBtn);
     let deleteBtn=null;
     if(saveIsEdit){
@@ -4355,7 +4387,7 @@
     }
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
-    dialog.appendChild(footer);
+    form.appendChild(footer);
 
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
@@ -4698,6 +4730,14 @@
     };
 
     saveBtn.addEventListener('click', handleSave);
+    const handleFormSubmit=event=>{
+      event.preventDefault();
+      if(saveBtn.disabled || saveBtn.getAttribute('aria-disabled') === 'true'){
+        return;
+      }
+      handleSave();
+    };
+    form.addEventListener('submit', handleFormSubmit);
 
     if(deleteBtn && existing){
       deleteBtn.addEventListener('click',()=>{
@@ -4715,6 +4755,25 @@
       }
     });
 
+    // Form submit + keydown-capture fallback to trigger existing primary action on Enter/Return.
+    const handleEnterCapture=event=>{
+      const key=event.key;
+      if(key!=='Enter' && key!=='NumpadEnter' && key!=='Return') return;
+      if(event.ctrlKey || event.altKey || event.metaKey) return;
+      if(event.isComposing) return;
+      const target=event.target;
+      if(target===saveBtn) return;
+      if(isMultilineField(target)) return;
+      if(target && typeof target.closest==='function'){
+        if(target.closest('.custom-existing-row')) return;
+      }
+      const role = typeof target?.getAttribute === 'function' ? target.getAttribute('role') : null;
+      if(target && (target.tagName==='BUTTON' || role==='button')) return;
+      if(saveBtn.disabled || saveBtn.getAttribute('aria-disabled') === 'true') return;
+      event.preventDefault();
+      saveBtn.click();
+    };
+
     const handleKeyDown=event=>{
       if(event.key==='Escape'){
         if(titleMode==='existing' && existingPane.contains(document.activeElement)){
@@ -4724,10 +4783,6 @@
         }
         event.preventDefault();
         closeCustomBuilder({returnFocus:true});
-        return;
-      }
-      // SPA/Custom modals: Enter triggers existing primary action.
-      if(handlePrimaryKeyActivation(event, saveBtn)){
         return;
       }
       if(event.key==='Tab'){
@@ -4749,6 +4804,7 @@
       }
     };
 
+    dialog.addEventListener('keydown', handleEnterCapture, true);
     dialog.addEventListener('keydown', handleKeyDown);
 
     updateGuestSummary();
@@ -4780,7 +4836,9 @@
       previousFocus,
       cleanup(){
         timePicker?.dispose?.();
+        dialog.removeEventListener('keydown', handleEnterCapture, true);
         dialog.removeEventListener('keydown', handleKeyDown);
+        form.removeEventListener('submit', handleFormSubmit);
       }
     };
   }
