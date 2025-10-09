@@ -1478,35 +1478,18 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
 .spa-section-services{min-block-size:0;}
 .spa-guest-card{grid-area:guests;gap:14px;}
+.spa-guest-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
 .spa-guest-list{display:flex;flex-wrap:wrap;gap:12px;}
+.spa-toggle-all{flex:0 0 auto;}
+.spa-toggle-all:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 .spa-guest-chip{position:relative;display:inline-flex;align-items:center;}
-.spa-guest-chip.has-confirm .guest-pill{padding-inline-end:42px;}
 .spa-guest-chip-static .guest-pill{cursor:default;}
-.spa-guest-chip.needs-confirm .guest-pill{border-color:var(--brand);color:var(--brand);box-shadow:0 6px 14px rgba(42,107,255,.18);}
-.spa-guest-chip.active .guest-pill{border-color:var(--brand);box-shadow:0 0 0 2px var(--activity-focus-glow),0 6px 16px rgba(42,107,255,.16);}
-.spa-guest-chip.confirmed .guest-pill{border-color:color-mix(in srgb,var(--brand) 60%,var(--border));}
-.spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;}
+.spa-guest-chip--off .spa-guest-pill{background:color-mix(in srgb,var(--surface) 94%,var(--border) 6%);border-color:color-mix(in srgb,var(--border) 82%,transparent);color:color-mix(in srgb,var(--text-muted) 78%,var(--text-primary) 22%);}
+.spa-guest-chip.included .spa-guest-pill{background:color-mix(in srgb,var(--pillColor) 18%,var(--surface));border-color:color-mix(in srgb,var(--pillColor) 58%,var(--border));box-shadow:0 0 0 1px color-mix(in srgb,var(--pillColor) 42%,transparent);}
+.spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;min-block-size:44px;padding-inline:var(--space-3);padding-block:calc(var(--space-2) + 2px);display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,color .12s ease;}
 .spa-guest-pill-static{cursor:default;pointer-events:none;}
+.spa-guest-pill--off{background:color-mix(in srgb,var(--surface) 94%,var(--border) 6%);border-color:color-mix(in srgb,var(--border) 82%,transparent);color:color-mix(in srgb,var(--text-muted) 78%,var(--text-primary) 22%);}
 .spa-guest-pill:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
-/* Center the confirmation affordance within the chip so the checkmark stays
- * perfectly aligned with the pill visuals pulled in from the roster. The
- * button reads the guest pill's CSS variables so the fill tracks the guest
- * color while the hairline and icon lean on global tokens for contrast. */
-.spa-guest-confirm-toggle{position:absolute;inset-block-start:50%;inset-inline-end:14px;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1px solid var(--hairline-strong);background:var(--pill-accent,var(--pillColor,var(--brand)));color:var(--on-accent-text,#fff);display:flex;align-items:center;justify-content:center;line-height:0;opacity:0;cursor:pointer;transition:opacity .12s ease,background-color .12s ease,box-shadow .12s ease,color .12s ease;z-index:1;box-shadow:0 0 0 0 transparent;}
-.spa-guest-confirm-toggle svg{width:12px;height:12px;display:block;}
-.spa-guest-chip.needs-confirm .spa-guest-confirm-toggle{opacity:1;box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 40%,transparent);}
-.spa-guest-chip.confirmed .spa-guest-confirm-toggle{opacity:1;box-shadow:0 6px 14px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 28%,transparent);}
-.spa-guest-chip:focus-within .spa-guest-confirm-toggle{opacity:1;}
-/* Share the global focus color so keyboard users see the same highlight they
- * get on the roster chips. */
-.spa-guest-confirm-toggle:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
-@media(hover:hover){
-  .spa-guest-chip.included:hover .spa-guest-confirm-toggle{opacity:.95;}
-  .spa-guest-confirm-toggle:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--pill-accent,var(--pillColor,var(--brand))) 55%,transparent);}
-}
-@media(hover:none){
-  .spa-guest-chip.included .spa-guest-confirm-toggle{opacity:.85;}
-}
 .spa-guest-hint{margin-top:-4px;}
 .spa-helper-error{color:var(--brand);font-weight:600;}
 .spa-service-card{display:grid;grid-template-rows:auto 1fr;gap:16px;min-height:0;overflow:hidden;}
