@@ -2495,6 +2495,9 @@
 
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
+    const form = document.createElement('form');
+    form.className = 'spa-dialog-form';
+    form.noValidate = true;
     const dialog = document.createElement('div');
     dialog.className='spa-dialog';
     dialog.setAttribute('role','dialog');
@@ -3174,6 +3177,8 @@
     const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
     const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    confirmBtn.type = 'submit';
+    confirmBtn.classList.add('spa-confirm');
     confirmBtn.setAttribute('aria-describedby', guestHint.id);
     footerEnd.appendChild(confirmBtn);
     let removeBtn=null;
@@ -3189,7 +3194,8 @@
 
     const previousFocus=document.activeElement;
 
-    overlay.appendChild(dialog);
+    form.appendChild(dialog);
+    overlay.appendChild(form);
     document.body.appendChild(overlay);
     document.body.classList.add('spa-lock');
     // Reset scroll so reopen/edit flows land at the top of the sheet regardless
@@ -3860,7 +3866,14 @@
       closeSpaEditor({returnFocus:true});
     }
 
-    confirmBtn.addEventListener('click', confirmSelection);
+    // Form submit + keydown-capture fallback to trigger existing primary action on Enter/Return.
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if(confirmBtn.disabled || confirmBtn.getAttribute('aria-disabled')==='true'){
+        return;
+      }
+      confirmSelection();
+    });
 
     if(removeBtn){
       removeBtn.addEventListener('click',()=>{
@@ -3884,11 +3897,6 @@
         closeSpaEditor({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || (e.target.tagName!=='BUTTON' && e.target.dataset?.spaNoSubmit!=='true'))){
-        e.preventDefault();
-        confirmSelection();
-        return;
-      }
       if(e.key==='Tab'){
         const focusable = Array.from(dialog.querySelectorAll('button,select,input[type="checkbox"],[tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.offsetParent!==null);
         if(focusable.length===0) return;
@@ -3909,6 +3917,18 @@
     };
 
     dialog.addEventListener('keydown', handleKeyDown);
+    overlay.addEventListener('keydown', event => {
+      if(event.key!=='Enter' && event.key!=='NumpadEnter') return;
+      if(event.ctrlKey || event.altKey || event.metaKey) return;
+      if(event.isComposing) return;
+      const active = document.activeElement;
+      if(active && (active.tagName==='TEXTAREA' || active.isContentEditable)) return;
+      if(active?.dataset?.spaNoSubmit==='true') return;
+      if(active && active.tagName==='BUTTON' && active.type!=='submit') return;
+      if(confirmBtn.disabled || confirmBtn.getAttribute('aria-disabled')==='true') return;
+      event.preventDefault();
+      confirmBtn.click();
+    }, true);
 
     spaDialog = {
       overlay,
@@ -3996,6 +4016,10 @@
     const overlay=document.createElement('div');
     // Reuse the spa shell classes so the custom flow inherits the shared safe-area gutters + clamp sizing.
     overlay.className='spa-overlay custom-overlay';
+
+    const form=document.createElement('form');
+    form.className='custom-dialog-form';
+    form.noValidate = true;
 
     const dialog=document.createElement('div');
     dialog.className='spa-dialog custom-dialog';
@@ -4311,6 +4335,7 @@
     const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
     const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
     const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
+    saveBtn.type='submit';
     footerEnd.appendChild(saveBtn);
     let deleteBtn=null;
     if(saveIsEdit){
@@ -4321,7 +4346,8 @@
     footer.appendChild(footerEnd);
     dialog.appendChild(footer);
 
-    overlay.appendChild(dialog);
+    form.appendChild(dialog);
+    overlay.appendChild(form);
     document.body.appendChild(overlay);
     document.body.classList.add('custom-lock');
     body.scrollTop = 0;
@@ -4661,7 +4687,14 @@
       closeCustomBuilder({returnFocus:true});
     };
 
-    saveBtn.addEventListener('click', handleSave);
+    // Form submit + keydown-capture fallback to trigger existing primary action on Enter/Return.
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if(saveBtn.disabled){
+        return;
+      }
+      handleSave();
+    });
 
     if(deleteBtn && existing){
       deleteBtn.addEventListener('click',()=>{
@@ -4690,11 +4723,6 @@
         closeCustomBuilder({returnFocus:true});
         return;
       }
-      if((event.key==='Enter' || event.key==='Return') && event.target && event.target.tagName!=='BUTTON'){
-        event.preventDefault();
-        handleSave();
-        return;
-      }
       if(event.key==='Tab'){
         const focusable = Array.from(dialog.querySelectorAll('button,select,input,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.disabled && el.offsetParent!==null);
         if(focusable.length===0) return;
@@ -4715,6 +4743,18 @@
     };
 
     dialog.addEventListener('keydown', handleKeyDown);
+    overlay.addEventListener('keydown', event => {
+      if(event.key!=='Enter' && event.key!=='NumpadEnter') return;
+      if(event.ctrlKey || event.altKey || event.metaKey) return;
+      if(event.isComposing) return;
+      const active = document.activeElement;
+      if(active && (active.tagName==='TEXTAREA' || active.isContentEditable)) return;
+      if(active?.dataset?.spaNoSubmit==='true') return;
+      if(active && active.tagName==='BUTTON' && active.type!=='submit') return;
+      if(saveBtn.disabled) return;
+      event.preventDefault();
+      saveBtn.click();
+    }, true);
 
     updateGuestSummary();
     updateStartDisplay();
