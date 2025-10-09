@@ -11,6 +11,11 @@
     ? window.AssignmentChipLogic.attachGroupPillInteractions
     : () => ({ open: () => {}, close: () => {} });
 
+  // Detect coarse-pointer/mobile surfaces so the demo mirrors chip affordances.
+  const coarsePointerRemoveQuery = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(hover: none) and (pointer: coarse)')
+    : null;
+
   const formatTimeDisplay = (window.CHSFormatUtils && window.CHSFormatUtils.formatTimeDisplay)
     ? window.CHSFormatUtils.formatTimeDisplay
     : value => (value==null ? '' : String(value));
@@ -156,11 +161,18 @@
     remove.textContent = '×';
     remove.dataset.pressExempt = 'true';
     remove.addEventListener('pointerdown', e => e.stopPropagation());
-    remove.addEventListener('click', e => {
-      e.stopPropagation();
+    const handleRemove = (event) => {
+      if(event) event.stopPropagation();
       log(`Simulated removal of ${guestName}`);
-    });
+    };
+    remove.addEventListener('click', handleRemove);
     chip.appendChild(remove);
+
+    if(coarsePointerRemoveQuery && coarsePointerRemoveQuery.matches){
+      // Mobile coarse pointers hide the X; delegate removal to the chip tap.
+      chip.addEventListener('pointerdown', event => event.stopPropagation());
+      chip.addEventListener('click', handleRemove);
+    }
 
     return chip;
   };

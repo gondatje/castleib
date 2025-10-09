@@ -681,7 +681,14 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .chip .initial{position:relative;z-index:1;font-size:13px;line-height:1;color:currentColor;transition:opacity .16s ease;font-weight:400;letter-spacing:0;}
 .chip .x{position:absolute;top:50%;left:50%;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:#fff;border:1px solid var(--border);padding:0;cursor:pointer;color:var(--ink);z-index:2;transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity .16s ease;}
 @media(hover:hover){.chip:hover .initial,.chip:focus-within .initial{opacity:0;}.chip:hover .x,.chip:focus-within .x{opacity:1;pointer-events:auto;}}
-@media(hover:none){.chip .x{opacity:1;pointer-events:auto;}}
+@media(hover:none){
+  .chip .x{opacity:1;pointer-events:auto;}
+  .guest-chips [data-guest-chip="true"] .initial{opacity:1;}
+}
+@media(hover:none) and (pointer:coarse){
+  /* Mobile coarse pointers hide the guest-chip close glyph so the chip tap removes. */
+  .guest-chips [data-guest-chip="true"] .x{opacity:0;pointer-events:none;}
+}
 .chip .x:focus{outline:2px solid var(--brand);outline-offset:1px;}
 .guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}

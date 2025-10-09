@@ -101,6 +101,11 @@
   }));
   const attachGroupPillInteractions = assignmentChipLogic.attachGroupPillInteractions || (() => ({ open: () => {}, close: () => {} }));
 
+  // Detect coarse-pointer/mobile surfaces to adjust guest chip affordance.
+  const coarsePointerRemoveQuery = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(hover: none) and (pointer: coarse)')
+    : null;
+
   const attachRowPressInteractions = (window.CHSActivitiesInteractions && typeof window.CHSActivitiesInteractions.attachRowPressInteractions === 'function')
     ? window.CHSActivitiesInteractions.attachRowPressInteractions
     : (element, { onActivate }) => {
@@ -1749,6 +1754,7 @@
     function createChip(guest, entry, dateK){
       const c=document.createElement('span');
       c.className='chip';
+      c.dataset.guestChip='true';
       c.style.borderColor = guest.color;
       c.style.color = guest.color;
       c.title = guest.name;
@@ -1766,8 +1772,8 @@
       x.textContent='×';
       x.dataset.pressExempt='true';
       x.addEventListener('pointerdown', e=> e.stopPropagation());
-      x.onclick=(e)=>{
-        e.stopPropagation();
+      const handleRemove = (event) => {
+        if(event) event.stopPropagation();
         if(!entry) return;
         entry.guestIds.delete(guest.id);
         if(entry.guestIds.size===0){
@@ -1783,7 +1789,14 @@
         markPreviewDirty();
         renderPreview();
       };
+      x.addEventListener('click', handleRemove);
       c.appendChild(x);
+
+      if(coarsePointerRemoveQuery && coarsePointerRemoveQuery.matches){
+        // Mobile coarse pointers hide the X; delegate removal to the chip tap.
+        c.addEventListener('pointerdown', event => event.stopPropagation());
+        c.addEventListener('click', handleRemove);
+      }
       return c;
     }
     function renderStatusMessage(text){
