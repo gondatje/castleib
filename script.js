@@ -1364,6 +1364,8 @@
 
       const activate = ()=>{
         if(disabled){ return; }
+        const listNode = activitiesEl?.parentElement || activitiesEl;
+        const savedScrollTop = listNode ? listNode.scrollTop : null; // preserve & restore scrollTop around row add
         const actives = state.guests.filter(g=>g.active);
         if(actives.length===0){ alert('Toggle at least one guest pill before assigning.'); return; }
         const d = getOrCreateDay(dateK);
@@ -1372,6 +1374,14 @@
         actives.forEach(g=> target.guestIds.add(g.id));
         sortDayEntries(dateK);
         renderActivities(); markPreviewDirty(); renderPreview();
+        if(listNode && savedScrollTop !== null){
+          const restore = () => { listNode.scrollTop = savedScrollTop; };
+          if(typeof requestAnimationFrame === 'function'){
+            requestAnimationFrame(restore);
+          }else{
+            restore();
+          }
+        }
       };
 
       // Guard against accidental scroll taps via shared pointer controller.
