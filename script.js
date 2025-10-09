@@ -2602,8 +2602,8 @@
       updateToggleAllControl(visibleIds);
 
       if(visibleGuests.length===0){
-        guestHint.hidden=false;
-        guestHint.textContent='No guests were selected when the spa modal opened. Close the modal and toggle guest pills on to add them.';
+        guestHint.hidden=true;
+        guestHint.textContent='';
         guestHint.classList.add('spa-helper-error');
         updateConfirmState();
         return;
