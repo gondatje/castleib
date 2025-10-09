@@ -1633,9 +1633,7 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
   grid-column:3/span 2;
   grid-row:3/span 2;
   max-block-size:100%;
-  overflow:auto;
-  overscroll-behavior:contain;
-  scrollbar-gutter:stable both-edges;
+  overflow:visible;
 }
 .custom-section-guests{
   grid-column:1/span 2;
@@ -1680,7 +1678,11 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
 body[data-theme='dark'] .custom-existing-back:hover{background-color:color-mix(in srgb,var(--brand) 28%,transparent);}
 body[data-theme='dark'] .custom-existing-row.active{background:color-mix(in srgb,var(--brand) 28%,transparent);}
 body[data-theme='dark'] .custom-existing-list::-webkit-scrollbar-thumb{background:rgba(148,163,184,.7);}
-.custom-time-summary{display:flex;flex-wrap:wrap;gap:12px;}
+/* Custom modal: Time section reflow; stack hourglass buttons on right; no internal scroll. */
+.custom-time-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-5);align-items:center;}
+.custom-time-content{display:flex;flex-direction:column;gap:var(--space-4);min-height:0;}
+.custom-time-header-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-4);}
+.custom-time-summary{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-inline-start:auto;}
 .custom-time-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--panel,#f8fafc);transition:background-color .18s ease,border-color .18s ease,color .18s ease;}
 .custom-time-pill[data-empty='true']{color:var(--muted);}
 .custom-time-pill-label{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
@@ -1689,14 +1691,15 @@ body[data-theme='dark'] .custom-existing-list::-webkit-scrollbar-thumb{backgroun
 .custom-clear-end:disabled{opacity:.35;cursor:default;}
 .custom-clear-end:not(:disabled):hover{color:var(--brand);}
 .custom-picker{display:flex;justify-content:center;}
-.custom-picker-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;}
+.custom-picker-actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-4);}
+.custom-time-actions-column{display:flex;justify-content:center;align-items:center;}
 .custom-time-action{width:48px;height:48px;border-radius:50%;border:1px solid var(--border);background:var(--surface,#fff);display:inline-flex;align-items:center;justify-content:center;color:var(--ink);cursor:pointer;transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease;}
 .custom-time-action:hover{box-shadow:0 12px 24px rgba(15,23,42,.12);border-color:color-mix(in srgb,var(--brand) 28%,var(--border));}
 .custom-time-action:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
 .custom-time-action:active{transform:translateY(1px);}
 .custom-time-icon{display:inline-flex;align-items:center;justify-content:center;}
 .custom-time-icon svg{width:20px;height:20px;display:block;}
-.custom-time-error{margin:0;font-size:13px;color:var(--brand);font-weight:600;}
+.custom-time-error{margin:0;font-size:13px;color:var(--brand);font-weight:600;align-self:flex-start;}
 .custom-picker-fallback{font-size:14px;color:var(--muted);text-align:center;padding:16px;}
 .custom-card h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;color:var(--ink);}
 .list-hairline{overflow:auto;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -1735,6 +1738,10 @@ body.custom-lock{overflow:hidden;}
   .custom-section-location,
   .custom-section-time,
   .custom-section-guests{grid-column:auto;grid-row:auto;max-block-size:none;}
+  .custom-time-shell{display:flex;flex-direction:column;align-items:stretch;gap:var(--space-4);}
+  .custom-time-actions-column{justify-content:flex-start;}
+  .custom-picker-actions{flex-direction:row;justify-content:flex-start;}
+  .custom-time-summary{margin-inline-start:0;}
   .spa-details-grid{
     grid-template-columns:1fr;
     grid-template-rows:auto;
