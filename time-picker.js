@@ -746,7 +746,8 @@
       return showAmPm ? (meridiems[0] || 'AM') : fixedFallback;
     };
 
-    const defaultMeridiem = normalizeMeridiem(defaultValue?.meridiem);
+    const hasExplicitMeridiem = defaultValue && defaultValue.meridiem !== undefined && defaultValue.meridiem !== null;
+    const defaultMeridiem = hasExplicitMeridiem ? normalizeMeridiem(defaultValue.meridiem) : normalizeMeridiem(showAmPm ? 'PM' : undefined);
     const defaultHour = hours.includes(defaultValue?.hour) ? defaultValue.hour : hours[0];
     const defaultMinute = minutes.includes(defaultValue?.minute) ? defaultValue.minute : minutes[0];
 
@@ -790,6 +791,8 @@
 
     const meridiemButtonMap = new Map();
     let meridiemGroup = null;
+    let meridiemRingSync = null;
+    let meridiemRingSkip = false;
     const updateMeridiemButtons = () => {
       if(!meridiemGroup) return;
       const normalized = currentMeridiem;
@@ -807,6 +810,10 @@
       }else{
         meridiemGroup.removeAttribute('aria-activedescendant');
       }
+      if(meridiemRingSync && !meridiemRingSkip){
+        meridiemRingSync();
+      }
+      meridiemRingSkip = false;
     };
 
     const minuteDisabledChecker = value => disabledMinutes.has(value);
@@ -923,9 +930,10 @@
       meridiem: currentMeridiem
     });
 
-    const syncMeridiem = (value, { emitChange = true } = {}) => {
+    const syncMeridiem = (value, { emitChange = true, skipRing = false } = {}) => {
       const normalized = normalizeMeridiem(value);
       if(normalized === currentMeridiem){
+        meridiemRingSkip = skipRing;
         updateMeridiemButtons();
         if(emitChange){
           onChange(getValue());
@@ -945,13 +953,12 @@
       if(emitChange){
         onChange(getValue());
       }
+      meridiemRingSkip = skipRing;
       updateMeridiemButtons();
       return normalized;
     };
 
     if(showAmPm){
-      // AM/PM renders as a segmented toggle so the column stays in the wheel
-      // stack but ArrowUp/Down/Space emit single, deterministic steps.
       const meridiemColumn = document.createElement('div');
       meridiemColumn.className = 'time-picker-column time-picker-meridiem';
       wheels.appendChild(meridiemColumn);
@@ -962,11 +969,16 @@
       group.tabIndex = 0;
       meridiemColumn.appendChild(group);
       meridiemGroup = group;
+      const selectionRing = document.createElement('div');
+      selectionRing.className = 'time-picker-meridiem-ring';
+      group.appendChild(selectionRing);
+      // AM/PM hover-scroll; non-cyclic clamp 0..1; selection ring defaults to PM when unset.
       const meridiemIdPrefix = `time-picker-meridiem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const stepMeridiem = direction => {
-        if(!meridiems.length) return;
-        const index = meridiems.indexOf(currentMeridiem);
-        const nextIndex = (index + direction + meridiems.length) % meridiems.length;
+        if(!meridiems.length || !direction) return;
+        const index = Math.max(0, meridiems.indexOf(currentMeridiem));
+        const nextIndex = Math.min(meridiems.length - 1, Math.max(0, index + direction));
+        if(nextIndex === index) return;
         const nextValue = meridiems[nextIndex];
         syncMeridiem(nextValue);
       };
@@ -1005,6 +1017,188 @@
       meridiems.forEach(value => {
         group.appendChild(createOption(value));
       });
+
+      const SNAP_IDLE_MS = 160;
+      const SNAP_DURATION_MS = 160;
+      const MICRO_DELTA_THRESHOLD = 0.4;
+      const MAX_WHEEL_ROWS_PER_EVENT = 6;
+      const WHEEL_MODE_SMOOTH = 'smooth';
+      const WHEEL_MODE_DISCRETE = 'discrete';
+      const DOM_DELTA_LINE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_LINE : 1;
+      const DOM_DELTA_PAGE = typeof WheelEvent !== 'undefined' ? WheelEvent.DOM_DELTA_PAGE : 2;
+
+      const clampRowPosition = value => {
+        if(!meridiems.length) return 0;
+        const min = 0;
+        const max = meridiems.length - 1;
+        if(value < min) return min;
+        if(value > max) return max;
+        return value;
+      };
+
+      const fallbackIndex = meridiems.includes('PM') ? meridiems.indexOf('PM') : 0;
+      let meridiemRowPosition = meridiems.includes(currentMeridiem) ? meridiems.indexOf(currentMeridiem) : (fallbackIndex >= 0 ? fallbackIndex : 0);
+      let meridiemSnapTimer = null;
+      let meridiemActiveWheelMode = null;
+      let meridiemLineRemainder = 0;
+      let meridiemMicroRowDelta = 0;
+      let meridiemSnapAnimating = false;
+      let meridiemResizeObserver = null;
+
+      const getButtonPair = () => {
+        const first = meridiemButtonMap.get(meridiems[0]);
+        const second = meridiemButtonMap.get(meridiems[1]);
+        return { first, second: second || first };
+      };
+
+      const getStepDistance = () => {
+        if(meridiems.length < 2) return 44;
+        const { first, second } = getButtonPair();
+        if(!first || !second) return 44;
+        const firstCenter = first.offsetTop + first.offsetHeight / 2;
+        const secondCenter = second.offsetTop + second.offsetHeight / 2;
+        const distance = Math.abs(secondCenter - firstCenter);
+        return distance || first.offsetHeight || 44;
+      };
+
+      const setMeridiemVisualPosition = (position, { immediate = false, animate = false } = {}) => {
+        if(!selectionRing) return;
+        const { first, second } = getButtonPair();
+        if(!first) return;
+        const baseTop = first.offsetTop;
+        const baseLeft = first.offsetLeft;
+        const stepY = second ? (second.offsetTop - first.offsetTop) : 0;
+        const stepX = second ? (second.offsetLeft - first.offsetLeft) : 0;
+        const height = first.offsetHeight;
+        const width = first.offsetWidth;
+        const nextTop = baseTop + stepY * position;
+        const nextLeft = baseLeft + stepX * position;
+        if(height > 0){
+          selectionRing.style.height = `${height}px`;
+        }
+        if(width > 0){
+          selectionRing.style.width = `${width}px`;
+        }
+        if(immediate){
+          selectionRing.style.transition = 'none';
+        }else if(animate){
+          selectionRing.style.transition = `transform ${SNAP_DURATION_MS}ms ease`;
+        }else{
+          selectionRing.style.transition = '';
+        }
+        selectionRing.style.transform = `translate3d(${nextLeft}px, ${nextTop}px, 0)`;
+        if(immediate){
+          requestAnimationFrame(() => {
+            selectionRing.style.transition = '';
+          });
+        }
+      };
+
+      const maybeSyncFromRowPosition = () => {
+        if(!meridiems.length) return;
+        const candidateIndex = Math.round(clampRowPosition(meridiemRowPosition));
+        const currentIndex = meridiems.indexOf(currentMeridiem);
+        if(candidateIndex !== -1 && candidateIndex !== currentIndex){
+          meridiemRingSkip = true;
+          syncMeridiem(meridiems[candidateIndex], { skipRing: true });
+        }
+      };
+
+      const applyRowDelta = rowDelta => {
+        if(!rowDelta) return;
+        const next = clampRowPosition(meridiemRowPosition + rowDelta);
+        if(next === meridiemRowPosition){
+          scheduleMeridiemSnap();
+          return;
+        }
+        meridiemRowPosition = next;
+        setMeridiemVisualPosition(meridiemRowPosition, { immediate: true });
+        maybeSyncFromRowPosition();
+        scheduleMeridiemSnap();
+      };
+
+      const pushMeridiemDelta = deltaPx => {
+        const stepDistance = getStepDistance();
+        if(stepDistance <= 0) return;
+        const rawRowDelta = deltaPx / stepDistance;
+        const clamped = Math.max(-MAX_WHEEL_ROWS_PER_EVENT, Math.min(MAX_WHEEL_ROWS_PER_EVENT, rawRowDelta));
+        const magnitude = Math.abs(clamped);
+        if(magnitude < MICRO_DELTA_THRESHOLD){
+          meridiemMicroRowDelta += clamped;
+          if(Math.abs(meridiemMicroRowDelta) < MICRO_DELTA_THRESHOLD){
+            scheduleMeridiemSnap();
+            return;
+          }
+          applyRowDelta(meridiemMicroRowDelta);
+          meridiemMicroRowDelta = 0;
+          return;
+        }
+        meridiemMicroRowDelta = 0;
+        applyRowDelta(clamped);
+      };
+
+      const classifyWheelEvent = e => {
+        if(e.deltaMode === DOM_DELTA_LINE || e.deltaMode === DOM_DELTA_PAGE){
+          return WHEEL_MODE_DISCRETE;
+        }
+        const absY = Math.abs(e.deltaY);
+        const stepDistance = getStepDistance();
+        if(stepDistance && absY >= stepDistance){
+          return WHEEL_MODE_DISCRETE;
+        }
+        return WHEEL_MODE_SMOOTH;
+      };
+
+      const normalizeDelta = (e, mode) => {
+        const base = getStepDistance() || 44;
+        if(mode === WHEEL_MODE_DISCRETE){
+          if(e.deltaMode === DOM_DELTA_LINE){
+            meridiemLineRemainder += e.deltaY;
+            const lines = Math.sign(meridiemLineRemainder) * Math.min(1, Math.trunc(Math.abs(meridiemLineRemainder)));
+            meridiemLineRemainder -= lines;
+            return lines * base;
+          }
+          if(e.deltaMode === DOM_DELTA_PAGE){
+            return e.deltaY * base * 3;
+          }
+        }else{
+          meridiemLineRemainder = 0;
+        }
+        return e.deltaY;
+      };
+
+      const scheduleMeridiemSnap = () => {
+        if(meridiemSnapTimer){
+          clearTimeout(meridiemSnapTimer);
+        }
+        meridiemSnapTimer = setTimeout(() => {
+          meridiemSnapTimer = null;
+          const targetIndex = Math.round(clampRowPosition(meridiemRowPosition));
+          meridiemRowPosition = targetIndex;
+          meridiemSnapAnimating = true;
+          setMeridiemVisualPosition(meridiemRowPosition, { animate: true });
+          meridiemRingSkip = true;
+          syncMeridiem(meridiems[targetIndex] || currentMeridiem, { skipRing: true });
+          meridiemRingSkip = false;
+          meridiemSnapAnimating = false;
+          meridiemActiveWheelMode = null;
+          meridiemMicroRowDelta = 0;
+          meridiemLineRemainder = 0;
+        }, SNAP_IDLE_MS);
+      };
+
+      group.addEventListener('wheel', e => {
+        e.preventDefault();
+        if(!meridiems.length) return;
+        const mode = classifyWheelEvent(e);
+        if(meridiemActiveWheelMode && meridiemActiveWheelMode !== mode){
+          meridiemMicroRowDelta = 0;
+          meridiemLineRemainder = 0;
+        }
+        meridiemActiveWheelMode = mode;
+        pushMeridiemDelta(normalizeDelta(e, mode));
+      }, { passive: false });
+
       group.addEventListener('keydown', e => {
         if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
           e.preventDefault();
@@ -1015,13 +1209,45 @@
           stepMeridiem(1);
         }
       });
+
+      if(typeof ResizeObserver !== 'undefined'){
+        meridiemResizeObserver = new ResizeObserver(() => {
+          setMeridiemVisualPosition(meridiemRowPosition, { immediate: true });
+        });
+        meridiemResizeObserver.observe(group);
+      }
+
+      meridiemRingSync = () => {
+        const index = meridiems.indexOf(currentMeridiem);
+        if(index !== -1){
+          meridiemRowPosition = index;
+        }
+        setMeridiemVisualPosition(meridiemRowPosition, { animate: meridiemSnapAnimating });
+        meridiemSnapAnimating = false;
+      };
+
+      requestAnimationFrame(() => {
+        setMeridiemVisualPosition(meridiemRowPosition, { immediate: true });
+      });
+
       registerColumn(group, () => focusElement(group));
       meridiemWheel = {
         element: group,
         focus(options){ focusElement(group, options); },
         setValue(value){ syncMeridiem(value, { emitChange: false }); },
         step(direction){ stepMeridiem(direction); },
-        dispose(){ meridiemButtonMap.clear(); }
+        dispose(){
+          if(meridiemSnapTimer){
+            clearTimeout(meridiemSnapTimer);
+            meridiemSnapTimer = null;
+          }
+          if(meridiemResizeObserver){
+            meridiemResizeObserver.disconnect();
+            meridiemResizeObserver = null;
+          }
+          meridiemRingSync = null;
+          meridiemButtonMap.clear();
+        }
       };
       updateMeridiemButtons();
     }else if(staticMeridiemLabel){
