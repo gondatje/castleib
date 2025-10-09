@@ -3920,6 +3920,7 @@
         closeSpaEditor({returnFocus:true});
         return;
       }
+      // SPA/Custom modals: Enter triggers existing primary action.
       if(handlePrimaryKeyActivation(e, confirmBtn, { shouldIgnoreTarget: target => target?.dataset?.spaNoSubmit === 'true' })){
         return;
       }
@@ -3949,6 +3950,7 @@
       dialog,
       previousFocus,
       cleanup(){
+        dialog.removeEventListener('keydown', handleKeyDown);
         timePicker?.dispose?.();
       }
     };
@@ -4724,6 +4726,7 @@
         closeCustomBuilder({returnFocus:true});
         return;
       }
+      // SPA/Custom modals: Enter triggers existing primary action.
       if(handlePrimaryKeyActivation(event, saveBtn)){
         return;
       }
