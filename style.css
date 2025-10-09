@@ -1405,6 +1405,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   padding-block-start:calc(var(--spa-viewport-gutter) + env(safe-area-inset-top));
   padding-block-end:calc(var(--spa-viewport-gutter) + env(safe-area-inset-bottom));
 }
+.spa-overlay--tablet{
+  box-sizing:border-box;
+  align-items:stretch;
+  justify-content:center;
+  --spa-tablet-inline:clamp(var(--space-5),6vw,var(--space-8));
+  --spa-tablet-block:clamp(var(--space-5),8vh,var(--space-7));
+  padding-inline:var(--spa-tablet-inline);
+  padding-inline-start:calc(var(--spa-tablet-inline) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--spa-tablet-inline) + env(safe-area-inset-right));
+  padding-block:var(--spa-tablet-block);
+  padding-block-start:calc(var(--spa-tablet-block) + env(safe-area-inset-top));
+  padding-block-end:calc(var(--spa-tablet-block) + env(safe-area-inset-bottom));
+  min-height:100vh;
+}
+@supports (min-height:100dvh){
+  .spa-overlay--tablet{min-height:100dvh;}
+}
 /*
  * Desktop browsers switch to a grid centering context so Safari/Chrome honor the
  * viewport clamping while touch/iPad builds retain the flex alignment that was
@@ -1436,6 +1453,16 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   block-size:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
   max-height:calc(100vh - 2*var(--spa-viewport-gutter));
   max-block-size:min(90vh, calc(100vh - 2*var(--spa-viewport-gutter)));
+}
+.spa-dialog--tablet{
+  max-width:min(960px,100%);
+  width:100%;
+  height:100%;
+  max-height:100%;
+  box-shadow:0 22px 48px rgba(12,18,32,.18);
+}
+@supports (height:100dvh){
+  .spa-dialog--tablet{height:100%;}
 }
 @supports (height:100svh){
   .spa-dialog{
@@ -1469,6 +1496,12 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   padding:var(--spa-body-padding);
   padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));
 }
+.spa-body--tablet{
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+  padding-block-start:calc(var(--spa-body-padding) + env(safe-area-inset-top));
+}
 /*
  * The layout grid flexes to fill the fixed dialog height so the service column
  * can own all vertical overflow without forcing the shell to resize.
@@ -1482,12 +1515,29 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   flex:1 1 auto;
   grid-auto-rows:1fr;
 }
+.spa-layout--tablet{
+  grid-template-columns:1fr;
+  grid-auto-rows:auto;
+  gap:20px;
+}
 .spa-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
 .spa-section-services{min-block-size:0;}
 .spa-guest-card{grid-area:guests;gap:14px;}
 .spa-guest-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
 .spa-guest-list{display:flex;flex-wrap:wrap;gap:12px;}
+.spa-guest-list--tablet{
+  display:flex;
+  flex-direction:column;
+  border-radius:18px;
+  border:1px solid var(--activity-divider);
+  background:var(--surface);
+  max-block-size:min(320px,48vh);
+  overflow:auto;
+  scrollbar-gutter:stable both-edges;
+  overscroll-behavior:contain;
+}
+.spa-guest-list--tablet .spa-choice-row + .spa-choice-row{border-top:var(--hairline);}
 .spa-toggle-all{flex:0 0 auto;}
 .spa-toggle-all:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 .spa-guest-chip{position:relative;display:inline-flex;align-items:center;}
@@ -1547,6 +1597,12 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   gap:16px;
   min-height:0;
 }
+.spa-details-grid--tablet{
+  grid-template-columns:1fr;
+  grid-template-rows:auto;
+  gap:20px;
+}
+.spa-detail-card--tablet{gap:18px;}
 .spa-detail-column{
   display:grid;
   gap:16px;
@@ -1564,7 +1620,29 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
   .spa-detail-card{display:flex;flex-direction:column;gap:12px;min-height:0;height:100%;}
   .spa-detail-card-guests{grid-column:1/-1;grid-row:2;}
-  .spa-radio-list{display:flex;flex-wrap:wrap;gap:10px;}
+.spa-radio-list{display:flex;flex-wrap:wrap;gap:10px;}
+.spa-radio-list--tablet{
+  display:flex;
+  flex-direction:column;
+  border-radius:18px;
+  border:1px solid var(--activity-divider);
+  background:var(--surface);
+  max-block-size:min(280px,42vh);
+  overflow:auto;
+  scrollbar-gutter:stable both-edges;
+}
+.spa-radio-list--tablet .spa-choice-row + .spa-choice-row{border-top:var(--hairline);}
+.spa-radio-list--tablet .spa-choice-row{justify-content:space-between;}
+.spa-choice-row{background:transparent;border:0;border-radius:0;padding-inline:var(--space-3);color:var(--ink);}
+.spa-choice-row:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;}
+.spa-choice-label{display:flex;align-items:center;gap:8px;font-weight:500;}
+.spa-choice-row.selected .spa-choice-label{color:var(--brand);font-weight:600;}
+.spa-choice-star{color:var(--brand);font-size:14px;}
+.spa-choice-detail{display:block;margin-top:2px;font-size:13px;color:var(--muted);font-weight:400;}
+.spa-choice-status{inline-size:20px;block-size:20px;border-radius:50%;border:1px solid var(--border-hairline);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:transparent;transition:background-color .16s ease,border-color .16s ease,color .16s ease;}
+.spa-choice-row.selected .spa-choice-status{background:var(--brand);border-color:var(--brand);color:#fff;}
+.spa-choice-row.selected .spa-choice-status::after{content:'\2713';}
+.spa-choice-row:not(.selected) .spa-choice-status{background:var(--surface);}
 /*
  * The duration row always reserves space for the three-option case so the
  * modal frame never needs to grow when Castle Hot Springs exposes its third
@@ -1609,6 +1687,7 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
   overscroll-behavior:contain;
   scrollbar-gutter:stable both-edges;
 }
+.custom-body--tablet{padding-block-start:calc(var(--spa-body-padding) + env(safe-area-inset-top));}
 .custom-layout{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1618,6 +1697,10 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
   min-height:0;
   align-content:start;
 }
+.custom-layout--tablet{grid-template-columns:1fr;grid-auto-rows:auto;gap:20px;}
+.custom-card--tablet{gap:18px;}
+.custom-dialog--tablet .modal-header,
+.custom-dialog--tablet .modal-footer{padding-inline:clamp(var(--space-4),6vw,var(--space-5));}
 .custom-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .custom-header{flex-direction:column;align-items:stretch;gap:var(--space-4);}
 .custom-header-bar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);}
@@ -1656,6 +1739,8 @@ body[data-theme='dark'] .custom-existing-back:hover{background-color:color-mix(i
 body[data-theme='dark'] .custom-existing-row.active{background:color-mix(in srgb,var(--brand) 28%,transparent);}
 body[data-theme='dark'] .custom-existing-list::-webkit-scrollbar-thumb{background:rgba(148,163,184,.7);}
 .custom-time-summary{display:flex;flex-wrap:wrap;gap:12px;}
+.custom-dialog--tablet .custom-time-summary{flex-direction:column;align-items:stretch;}
+.custom-dialog--tablet .custom-time-pill{width:100%;justify-content:space-between;}
 .custom-time-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--panel,#f8fafc);transition:background-color .18s ease,border-color .18s ease,color .18s ease;}
 .custom-time-pill[data-empty='true']{color:var(--muted);}
 .custom-time-pill-label{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}

@@ -2366,6 +2366,10 @@
     const catalog = state.spaCatalog;
     const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
     const singleGuestStay = state.guests.length === 1;
+    // iPad viewport range gets a dedicated layout so the modal can fill 100dvh
+    // with safe-area gutters while swapping pill grids for scrollable lists.
+    const tabletMedia = window.matchMedia('(min-width: 720px) and (max-width: 1100px)');
+    let isTabletLayout = tabletMedia.matches;
     const normalizeGuestIds = ids => {
       const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
       const requestedSet = new Set(requested);
@@ -2557,6 +2561,29 @@
 
     const buildGuestLabel = guest => guest.name;
 
+    // Tablet rows reuse the shared list-row styling; desktop keeps the pill markup.
+    const applyChoiceContent = (button, label, detail='') => {
+      if(isTabletLayout){
+        button.textContent='';
+        const labelSpan=document.createElement('span');
+        labelSpan.className='spa-choice-label';
+        labelSpan.textContent=label;
+        if(detail){
+          const detailSpan=document.createElement('span');
+          detailSpan.className='spa-choice-detail';
+          detailSpan.textContent=detail;
+          labelSpan.appendChild(detailSpan);
+        }
+        button.appendChild(labelSpan);
+        const statusSpan=document.createElement('span');
+        statusSpan.className='spa-choice-status';
+        statusSpan.setAttribute('aria-hidden','true');
+        button.appendChild(statusSpan);
+      }else{
+        button.textContent=label;
+      }
+    };
+
     // The confirm button stays inactive until every visible guest pill is ON.
     function areGuestsReady(){
       const visibleIds = orderedGuests();
@@ -2604,44 +2631,74 @@
         return;
       }
 
+      guestList.className='spa-guest-list';
+      guestList.classList.toggle('spa-guest-list--tablet', isTabletLayout);
+      guestList.classList.toggle('list-hairline', isTabletLayout);
+
       visibleGuests.forEach(guest => {
         const isOn = assignedSet.has(guest.id);
-        const wrapper=document.createElement('div');
-        wrapper.className='spa-guest-chip';
-        wrapper.dataset.guestId = guest.id;
-        wrapper.classList.toggle('included', isOn);
-        wrapper.classList.toggle('spa-guest-chip--off', !isOn);
+        if(isTabletLayout){
+          const row=document.createElement('button');
+          row.type='button';
+          row.className='spa-choice-row list-row';
+          row.dataset.guestId = guest.id;
+          row.dataset.spaNoSubmit='true';
+          row.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+          row.setAttribute('aria-label', `Toggle guest: ${guest.name}`);
+          applyChoiceContent(row, buildGuestLabel(guest));
+          if(guest.primary){
+            const labelEl=row.querySelector('.spa-choice-label');
+            if(labelEl){
+              const star=document.createElement('span');
+              star.className='spa-choice-star';
+              star.textContent='★';
+              star.setAttribute('aria-hidden','true');
+              labelEl.prepend(star);
+            }
+          }
+          row.classList.toggle('selected', isOn);
+          row.addEventListener('click',()=>{
+            toggleGuest(guest.id);
+          });
+          guestList.appendChild(row);
+        }else{
+          const wrapper=document.createElement('div');
+          wrapper.className='spa-guest-chip';
+          wrapper.dataset.guestId = guest.id;
+          wrapper.classList.toggle('included', isOn);
+          wrapper.classList.toggle('spa-guest-chip--off', !isOn);
 
-        const pill=document.createElement('button');
-        pill.type='button';
-        pill.className='guest-pill spa-guest-pill';
-        pill.dataset.guestId = guest.id;
-        pill.dataset.spaNoSubmit='true';
-        pill.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-        pill.setAttribute('aria-label', `Toggle guest: ${guest.name}`);
-        pill.classList.toggle('spa-guest-pill--off', !isOn);
-        pill.style.setProperty('--pillColor', guest.color);
-        wrapper.style.setProperty('--pill-bg', guest.color);
-        wrapper.style.setProperty('--pill-fg', guest.color);
-        wrapper.style.setProperty('--pill-accent', guest.color);
-        pill.addEventListener('click',()=>{
-          toggleGuest(guest.id);
-        });
+          const pill=document.createElement('button');
+          pill.type='button';
+          pill.className='guest-pill spa-guest-pill';
+          pill.dataset.guestId = guest.id;
+          pill.dataset.spaNoSubmit='true';
+          pill.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+          pill.setAttribute('aria-label', `Toggle guest: ${guest.name}`);
+          pill.classList.toggle('spa-guest-pill--off', !isOn);
+          pill.style.setProperty('--pillColor', guest.color);
+          wrapper.style.setProperty('--pill-bg', guest.color);
+          wrapper.style.setProperty('--pill-fg', guest.color);
+          wrapper.style.setProperty('--pill-accent', guest.color);
+          pill.addEventListener('click',()=>{
+            toggleGuest(guest.id);
+          });
 
-        if(guest.primary){
-          const star=document.createElement('span');
-          star.className='star';
-          star.textContent='★';
-          star.setAttribute('aria-hidden','true');
-          pill.appendChild(star);
+          if(guest.primary){
+            const star=document.createElement('span');
+            star.className='star';
+            star.textContent='★';
+            star.setAttribute('aria-hidden','true');
+            pill.appendChild(star);
+          }
+          const labelSpan=document.createElement('span');
+          labelSpan.className='label';
+          labelSpan.textContent=buildGuestLabel(guest);
+          pill.appendChild(labelSpan);
+
+          wrapper.appendChild(pill);
+          guestList.appendChild(wrapper);
         }
-        const labelSpan=document.createElement('span');
-        labelSpan.className='label';
-        labelSpan.textContent=buildGuestLabel(guest);
-        pill.appendChild(labelSpan);
-
-        wrapper.appendChild(pill);
-        guestList.appendChild(wrapper);
       });
 
       const allOn = visibleIds.every(id => assignedSet.has(id));
@@ -3119,15 +3176,24 @@
     therapistList.className='spa-radio-list';
     therapistList.setAttribute('role','radiogroup');
     therapistList.setAttribute('aria-label','Therapist preference');
-    SPA_THERAPIST_OPTIONS.forEach(option => {
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='spa-radio';
-      btn.dataset.value=option.id;
-      btn.textContent=option.label;
-      btn.addEventListener('click',()=> selectTherapist(option.id));
-      therapistList.appendChild(btn);
-    });
+    const renderTherapistOptions=()=>{
+      therapistList.innerHTML='';
+      therapistList.className='spa-radio-list';
+      therapistList.classList.toggle('spa-radio-list--tablet', isTabletLayout);
+      therapistList.classList.toggle('list-hairline', isTabletLayout);
+      SPA_THERAPIST_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-radio';
+        if(isTabletLayout){
+          btn.classList.add('spa-choice-row','list-row');
+        }
+        btn.dataset.value=option.id;
+        applyChoiceContent(btn, option.label);
+        btn.addEventListener('click',()=> selectTherapist(option.id));
+        therapistList.appendChild(btn);
+      });
+    };
     therapistGroup.appendChild(therapistList);
 
     const locationGroup=document.createElement('div');
@@ -3139,15 +3205,24 @@
     locationList.className='spa-radio-list';
     locationList.setAttribute('role','radiogroup');
     locationList.setAttribute('aria-label','Location');
-    SPA_LOCATION_OPTIONS.forEach(option => {
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='spa-radio';
-      btn.dataset.value=option.id;
-      btn.textContent=option.label;
-      btn.addEventListener('click',()=> selectLocation(option.id));
-      locationList.appendChild(btn);
-    });
+    const renderLocationOptions=()=>{
+      locationList.innerHTML='';
+      locationList.className='spa-radio-list';
+      locationList.classList.toggle('spa-radio-list--tablet', isTabletLayout);
+      locationList.classList.toggle('list-hairline', isTabletLayout);
+      SPA_LOCATION_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-radio';
+        if(isTabletLayout){
+          btn.classList.add('spa-choice-row','list-row');
+        }
+        btn.dataset.value=option.id;
+        applyChoiceContent(btn, option.label);
+        btn.addEventListener('click',()=> selectLocation(option.id));
+        locationList.appendChild(btn);
+      });
+    };
     const locationHelper=document.createElement('p');
     locationHelper.className='spa-helper-text sr-only';
     locationHelper.id='spa-location-inroom-helper';
@@ -3163,6 +3238,35 @@
     primaryColumn.appendChild(therapistGroup);
     primaryColumn.appendChild(locationGroup);
     detailsGrid.appendChild(guestSection);
+
+    const applyTabletClasses=()=>{
+      overlay.classList.toggle('spa-overlay--tablet', isTabletLayout);
+      dialog.classList.toggle('spa-dialog--tablet', isTabletLayout);
+      body.classList.toggle('spa-body--tablet', isTabletLayout);
+      layout.classList.toggle('spa-layout--tablet', isTabletLayout);
+      detailsGrid.classList.toggle('spa-details-grid--tablet', isTabletLayout);
+      guestSection.classList.toggle('spa-guest-card--tablet', isTabletLayout);
+      therapistGroup.classList.toggle('spa-detail-card--tablet', isTabletLayout);
+      locationGroup.classList.toggle('spa-detail-card--tablet', isTabletLayout);
+      durationGroup.classList.toggle('spa-detail-card--tablet', isTabletLayout);
+      timeGroup.classList.toggle('spa-detail-card--tablet', isTabletLayout);
+    };
+
+    const handleTabletChange=event=>{
+      const next = event?.matches;
+      if(typeof next === 'boolean' && next === isTabletLayout){
+        return;
+      }
+      isTabletLayout = event?.matches ?? tabletMedia.matches;
+      applyTabletClasses();
+      renderTherapistOptions();
+      renderLocationOptions();
+      updateGuestControls();
+      refreshDurationOptions();
+      refreshTherapistOptions();
+      refreshLocationOptions();
+    };
+    tabletMedia.addEventListener?.('change', handleTabletChange);
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
@@ -3553,10 +3657,15 @@
         const btn=document.createElement('button');
         btn.type='button';
         btn.className='spa-radio';
+        if(isTabletLayout){
+          btn.classList.add('spa-choice-row','list-row');
+        }
         btn.dataset.value=String(minutes);
         // Buttons surface numerals only while the aria-label keeps the
         // descriptive "-Minute" phrasing for assistive tech parity.
-        btn.textContent=formatDurationButtonLabel(minutes);
+        const durationLabel = formatDurationButtonLabel(minutes);
+        const durationDetail = isTabletLayout ? 'Minutes' : '';
+        applyChoiceContent(btn, durationLabel, durationDetail);
         btn.setAttribute('aria-label', formatDurationLabel(minutes));
         const selected = selection?.durationMinutes===minutes;
         btn.classList.toggle('selected', selected);
@@ -3786,6 +3895,9 @@
       updateConfirmState();
     }
 
+    applyTabletClasses();
+    renderTherapistOptions();
+    renderLocationOptions();
     updateGuestControls();
     refreshAllControls();
 
@@ -3915,6 +4027,7 @@
       dialog,
       previousFocus,
       cleanup(){
+        tabletMedia.removeEventListener?.('change', handleTabletChange);
         timePicker?.dispose?.();
       }
     };
@@ -3948,6 +4061,9 @@
     const previousFocus = document.activeElement;
     const catalog = state.customCatalog || { titles: [], locations: [] };
     const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    // Mirror the spa tablet sheet so custom fills the viewport on iPad as well.
+    const tabletMedia = window.matchMedia('(min-width: 720px) and (max-width: 1100px)');
+    let isTabletLayout = tabletMedia.matches;
     const normalizeGuestIds = ids => {
       const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
       const requestedSet = new Set(requested);
@@ -4301,6 +4417,28 @@
     guestSection.appendChild(guestSummary);
     layout.appendChild(guestSection);
 
+    const applyTabletClasses=()=>{
+      overlay.classList.toggle('spa-overlay--tablet', isTabletLayout);
+      dialog.classList.toggle('spa-dialog--tablet', isTabletLayout);
+      dialog.classList.toggle('custom-dialog--tablet', isTabletLayout);
+      body.classList.toggle('spa-body--tablet', isTabletLayout);
+      body.classList.toggle('custom-body--tablet', isTabletLayout);
+      layout.classList.toggle('custom-layout--tablet', isTabletLayout);
+      timeSection.classList.toggle('custom-card--tablet', isTabletLayout);
+      locationSection.classList.toggle('custom-card--tablet', isTabletLayout);
+      guestSection.classList.toggle('custom-card--tablet', isTabletLayout);
+    };
+
+    const handleTabletChange=event=>{
+      const next = event?.matches;
+      if(typeof next === 'boolean' && next === isTabletLayout){
+        return;
+      }
+      isTabletLayout = event?.matches ?? tabletMedia.matches;
+      applyTabletClasses();
+    };
+    tabletMedia.addEventListener?.('change', handleTabletChange);
+
     const footer=document.createElement('div');
     footer.className='modal-footer';
     const footerStart=document.createElement('div');
@@ -4321,6 +4459,7 @@
     footer.appendChild(footerEnd);
     dialog.appendChild(footer);
 
+    applyTabletClasses();
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
     document.body.classList.add('custom-lock');
@@ -4744,6 +4883,7 @@
       dialog,
       previousFocus,
       cleanup(){
+        tabletMedia.removeEventListener?.('change', handleTabletChange);
         timePicker?.dispose?.();
         dialog.removeEventListener('keydown', handleKeyDown);
       }
