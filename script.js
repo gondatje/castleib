@@ -4133,8 +4133,6 @@
     titleSection.appendChild(existingPane);
     titleSection.setAttribute('aria-labelledby', titleHeadingId);
 
-    header.appendChild(titleSection);
-
     dialog.appendChild(header);
 
     const body=document.createElement('div');
@@ -4146,14 +4144,31 @@
     layout.className='custom-layout';
     body.appendChild(layout);
 
+    // Custom modal grid: Title → cols 1–2, rows 1–3.
+    layout.appendChild(titleSection);
+
     const timeSection=document.createElement('section');
     timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
+    // Custom modal: Time section reflow; stack hourglass buttons on right; no internal scroll.
+    const timeShell=document.createElement('div');
+    timeShell.className='custom-time-shell';
+    timeSection.appendChild(timeShell);
+
+    const timeContent=document.createElement('div');
+    timeContent.className='custom-time-content';
+    timeShell.appendChild(timeContent);
+
+    const timeHeaderRow=document.createElement('div');
+    timeHeaderRow.className='custom-time-header-row';
+    timeContent.appendChild(timeHeaderRow);
+
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Time';
-    timeSection.appendChild(timeHeading);
+    timeHeaderRow.appendChild(timeHeading);
 
     const timeSummary=document.createElement('div');
     timeSummary.className='custom-time-summary';
+    timeHeaderRow.appendChild(timeSummary);
 
     const startPill=document.createElement('div');
     startPill.className='custom-time-pill';
@@ -4188,11 +4203,9 @@
     endPill.appendChild(clearEndBtn);
     timeSummary.appendChild(endPill);
 
-    timeSection.appendChild(timeSummary);
-
     const pickerContainer=document.createElement('div');
     pickerContainer.className='custom-picker';
-    timeSection.appendChild(pickerContainer);
+    timeContent.appendChild(pickerContainer);
 
     const pickerActions=document.createElement('div');
     pickerActions.className='custom-picker-actions';
@@ -4215,12 +4228,15 @@
     setEndBtn.innerHTML = `<span class="custom-time-icon">${customSetEndSvg}</span>`;
     pickerActions.appendChild(setEndBtn);
 
-    timeSection.appendChild(pickerActions);
+    const timeActionsColumn=document.createElement('div');
+    timeActionsColumn.className='custom-time-actions-column';
+    timeActionsColumn.appendChild(pickerActions);
+    timeShell.appendChild(timeActionsColumn);
 
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
     timeError.hidden=true;
-    timeSection.appendChild(timeError);
+    timeContent.appendChild(timeError);
 
     layout.appendChild(timeSection);
 
