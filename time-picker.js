@@ -963,12 +963,51 @@
       meridiemColumn.appendChild(group);
       meridiemGroup = group;
       const meridiemIdPrefix = `time-picker-meridiem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const MERIDIEM_ITEM_HEIGHT = 44;
+      const WHEEL_MODE_DISCRETE = 'discrete';
+      const WHEEL_MODE_SMOOTH = 'smooth';
+      const meridiemWheelOptions = { passive: false };
+      let meridiemWheelRemainder = 0;
+      let meridiemLineRemainder = 0;
+      const classifyMeridiemWheelEvent = e => {
+        if(e.deltaMode === DOM_DELTA_LINE || e.deltaMode === DOM_DELTA_PAGE){
+          return WHEEL_MODE_DISCRETE;
+        }
+        return Math.abs(e.deltaY) >= MERIDIEM_ITEM_HEIGHT ? WHEEL_MODE_DISCRETE : WHEEL_MODE_SMOOTH;
+      };
+      const normalizeMeridiemDelta = (e, mode) => {
+        if(mode === WHEEL_MODE_DISCRETE){
+          if(e.deltaMode === DOM_DELTA_LINE){
+            meridiemLineRemainder += e.deltaY;
+            const lines = Math.sign(meridiemLineRemainder) * Math.min(1, Math.trunc(Math.abs(meridiemLineRemainder)));
+            meridiemLineRemainder -= lines;
+            return lines * MERIDIEM_ITEM_HEIGHT;
+          }
+          if(e.deltaMode === DOM_DELTA_PAGE){
+            return e.deltaY * MERIDIEM_ITEM_HEIGHT * 3;
+          }
+        }else{
+          meridiemLineRemainder = 0;
+        }
+        return e.deltaY;
+      };
       const stepMeridiem = direction => {
         if(!meridiems.length) return;
         const index = meridiems.indexOf(currentMeridiem);
         const nextIndex = (index + direction + meridiems.length) % meridiems.length;
         const nextValue = meridiems[nextIndex];
         syncMeridiem(nextValue);
+      };
+      const stepMeridiemClamped = direction => {
+        if(!meridiems.length) return false;
+        const index = meridiems.indexOf(currentMeridiem);
+        const nextIndex = index + direction;
+        if(nextIndex < 0 || nextIndex >= meridiems.length){
+          return false;
+        }
+        const nextValue = meridiems[nextIndex];
+        syncMeridiem(nextValue);
+        return true;
       };
       const createOption = value => {
         const button = document.createElement('button');
@@ -1015,13 +1054,37 @@
           stepMeridiem(1);
         }
       });
+      const handleMeridiemWheel = e => {
+        e.preventDefault();
+        const mode = classifyMeridiemWheelEvent(e);
+        const delta = normalizeMeridiemDelta(e, mode);
+        if(delta === 0) return;
+        meridiemWheelRemainder += delta;
+        const threshold = MERIDIEM_ITEM_HEIGHT;
+        while(Math.abs(meridiemWheelRemainder) >= threshold){
+          const direction = meridiemWheelRemainder > 0 ? 1 : -1;
+          // AM/PM hover-scroll; non-cyclic clamp 0..1
+          if(!stepMeridiemClamped(direction)){
+            meridiemWheelRemainder = 0;
+            break;
+          }
+          meridiemWheelRemainder -= direction * threshold;
+        }
+        if(mode === WHEEL_MODE_SMOOTH){
+          meridiemWheelRemainder *= 0.2;
+        }
+      };
+      group.addEventListener('wheel', handleMeridiemWheel, meridiemWheelOptions);
       registerColumn(group, () => focusElement(group));
       meridiemWheel = {
         element: group,
         focus(options){ focusElement(group, options); },
         setValue(value){ syncMeridiem(value, { emitChange: false }); },
         step(direction){ stepMeridiem(direction); },
-        dispose(){ meridiemButtonMap.clear(); }
+        dispose(){
+          meridiemButtonMap.clear();
+          group.removeEventListener('wheel', handleMeridiemWheel, meridiemWheelOptions);
+        }
       };
       updateMeridiemButtons();
     }else if(staticMeridiemLabel){
