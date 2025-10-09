@@ -3981,8 +3981,13 @@
     body.className='modal-body custom-body';
     dialog.appendChild(body);
 
+    const layout=document.createElement('div');
+    layout.className='custom-layout';
+    body.appendChild(layout);
+
     const titleSection=document.createElement('section');
-    titleSection.className='custom-section custom-section-title';
+    // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
+    titleSection.className='custom-section custom-section-title spa-section spa-block custom-card';
     const titleHeading=document.createElement('h3');
     titleHeading.textContent='Title';
     titleSection.appendChild(titleHeading);
@@ -4045,10 +4050,10 @@
 
     titleSection.appendChild(freePane);
     titleSection.appendChild(existingPane);
-    body.appendChild(titleSection);
+    layout.appendChild(titleSection);
 
     const timeSection=document.createElement('section');
-    timeSection.className='custom-section custom-section-time';
+    timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Time';
     timeSection.appendChild(timeHeading);
@@ -4123,44 +4128,118 @@
     timeError.hidden=true;
     timeSection.appendChild(timeError);
 
-    body.appendChild(timeSection);
+    layout.appendChild(timeSection);
 
     const locationSection=document.createElement('section');
-    locationSection.className='custom-section custom-section-location';
+    locationSection.className='custom-section custom-section-location spa-section spa-block custom-card';
     const locationHeading=document.createElement('h3');
+    locationHeading.id='custom-location-heading';
     locationHeading.textContent='Location (optional)';
     locationSection.appendChild(locationHeading);
     // Location list is sourced from the CHS activities metadata so preview copy
     // and in-app chips both draw from the same canonical venue names.
-    const locationSelect=document.createElement('select');
-    locationSelect.className='custom-location-select';
-    const emptyOption=document.createElement('option');
-    emptyOption.value='';
-    emptyOption.textContent='No location';
-    locationSelect.appendChild(emptyOption);
+    const locationOptions=[{ value:'', label:'No location' }];
+    const seenLocations=new Set();
     catalog.locations.forEach(loc=>{
-      const opt=document.createElement('option');
-      opt.value=loc;
-      opt.textContent=loc;
-      locationSelect.appendChild(opt);
+      const normalized = String(loc || '').trim();
+      if(!normalized || seenLocations.has(normalized)) return;
+      seenLocations.add(normalized);
+      locationOptions.push({ value: normalized, label: normalized });
     });
-    locationSelect.value = locationValue || '';
-    locationSelect.addEventListener('change',()=>{
-      locationManual = true;
-      locationValue = locationSelect.value;
+    if(locationValue && !seenLocations.has(locationValue)){ locationOptions.push({ value: locationValue, label: locationValue }); }
+    const locationList=document.createElement('div');
+    // Swap the native select for a scrollable hairline list so the card matches the spa chooser interactions.
+    locationList.className='custom-location-list list-hairline';
+    locationList.setAttribute('role','listbox');
+    locationList.setAttribute('aria-labelledby','custom-location-heading');
+    locationSection.appendChild(locationList);
+
+    const locationRows=[];
+    const findLocationIndex=value=>{
+      const normalized = String(value ?? '').trim();
+      return locationOptions.findIndex(opt=> opt.value === normalized);
+    };
+    let locationActiveIndex = findLocationIndex(locationValue);
+    if(locationActiveIndex<0){ locationActiveIndex = 0; locationValue = locationOptions[0]?.value || ''; }
+
+    const setLocationActive=(index,{focus=true,fromPointer=false}={})=>{
+      if(!locationRows.length) return;
+      const bounded=Math.max(0,Math.min(index,locationRows.length-1));
+      locationActiveIndex=bounded;
+      locationRows.forEach((row,i)=>{
+        const isSelected=i===bounded;
+        row.classList.toggle('selected',isSelected);
+        row.setAttribute('aria-selected',isSelected ? 'true' : 'false');
+        row.tabIndex=isSelected ? 0 : -1;
+      });
+      const target=locationRows[bounded];
+      if(target){
+        if(focus){ focusWithoutScroll(target); }
+        if(!fromPointer){ target.scrollIntoView({ block:'nearest', inline:'nearest' }); }
+      }
+    };
+
+    const syncLocationSelection=({manual=false,focus=false,fromPointer=false}={})=>{
+      let nextIndex=findLocationIndex(locationValue);
+      if(nextIndex<0){
+        nextIndex=0;
+        locationValue=locationOptions[0]?.value || '';
+      }
+      if(manual){ locationManual = true; }
+      setLocationActive(nextIndex,{ focus, fromPointer });
+    };
+
+    const chooseLocationByIndex=(index,{manual=true,focus=false,fromPointer=false}={})=>{
+      if(index<0 || index>=locationOptions.length) return;
+      const option=locationOptions[index];
+      locationValue = option?.value || '';
+      syncLocationSelection({ manual, focus, fromPointer });
+      if(manual){ refreshSaveState(); }
+    };
+
+    locationOptions.forEach((opt,index)=>{
+      const row=document.createElement('button');
+      row.type='button';
+      row.className='custom-location-row list-row';
+      row.dataset.index=String(index);
+      row.setAttribute('role','option');
+      row.setAttribute('aria-selected','false');
+      row.tabIndex=-1;
+      row.textContent = opt.label;
+      row.addEventListener('click',()=> chooseLocationByIndex(index,{ manual:true, focus:false, fromPointer:true }));
+      row.addEventListener('keydown',event=>{
+        if(event.key==='ArrowDown'){
+          event.preventDefault();
+          const next=Math.min(locationRows.length-1,index+1);
+          chooseLocationByIndex(next,{ manual:true, focus:true });
+        }else if(event.key==='ArrowUp'){
+          event.preventDefault();
+          const prev=Math.max(0,index-1);
+          chooseLocationByIndex(prev,{ manual:true, focus:true });
+        }else if(event.key==='Home'){
+          event.preventDefault();
+          chooseLocationByIndex(0,{ manual:true, focus:true });
+        }else if(event.key==='End'){
+          event.preventDefault();
+          chooseLocationByIndex(locationRows.length-1,{ manual:true, focus:true });
+        }
+      });
+      locationList.appendChild(row);
+      locationRows.push(row);
     });
-    locationSection.appendChild(locationSelect);
-    body.appendChild(locationSection);
+
+    syncLocationSelection({ manual:false, focus:false, fromPointer:true });
+    layout.appendChild(locationSection);
 
     const guestSection=document.createElement('section');
-    guestSection.className='custom-section custom-section-guests';
+    guestSection.className='custom-section custom-section-guests spa-section spa-block custom-card';
     const guestHeading=document.createElement('h3');
     guestHeading.textContent='Guests';
     guestSection.appendChild(guestHeading);
     const guestSummary=document.createElement('p');
     guestSummary.className='custom-guest-summary';
     guestSection.appendChild(guestSummary);
-    body.appendChild(guestSection);
+    layout.appendChild(guestSection);
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
@@ -4262,9 +4341,9 @@
       const matchIndex = findCatalogIndex(value);
       if(matchIndex>=0){
         selectedActivity = catalog.titles[matchIndex];
-        if(!locationManual && selectedActivity.location){
-          locationValue = selectedActivity.location;
-          locationSelect.value = selectedActivity.location;
+        if(!locationManual){
+          locationValue = selectedActivity.location || '';
+          syncLocationSelection({ manual:false, focus:false });
         }
         existingActiveIndex = matchIndex;
       }else{
@@ -4306,9 +4385,9 @@
       selectedActivity = option;
       freeTitleValue = option.title;
       freeInput.value = option.title;
-      if(!locationManual && option.location){
-        locationValue = option.location;
-        locationSelect.value = option.location;
+      if(!locationManual){
+        locationValue = option.location || '';
+        syncLocationSelection({ manual:false, focus:false });
       }
       setExistingActive(index,{ focus:false, fromPointer:true });
       setTitleMode('free');
