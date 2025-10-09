@@ -135,7 +135,6 @@
   const addIconSvg = '<svg viewBox="0 0 256 256" aria-hidden="true" focusable="false"><circle cx="128" cy="128" r="112" fill="none" stroke="currentColor" stroke-width="16"/><path d="M 80,128 H 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><path d="M 128,80 V 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/></svg>';
   // Toolbar clear button uses the MIT-licensed Ant Design delete glyph so destructive affordances stay readable at small sizes.
   const clearToolbarSvg = '<svg viewBox="0 0 1024 1024" aria-hidden="true" focusable="false"><path fill="currentColor" d="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z"/></svg>';
-  const checkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 11.2a.75.75 0 0 1-1.18.15L2.8 8.73a.75.75 0 0 1 1.06-1.06l2.02 2.03 4.46-4.46a.75.75 0 0 1 1.06 1.06Z"/></svg>';
 
   // Reusable factory keeps icon-only buttons consistent across modals while retaining
   // semantic labels + tooltips for assistive tech and pointer affordances.
@@ -2354,12 +2353,6 @@
     const orderedGuests = () => modalGuestIds.slice();
     let assignedIds = modalGuestIds.slice();
     const assignedSet = new Set(assignedIds);
-    // Guest confirmation state mirrors the pill UX: included guests start in a
-    // confirmed state so the modal opens with every guest visibly checked.
-    const guestConfirmState = new Map();
-    assignedIds.forEach(id => {
-      guestConfirmState.set(id, true);
-    });
 
     const defaultService = (()=>{
       if(existing && existing.appointments?.length){
@@ -2433,19 +2426,7 @@
       selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
     }
 
-    let activeGuestId = assignedIds[0] || null;
-
     const orderedAssigned = () => orderedGuests().filter(id => assignedSet.has(id));
-
-    const countConfirmedGuests = () => orderedAssigned().filter(id => guestConfirmState.get(id)).length;
-
-    const inUniformMode = () => {
-      const assigned = orderedAssigned();
-      if(assigned.length===0){
-        return true;
-      }
-      return countConfirmedGuests() === 0;
-    };
 
     const ensureTemplateSelection = () => {
       if(!selections.has(TEMPLATE_ID)){
@@ -2467,25 +2448,7 @@
         ensureTemplateSelection();
         return [TEMPLATE_ID];
       }
-      if(inUniformMode()){
-        activeGuestId = null;
-        return assigned;
-      }
-      let target = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
-      if(target && guestConfirmState.get(target)){
-        target = null;
-      }
-      if(!target){
-        target = assigned.find(id => !guestConfirmState.get(id)) || null;
-      }
-      if(target){
-        activeGuestId = target;
-        if(guestConfirmState.get(target)){
-          return [];
-        }
-        return [target];
-      }
-      return [];
+      return assigned;
     };
 
     const getSelectionFor = (id, fallbackService) => {
@@ -2505,19 +2468,8 @@
       if(assigned.length===0){
         return ensureTemplateSelection();
       }
-      if(inUniformMode()){
-        const baseId = assigned[0];
-        return selections.get(baseId) || ensureTemplateSelection();
-      }
-      let targetId = (activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
-      if(!targetId){
-        targetId = assigned.find(id => !guestConfirmState.get(id)) || assigned[0];
-      }
-      if(targetId){
-        activeGuestId = targetId;
-        return selections.get(targetId) || ensureTemplateSelection();
-      }
-      return ensureTemplateSelection();
+      const baseId = assigned[0];
+      return selections.get(baseId) || ensureTemplateSelection();
     };
 
     const overlay = document.createElement('div');
@@ -2572,19 +2524,15 @@
 
     const buildGuestLabel = guest => guest.name;
 
-    // Submit remains enabled for the uniform fast-path (no confirmations) and only
-    // re-locks when the user starts confirming individual guests.
+    // The confirm button stays active as long as at least one guest pill remains ON.
     function areGuestsReady(){
-      const assigned = orderedAssigned();
-      if(assigned.length===0) return false;
-      const confirmedCount = countConfirmedGuests();
-      if(confirmedCount===0) return true;
-      return confirmedCount===assigned.length;
+      return orderedAssigned().length>0;
     }
 
-    // Modal pills reuse the roster styling so guests remain familiar. A guest is
-    // editable until confirmed; once confirmed they are locked until the user
-    // explicitly unconfirms them.
+    // Modal pills reuse the roster styling while acting as the toggle. Each
+    // guest starts ON so they immediately inherit the staged SPA config; users
+    // flip a pill OFF to pause updates, adjust the controls, then flip it back
+    // ON to apply the current settings to that guest.
     function updateGuestControls(){
       guestList.innerHTML='';
       const visibleIds = orderedGuests();
@@ -2595,42 +2543,19 @@
         assignedSet.add(state.guests[0].id);
       }
       const assigned = orderedAssigned();
-      const uniform = inUniformMode();
-      const confirmedCount = countConfirmedGuests();
-      const outstandingIds = confirmedCount>0 ? assigned.filter(id => !guestConfirmState.get(id)) : [];
-      const outstandingNames = outstandingIds.map(id => {
-        const entry = stayGuestLookup.get(id);
-        return entry ? entry.name : '';
-      }).filter(Boolean);
-      const activeId = (!uniform && activeGuestId && assignedSet.has(activeGuestId)) ? activeGuestId : null;
-      // When only one guest can appear in the modal, show a static nametag so
-      // the confirmation affordance stays visible without acting like a toggle.
       const singleGuestMode = assigned.length===1 && modalGuestIds.length===1;
-      if(singleGuestMode){
-        assigned.forEach(id => {
-          if(!guestConfirmState.get(id)){
-            guestConfirmState.set(id, true);
-          }
-        });
-      }
 
       guestHeading.textContent = visibleIds.length===1 ? 'Guest' : 'Guests';
 
       if(singleGuestRoster){
         const solo = state.guests[0];
         if(solo){
-          guestConfirmState.set(solo.id, true);
           const wrapper=document.createElement('div');
-          wrapper.className='spa-guest-chip spa-guest-chip-static included confirmed has-confirm';
+          wrapper.className='spa-guest-chip spa-guest-chip-static included';
           wrapper.dataset.guestId = solo.id;
-          // Single-guest stays render the pill as a static name tag so the
-          // inline experience matches the roster while skipping the confirm
-          // workflow entirely.
           const pill=document.createElement('span');
           pill.className='guest-pill spa-guest-pill spa-guest-pill-static';
           pill.style.setProperty('--pillColor', solo.color);
-          // Mirror the roster color palette for static pills so the modal can
-          // expose the same accent via CSS variables.
           wrapper.style.setProperty('--pill-bg', solo.color);
           wrapper.style.setProperty('--pill-fg', solo.color);
           wrapper.style.setProperty('--pill-accent', solo.color);
@@ -2646,15 +2571,6 @@
           labelSpan.textContent=buildGuestLabel(solo);
           pill.appendChild(labelSpan);
           wrapper.appendChild(pill);
-          const confirmIcon=document.createElement('span');
-          confirmIcon.className='spa-guest-confirm-toggle spa-guest__bubble spa-guest__bubble--filled';
-          confirmIcon.dataset.staticConfirm='true';
-          confirmIcon.setAttribute('aria-hidden','true');
-          if(solo.color){
-            confirmIcon.style.setProperty('--guest-color', solo.color);
-          }
-          confirmIcon.innerHTML = checkSvg;
-          wrapper.appendChild(confirmIcon);
           guestList.appendChild(wrapper);
         }
         guestHint.hidden=true;
@@ -2673,40 +2589,33 @@
       }
 
       visibleGuests.forEach(guest => {
-        const included = assignedSet.has(guest.id);
-        const confirmed = !!guestConfirmState.get(guest.id);
-        // Mirror the roster chips: reuse the shared guest-pill markup (and
-        // color token) so the modal visuals stay 1:1 with the main rail.
+        const isOn = assignedSet.has(guest.id);
         const wrapper=document.createElement('div');
         wrapper.className='spa-guest-chip';
         wrapper.dataset.guestId = guest.id;
-        if(guest.color){
-          // Propagate the roster color so the confirmation bubble can reuse the token.
-          wrapper.style.setProperty('--guest-color', guest.color);
-        }
-        if(included) wrapper.classList.add('included');
-        if(included && confirmed) wrapper.classList.add('confirmed');
-        if(included && !confirmed && !uniform) wrapper.classList.add('needs-confirm');
-        if(included && activeId===guest.id){
-          wrapper.classList.add('active');
-        }
+        wrapper.classList.toggle('included', isOn);
+        wrapper.classList.toggle('spa-guest-chip--off', !isOn);
 
         const pillTag = singleGuestMode ? 'span' : 'button';
         const pill=document.createElement(pillTag);
-        if(!singleGuestMode){
-          pill.type='button';
-        }
-        pill.className='guest-pill spa-guest-pill';
-        // Reuse the roster palette so the modal pills stay color-synced with the
-        // main guest chips and expose that accent to the confirmation control.
+        pill.className=`guest-pill spa-guest-pill${singleGuestMode ? ' spa-guest-pill-static' : ''}`;
+        pill.dataset.guestId = guest.id;
         pill.style.setProperty('--pillColor', guest.color);
         wrapper.style.setProperty('--pill-bg', guest.color);
         wrapper.style.setProperty('--pill-fg', guest.color);
         wrapper.style.setProperty('--pill-accent', guest.color);
+
         if(!singleGuestMode){
-          pill.setAttribute('aria-pressed', included ? 'true' : 'false');
+          pill.type='button';
+          pill.dataset.spaNoSubmit='true';
+          pill.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+          pill.setAttribute('aria-label', `Toggle guest: ${guest.name}`);
+          pill.classList.toggle('spa-guest-pill--off', !isOn);
+          pill.addEventListener('click',()=>{
+            toggleGuest(guest.id);
+          });
         }
-        pill.classList.toggle('active', included);
+
         if(guest.primary){
           const star=document.createElement('span');
           star.className='star';
@@ -2719,76 +2628,13 @@
         labelSpan.textContent=buildGuestLabel(guest);
         pill.appendChild(labelSpan);
 
-        if(!singleGuestMode){
-          pill.addEventListener('click',()=>{
-            if(!included){
-              includeGuest(guest.id);
-              return;
-            }
-            if(uniform){
-              return;
-            }
-            setActiveGuest(guest.id);
-          });
-          pill.addEventListener('keydown',e=>{
-            if(!included && (e.key==='Enter' || e.key===' ' || e.key==='Spacebar')){
-              e.preventDefault();
-              includeGuest(guest.id);
-            }
-          });
-        }
-        if(included){
-          wrapper.classList.add('has-confirm');
-          if(!singleGuestMode){
-            pill.setAttribute('aria-label', uniform ? `${guest.name} selected` : `Edit selections for ${guest.name}`);
-          }
-        }else if(!singleGuestMode){
-          pill.setAttribute('aria-label',`Include ${guest.name} in this appointment`);
-        }
-
         wrapper.appendChild(pill);
-
-        if(included){
-          // The checkmark replaces the hover “X” affordance from the roster chips;
-          // keeping it inside the pill ensures the modal visuals stay pixel-identical
-          // while still exposing a separate button for confirmation.
-          const confirmTag = singleGuestMode ? 'span' : 'button';
-          const confirmBtn=document.createElement(confirmTag);
-          confirmBtn.className='spa-guest-confirm-toggle spa-guest__bubble';
-          confirmBtn.classList.toggle('spa-guest__bubble--filled', confirmed);
-          if(guest.color){
-            confirmBtn.style.setProperty('--guest-color', guest.color);
-          }
-          if(singleGuestMode){
-            confirmBtn.dataset.staticConfirm='true';
-            confirmBtn.setAttribute('aria-hidden','true');
-            confirmBtn.innerHTML = checkSvg;
-          }else{
-            confirmBtn.type='button';
-            confirmBtn.dataset.spaNoSubmit='true';
-            confirmBtn.dataset.guestId = guest.id;
-            confirmBtn.setAttribute('aria-pressed', confirmed ? 'true' : 'false');
-            confirmBtn.setAttribute('aria-label', `Confirm ${guest.name}`);
-            confirmBtn.innerHTML = `${checkSvg}<span class="sr-only">Confirm ${guest.name}</span>`;
-            confirmBtn.addEventListener('click',e=>{
-              e.stopPropagation();
-              setGuestConfirmed(guest.id, !confirmed);
-            });
-          }
-          wrapper.appendChild(confirmBtn);
-        }
-
         guestList.appendChild(wrapper);
       });
 
       if(assigned.length===0){
         guestHint.hidden=false;
-        guestHint.textContent='Select at least one guest to add a spa appointment.';
-        guestHint.classList.add('spa-helper-error');
-      }else if(confirmedCount>0 && confirmedCount<assigned.length){
-        guestHint.hidden=false;
-        const namesText = outstandingNames.length ? `Confirm selections for: ${outstandingNames.join(', ')}. ` : '';
-        guestHint.textContent=`${namesText}Confirm all guests or clear confirmations to apply to all.`.trim();
+        guestHint.textContent='Turn on at least one guest to add a spa appointment.';
         guestHint.classList.add('spa-helper-error');
       }else{
         guestHint.hidden=true;
@@ -2799,87 +2645,61 @@
       updateConfirmState();
     }
 
+    // Pill presses reuse the include/remove helpers so analytics hooks tied to
+    // the original chip toggles continue to fire without a new event surface.
+    function toggleGuest(id){
+      if(!id || !modalGuestSet.has(id)){
+        return;
+      }
+      if(assignedSet.has(id)){
+        removeGuest(id);
+      }else{
+        includeGuest(id);
+      }
+    }
+
+    // When a guest flips back ON, clone the current staged config (template or
+    // canonical selection) so the latest settings apply immediately.
     function includeGuest(id){
       if(!id || !modalGuestSet.has(id)){
         return;
       }
       if(assignedSet.has(id)){
-        if(id && assignedSet.has(id) && !inUniformMode()){
-          setActiveGuest(id);
-        }
         return;
       }
+      const reference = (() => {
+        const assigned = orderedAssigned();
+        if(assigned.length>0){
+          return getCanonicalSelection() || ensureTemplateSelection();
+        }
+        return ensureTemplateSelection();
+      })();
       assignedSet.add(id);
-      const template = ensureTemplateSelection();
-      const canonical = inUniformMode() ? (getCanonicalSelection() || template) : template;
-      const nextSelection = canonical ? { ...canonical, guestId: id } : { ...template, guestId: id };
+      const nextSelection = reference ? { ...reference, guestId: id } : createSelection(defaultService, { guestId: id });
       selections.set(id, nextSelection);
-      guestConfirmState.set(id, true);
       assignedIds = orderedAssigned();
-      if(inUniformMode()){
-        syncTemplateFromSourceId(id);
-      }else{
-        activeGuestId = id;
-      }
+      syncTemplateFromSourceId(id);
       updateGuestControls();
       refreshAllControls();
     }
 
+    // OFF guests simply drop out of the assigned set; the remaining ON guest
+    // becomes the template source so staged edits keep reflecting the active set.
     function removeGuest(id){
       if(!assignedSet.has(id)) return;
       assignedSet.delete(id);
       selections.delete(id);
-      guestConfirmState.delete(id);
-      const assigned = orderedAssigned();
-      assignedIds = assigned;
-      if(assigned.length===0){
-        activeGuestId = null;
-      }else if(activeGuestId && !assignedSet.has(activeGuestId)){
-        const fallback = assigned.find(gid => !guestConfirmState.get(gid)) || null;
-        activeGuestId = fallback;
+      assignedIds = orderedAssigned();
+      if(assignedIds.length>0){
+        const first = assignedIds[0];
+        syncTemplateFromSourceId(first);
       }
       updateGuestControls();
       refreshAllControls();
     }
 
-    function setGuestConfirmed(id, confirmed){
-      if(!assignedSet.has(id)) return;
-      const next = !!confirmed;
-      guestConfirmState.set(id, next);
-      if(next){
-        const fallback = orderedAssigned().find(gid => !guestConfirmState.get(gid));
-        activeGuestId = fallback || id;
-      }else{
-        activeGuestId = id;
-      }
-      updateGuestControls();
+    function markGuestsDirty(){
       updateConfirmState();
-    }
-
-    function setActiveGuest(id){
-      if(!assignedSet.has(id)) return;
-      if(inUniformMode()) return;
-      if(activeGuestId===id) return;
-      if(guestConfirmState.get(id)) return;
-      activeGuestId = id;
-      updateGuestControls();
-      refreshAllControls();
-    }
-
-    function markGuestsDirty(ids){
-      let touched=false;
-      ids.forEach(targetId => {
-        if(targetId===TEMPLATE_ID) return;
-        if(guestConfirmState.get(targetId)){
-          guestConfirmState.set(targetId, false);
-          touched=true;
-        }
-      });
-      if(touched){
-        updateGuestControls();
-      }else{
-        updateConfirmState();
-      }
     }
 
     const serviceSection=document.createElement('section');
@@ -3394,7 +3214,7 @@
       const sourceId = effectiveTargets.find(id => id!==TEMPLATE_ID) || effectiveTargets[0] || TEMPLATE_ID;
       syncTemplateFromSourceId(sourceId);
       if(touched){
-        markGuestsDirty(effectiveTargets);
+        markGuestsDirty();
       }else{
         updateConfirmState();
       }
@@ -3832,7 +3652,7 @@
         }
       });
       if(touched){
-        markGuestsDirty(targets);
+        markGuestsDirty();
       }else{
         updateConfirmState();
       }
@@ -3858,7 +3678,7 @@
         }
       });
       if(touched){
-        markGuestsDirty(targets);
+        markGuestsDirty();
       }else{
         updateConfirmState();
       }
@@ -3880,7 +3700,7 @@
         }
       });
       if(touched){
-        markGuestsDirty(targets);
+        markGuestsDirty();
       }else{
         updateConfirmState();
       }
@@ -3923,7 +3743,7 @@
         }
       });
       if(touched){
-        markGuestsDirty(targets);
+        markGuestsDirty();
       }else{
         updateConfirmState();
       }
@@ -3944,12 +3764,11 @@
         updateGuestControls();
         return;
       }
-      const confirmedCount = countConfirmedGuests();
       const canonical = getCanonicalSelection() || ensureTemplateSelection();
       // Capture the final snapshot for every guest so we can either apply them
       // uniformly or split them into individual activities when variations exist.
       const snapshots = assigned.map(id => {
-        const base = confirmedCount===0 ? canonical : (selections.get(id) || canonical);
+        const base = selections.get(id) || canonical;
         const startValue = base.start || defaultSpaStartTime;
         const computedEnd = addMinutesToTime(startValue, base.durationMinutes);
         const hasExplicitEnd = base.explicitEnd && !!base.end;
