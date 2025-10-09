@@ -84,6 +84,41 @@
     }
   };
 
+  const isMultilineField = element => {
+    if(!element) return false;
+    if(element.tagName === 'TEXTAREA') return true;
+    if(element.isContentEditable) return true;
+    const role = typeof element.getAttribute === 'function' ? element.getAttribute('role') : null;
+    if(role === 'textbox' && element.getAttribute('aria-multiline') === 'true'){
+      return true;
+    }
+    return false;
+  };
+
+  const handlePrimaryKeyActivation = (event, button, { shouldIgnoreTarget }={}) => {
+    if(!button) return false;
+    if(event.defaultPrevented) return false;
+    const key = event.key;
+    if(key !== 'Enter' && key !== 'Return') return false;
+    if(event.ctrlKey || event.altKey || event.metaKey) return false;
+    if(event.isComposing) return false;
+    const target = event.target || null;
+    if(typeof shouldIgnoreTarget === 'function' && shouldIgnoreTarget(target)){
+      return false;
+    }
+    if(isMultilineField(target)) return false;
+    if(target && (target.tagName === 'BUTTON' || (typeof target.getAttribute === 'function' && target.getAttribute('role') === 'button'))){
+      return false;
+    }
+    if(button.disabled || button.getAttribute('aria-disabled') === 'true'){
+      return false;
+    }
+    event.preventDefault();
+    // Enter triggers existing primary action in modals/popovers.
+    button.click();
+    return true;
+  };
+
   // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
   // the UI continues to render individual chips if the helper fails to load in a dev sandbox.
   const fallbackAssignmentChipMode = {
@@ -875,6 +910,9 @@
       if(e.key==='Escape'){
         e.preventDefault();
         closeStayNotePicker({ returnFocus:true });
+        return;
+      }
+      if((surface.contains(e.target) || e.target===anchor) && handlePrimaryKeyActivation(e, saveBtn)){
         return;
       }
       if(e.key==='Tab'){
@@ -2302,9 +2340,7 @@
         closeDinnerPicker({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
-        e.preventDefault();
-        confirmSelection();
+      if(handlePrimaryKeyActivation(e, confirmBtn)){
         return;
       }
       if(e.key==='Tab'){
@@ -3884,9 +3920,7 @@
         closeSpaEditor({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || (e.target.tagName!=='BUTTON' && e.target.dataset?.spaNoSubmit!=='true'))){
-        e.preventDefault();
-        confirmSelection();
+      if(handlePrimaryKeyActivation(e, confirmBtn, { shouldIgnoreTarget: target => target?.dataset?.spaNoSubmit === 'true' })){
         return;
       }
       if(e.key==='Tab'){
@@ -4690,9 +4724,7 @@
         closeCustomBuilder({returnFocus:true});
         return;
       }
-      if((event.key==='Enter' || event.key==='Return') && event.target && event.target.tagName!=='BUTTON'){
-        event.preventDefault();
-        handleSave();
+      if(handlePrimaryKeyActivation(event, saveBtn)){
         return;
       }
       if(event.key==='Tab'){
