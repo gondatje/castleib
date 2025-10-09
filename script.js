@@ -4133,8 +4133,6 @@
     titleSection.appendChild(existingPane);
     titleSection.setAttribute('aria-labelledby', titleHeadingId);
 
-    header.appendChild(titleSection);
-
     dialog.appendChild(header);
 
     const body=document.createElement('div');
@@ -4145,6 +4143,9 @@
     const layout=document.createElement('div');
     layout.className='custom-layout';
     body.appendChild(layout);
+
+    // Custom modal grid: Title → cols 1–2, rows 1–3.
+    layout.appendChild(titleSection);
 
     const timeSection=document.createElement('section');
     timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
