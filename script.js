@@ -84,6 +84,312 @@
     }
   };
 
+  // Coarse pointer detection drives the mobile-only removal affordance so the desktop
+  // hover/focus experience (swap to the × affordance) stays untouched.
+  const pointerQueries = [];
+  if(typeof window !== 'undefined' && typeof window.matchMedia === 'function'){
+    ['(pointer: coarse)', '(hover: none)'].forEach(query => {
+      try{
+        const mq = window.matchMedia(query);
+        if(mq){
+          pointerQueries.push(mq);
+        }
+      }catch(err){
+        // Ignore environments that do not support the specific media query; fall back to desktop mode.
+      }
+    });
+  }
+
+  const prefersReducedMotionQuery = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : null;
+
+  // Allow a small movement buffer so touch scrolls don’t accidentally trigger deletions.
+  const TAP_SLOP_PX = 10;
+  const REMOVAL_UNDO_TIMEOUT_MS = 4500;
+
+  const removableChipRegistry = new Set();
+  const removablePointerState = new WeakMap();
+
+  let undoToastHost = null;
+  let activeUndoToast = null;
+  let removalLiveRegion = null;
+
+  const isReducedMotion = () => Boolean(prefersReducedMotionQuery?.matches);
+
+  const isMobileRemovalMode = () => pointerQueries.some(mq => mq?.matches);
+
+  const refreshRemovableChips = () => {
+    removableChipRegistry.forEach(entry => {
+      const { chip, config } = entry;
+      if(!chip) return;
+      chip.dataset.removable = 'true';
+      if(isMobileRemovalMode()){
+        chip.dataset.removalActive = 'true';
+        chip.setAttribute('role', 'button');
+        if(config?.ariaLabel){
+          chip.setAttribute('aria-label', config.ariaLabel);
+        }
+        chip.tabIndex = 0;
+      }else{
+        chip.dataset.removalActive = 'false';
+        if(config?.restoreAriaLabel){
+          chip.setAttribute('aria-label', config.restoreAriaLabel);
+        }else{
+          chip.removeAttribute('aria-label');
+        }
+        chip.removeAttribute('role');
+        chip.removeAttribute('tabindex');
+      }
+    });
+  };
+
+  pointerQueries.forEach(mq => {
+    if(!mq) return;
+    const handler = () => refreshRemovableChips();
+    if(typeof mq.addEventListener === 'function'){
+      mq.addEventListener('change', handler);
+    }else if(typeof mq.addListener === 'function'){
+      mq.addListener(handler);
+    }
+  });
+
+  const ensureRemovalLiveRegion = () => {
+    if(removalLiveRegion) return removalLiveRegion;
+    if(typeof document === 'undefined') return null;
+    const region = document.createElement('div');
+    region.className = 'sr-only';
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-atomic', 'true');
+    region.dataset.removalAnnouncement = 'true';
+    document.body.appendChild(region);
+    removalLiveRegion = region;
+    return region;
+  };
+
+  const announceRemoval = message => {
+    const region = ensureRemovalLiveRegion();
+    if(!region) return;
+    region.textContent = '';
+    // Delay the second write so assistive tech reliably announces repeated removals.
+    setTimeout(() => {
+      region.textContent = message;
+    }, 0);
+  };
+
+  const ensureUndoToastHost = () => {
+    if(undoToastHost) return undoToastHost;
+    if(typeof document === 'undefined') return null;
+    const host = document.createElement('div');
+    host.className = 'undo-toast-host';
+    document.body.appendChild(host);
+    undoToastHost = host;
+    return host;
+  };
+
+  const teardownActiveToast = reason => {
+    if(!activeUndoToast) return;
+    const { element, timer, onDismiss } = activeUndoToast;
+    if(typeof timer === 'number'){
+      clearTimeout(timer);
+    }
+    const finalize = () => {
+      if(element?.parentNode){
+        element.parentNode.removeChild(element);
+      }
+      if(typeof onDismiss === 'function'){
+        onDismiss(reason);
+      }
+    };
+    if(element){
+      element.classList.remove('is-visible');
+      if(isReducedMotion()){
+        finalize();
+      }else{
+        const handle = () => {
+          element.removeEventListener('transitionend', handle);
+          finalize();
+        };
+        element.addEventListener('transitionend', handle);
+      }
+    }else{
+      finalize();
+    }
+    activeUndoToast = null;
+  };
+
+  const showUndoToast = ({ message, undoLabel = 'Undo', onUndo, focusUndo = false }) => {
+    const host = ensureUndoToastHost();
+    if(!host) return;
+    teardownActiveToast('replace');
+
+    const toast = document.createElement('div');
+    toast.className = 'undo-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+
+    const label = document.createElement('span');
+    label.className = 'undo-toast__label';
+    label.textContent = message;
+    toast.appendChild(label);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'undo-toast__action';
+    button.textContent = undoLabel;
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      teardownActiveToast('undo');
+      if(typeof onUndo === 'function'){
+        onUndo();
+      }
+    });
+    toast.appendChild(button);
+
+    host.appendChild(toast);
+    activeUndoToast = {
+      element: toast,
+      onDismiss: null,
+      timer: setTimeout(() => {
+        teardownActiveToast('timeout');
+      }, REMOVAL_UNDO_TIMEOUT_MS)
+    };
+
+    if(!isReducedMotion() && typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(() => toast.classList.add('is-visible'));
+    }else{
+      toast.classList.add('is-visible');
+    }
+
+    if(focusUndo){
+      focusWithoutScroll(button);
+    }
+  };
+
+  const presentChipUndo = ({ guestName, onUndo, focusUndo }) => {
+    if(!guestName || typeof onUndo !== 'function') return;
+    const removalMessage = `Removed ${guestName}.`;
+    announceRemoval(`${removalMessage} Press undo to restore.`);
+    showUndoToast({
+      message: removalMessage,
+      undoLabel: 'Undo',
+      focusUndo,
+      onUndo: () => {
+        onUndo();
+        announceRemoval(`${guestName} restored.`);
+      }
+    });
+  };
+
+  const attachRemovableChip = (chip, config) => {
+    if(!chip || !config || typeof config.onRemove !== 'function'){
+      return;
+    }
+    const registryEntry = {
+      chip,
+      config: {
+        onRemove: config.onRemove,
+        ariaLabel: config.ariaLabel,
+        restoreAriaLabel: chip.getAttribute('aria-label') || null,
+        guestName: config.guestName || ''
+      }
+    };
+    removableChipRegistry.add(registryEntry);
+    refreshRemovableChips();
+
+    const clearPointerState = () => removablePointerState.delete(chip);
+
+    const handlePointerDown = event => {
+      if(!isMobileRemovalMode()) return;
+      if(event.pointerType === 'mouse') return;
+      removablePointerState.set(chip, {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+        skipClick: false
+      });
+    };
+
+    const handlePointerMove = event => {
+      if(!isMobileRemovalMode()) return;
+      const state = removablePointerState.get(chip);
+      if(!state || state.id !== event.pointerId) return;
+      if(state.moved) return;
+      const dx = Math.abs(event.clientX - state.x);
+      const dy = Math.abs(event.clientY - state.y);
+      if(dx > TAP_SLOP_PX || dy > TAP_SLOP_PX){
+        state.moved = true;
+        state.skipClick = true;
+      }
+    };
+
+    const handlePointerUp = event => {
+      if(!isMobileRemovalMode()){
+        clearPointerState();
+        return;
+      }
+      const state = removablePointerState.get(chip);
+      if(!state || state.id !== event.pointerId) return;
+      if(state.moved){
+        state.skipClick = true;
+      }
+    };
+
+    const handlePointerCancel = () => {
+      clearPointerState();
+    };
+
+    const invokeRemoval = options => {
+      const outcome = config.onRemove(Object.assign({
+        showUndo: true,
+        focusUndo: Boolean(options?.focusUndo),
+        viaKeyboard: Boolean(options?.viaKeyboard),
+        presentUndo: onUndo => presentChipUndo({
+          guestName: registryEntry.config.guestName,
+          onUndo,
+          focusUndo: Boolean(options?.focusUndo)
+        })
+      }, options || {}));
+      if(outcome === false){
+        // Ensure the toast host is reset if the removal short-circuits (e.g., stale entry).
+        teardownActiveToast('no-op');
+      }
+    };
+
+    const handleClick = event => {
+      if(!isMobileRemovalMode()) return;
+      if(event.target && event.target.closest && event.target.closest('.x')) return;
+      const state = removablePointerState.get(chip);
+      if(state?.skipClick){
+        clearPointerState();
+        return;
+      }
+      clearPointerState();
+      event.preventDefault();
+      invokeRemoval({ viaKeyboard: event.detail === 0, focusUndo: false });
+    };
+
+    const handleKeydown = event => {
+      if(!isMobileRemovalMode()) return;
+      const key = event.key || '';
+      if(key === 'Enter' || key === ' ' || key === 'Spacebar'){
+        event.preventDefault();
+        invokeRemoval({ viaKeyboard: true, focusUndo: true });
+      }
+    };
+
+    chip.addEventListener('pointerdown', handlePointerDown);
+    chip.addEventListener('pointermove', handlePointerMove);
+    chip.addEventListener('pointerup', handlePointerUp);
+    chip.addEventListener('pointercancel', handlePointerCancel);
+    chip.addEventListener('pointerleave', handlePointerCancel);
+    chip.addEventListener('click', handleClick);
+    chip.addEventListener('keydown', handleKeydown);
+  };
+
+  const getRemovableFocusSelector = () => isMobileRemovalMode() ? '.chip[data-removable="true"]' : '.chip .x';
+
   // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
   // the UI continues to render individual chips if the helper fails to load in a dev sandbox.
   const fallbackAssignmentChipMode = {
@@ -1445,7 +1751,7 @@
 
       const handledGroup = renderGroupInlineSwap(container, plan, {
         createChips: ()=> plan.guests.map(guest=> createChip(guest, entry, dateK)),
-        focusSelector: '.chip .x',
+        focusSelector: getRemovableFocusSelector(),
         hideDelay: 260,
         clusterOptions: {
           popoverLabel: 'Assigned guests',
@@ -1540,7 +1846,7 @@
 
       const {
         createChips,
-        focusSelector = '.chip .x',
+        focusSelector = getRemovableFocusSelector(),
         hideDelay = 260,
         clusterOptions = {}
       } = options || {};
@@ -1766,24 +2072,67 @@
       x.textContent='×';
       x.dataset.pressExempt='true';
       x.addEventListener('pointerdown', e=> e.stopPropagation());
-      x.onclick=(e)=>{
-        e.stopPropagation();
-        if(!entry) return;
-        entry.guestIds.delete(guest.id);
+      const removeChip = ({ showUndo=false, presentUndo }={}) => {
+        if(!entry) return false;
+        const previousIds = Array.from(entry.guestIds instanceof Set ? entry.guestIds : new Set(entry.guestIds || []));
+        if(previousIds.indexOf(guest.id) === -1){
+          return false;
+        }
+        const day = state.schedule[dateK];
+        const snapshot = {
+          dateK,
+          entry,
+          guestId: guest.id,
+          dayIndex: day ? day.indexOf(entry) : -1,
+          guestIds: previousIds
+        };
+
+        const guestIdsSet = entry.guestIds instanceof Set ? entry.guestIds : new Set(previousIds);
+        guestIdsSet.delete(guest.id);
+        entry.guestIds = guestIdsSet;
+
         if(entry.guestIds.size===0){
-          const day = state.schedule[dateK];
           if(day){
             const idx = day.indexOf(entry);
             if(idx>-1) day.splice(idx,1);
             if(day.length===0) delete state.schedule[dateK];
           }
         }
+
         sortDayEntries(dateK);
         renderActivities();
         markPreviewDirty();
         renderPreview();
+
+        if(showUndo && typeof presentUndo === 'function'){
+          // Restore the chip exactly where it was so the inline layout remains deterministic.
+          presentUndo(() => {
+            const targetDay = getOrCreateDay(snapshot.dateK);
+            if(!targetDay.includes(snapshot.entry)){
+              const insertAt = snapshot.dayIndex >=0 ? Math.min(snapshot.dayIndex, targetDay.length) : targetDay.length;
+              targetDay.splice(insertAt, 0, snapshot.entry);
+            }
+            snapshot.entry.guestIds = new Set(snapshot.guestIds);
+            sortDayEntries(snapshot.dateK);
+            markPreviewDirty();
+            renderActivities();
+            renderPreview();
+          });
+        }
+
+        return true;
+      };
+
+      x.onclick=(e)=>{
+        e.stopPropagation();
+        removeChip({ showUndo:false });
       };
       c.appendChild(x);
+      attachRemovableChip(c, {
+        guestName: guest.name,
+        ariaLabel: `Remove guest: ${guest.name}`,
+        onRemove: ({ showUndo=true, presentUndo }={}) => removeChip({ showUndo, presentUndo })
+      });
       return c;
     }
     function renderStatusMessage(text){
@@ -1997,7 +2346,7 @@
 
       const handledGroup = renderGroupInlineSwap(container, plan, {
         createChips: () => plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK)),
-        focusSelector: '.chip .x',
+        focusSelector: getRemovableFocusSelector(),
         hideDelay: 260,
         clusterOptions: {
           popoverLabel: 'Assigned guests',
@@ -2034,18 +2383,58 @@
       removeBtn.title=`Remove ${guest.name}`;
       removeBtn.textContent='×';
       removeBtn.addEventListener('pointerdown', e=> e.stopPropagation());
+      const removeSpaGuest = ({ showUndo=false, presentUndo }={}) => {
+        if(!entry || !entry.id) return false;
+        const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+        if(!appointments.some(app => app && app.guestId === guest.id)){
+          return false;
+        }
+        const day = state.schedule[dateK];
+        const snapshot = {
+          dateK,
+          entry,
+          dayIndex: day ? day.indexOf(entry) : -1,
+          appointments: appointments.map(app => app ? ({ ...app }) : app)
+        };
+
+        if(!removeSpaGuestFromEntry(dateK, entry.id, guest.id)){
+          return false;
+        }
+
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+
+        if(showUndo && typeof presentUndo === 'function'){
+          presentUndo(() => {
+            const targetDay = getOrCreateDay(snapshot.dateK);
+            if(!targetDay.includes(snapshot.entry)){
+              const insertAt = snapshot.dayIndex >=0 ? Math.min(snapshot.dayIndex, targetDay.length) : targetDay.length;
+              targetDay.splice(insertAt, 0, snapshot.entry);
+            }
+            snapshot.entry.appointments = snapshot.appointments.map(app => app ? ({ ...app }) : app);
+            recomputeSpaEntrySummary(snapshot.entry);
+            mergeSpaEntriesForDay(snapshot.dateK);
+            sortDayEntries(snapshot.dateK);
+            markPreviewDirty();
+            renderActivities();
+            renderPreview();
+          });
+        }
+
+        return true;
+      };
+
       removeBtn.addEventListener('click', event => {
         event.stopPropagation();
-        if(removeSpaGuestFromEntry(dateK, entry?.id, guest.id)){
-          // Inline removal only peels a single guest off the merged row; the
-          // modal exposes a dedicated destructive control when the entire
-          // appointment should be cleared.
-          markPreviewDirty();
-          renderActivities();
-          renderPreview();
-        }
+        removeSpaGuest({ showUndo:false });
       });
       chip.appendChild(removeBtn);
+      attachRemovableChip(chip, {
+        guestName: guest.name,
+        ariaLabel: `Remove guest: ${guest.name}`,
+        onRemove: ({ showUndo=true, presentUndo }={}) => removeSpaGuest({ showUndo, presentUndo })
+      });
       return chip;
     }
 

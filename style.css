@@ -680,8 +680,15 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .chip{width:var(--chip-size,26px);height:var(--chip-size,26px);border-radius:50%;display:inline-grid;place-items:center;font-weight:500;border:1px solid currentColor;background:#fff;user-select:none;position:relative;}
 .chip .initial{position:relative;z-index:1;font-size:13px;line-height:1;color:currentColor;transition:opacity .16s ease;font-weight:400;letter-spacing:0;}
 .chip .x{position:absolute;top:50%;left:50%;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;background:#fff;border:1px solid var(--border);padding:0;cursor:pointer;color:var(--ink);z-index:2;transform:translate(-50%,-50%);opacity:0;pointer-events:none;transition:opacity .16s ease;}
+.chip[data-removal-active="true"]{cursor:pointer;}
 @media(hover:hover){.chip:hover .initial,.chip:focus-within .initial{opacity:0;}.chip:hover .x,.chip:focus-within .x{opacity:1;pointer-events:auto;}}
 @media(hover:none){.chip .x{opacity:1;pointer-events:auto;}}
+.chip[data-removable="true"]::after{content:'';}
+@media (pointer:coarse),(hover:none){
+  .chip[data-removable="true"]{touch-action:manipulation;}
+  .chip[data-removable="true"]::after{position:absolute;top:50%;left:50%;width:var(--removable-touch-size,44px);height:var(--removable-touch-size,44px);transform:translate(-50%,-50%);border-radius:999px;background:transparent;pointer-events:auto;}
+  .chip[data-removable="true"] .x{display:none;}
+}
 .chip .x:focus{outline:2px solid var(--brand);outline-offset:1px;}
 .guest-input{height:36px;padding:0 12px;border:1px solid var(--border);border-radius:12px;background:#fff}
 .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;background:#f1f5f9;border:1px solid var(--border)}
@@ -1486,6 +1493,15 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-guest-chip-static .guest-pill{cursor:default;}
 .spa-guest-chip--off .spa-guest-pill{background:color-mix(in srgb,var(--surface) 94%,var(--border) 6%);border-color:color-mix(in srgb,var(--border) 82%,transparent);color:color-mix(in srgb,var(--text-muted) 78%,var(--text-primary) 22%);}
 .spa-guest-chip.included .spa-guest-pill{background:color-mix(in srgb,var(--pillColor) 18%,var(--surface));border-color:color-mix(in srgb,var(--pillColor) 58%,var(--border));box-shadow:0 0 0 1px color-mix(in srgb,var(--pillColor) 42%,transparent);}
+.undo-toast-host{position:fixed;left:50%;bottom:var(--space-4);transform:translateX(-50%);display:flex;flex-direction:column;gap:var(--space-2);z-index:4000;pointer-events:none;padding:0 var(--space-2);}
+.undo-toast{background:var(--surface-elevated);color:var(--text-primary);border-radius:999px;border:1px solid var(--hairline-strong);box-shadow:0 12px 32px rgba(12,18,32,0.2);display:flex;align-items:center;gap:var(--space-3);padding:0.55rem 0.85rem;pointer-events:auto;opacity:0;transform:translateY(12px);transition:opacity .24s ease,transform .24s ease;}
+.undo-toast.is-visible{opacity:1;transform:translateY(0);}
+.undo-toast__label{font-size:0.95rem;font-weight:500;}
+.undo-toast__action{appearance:none;border:none;background:transparent;color:var(--brand);font-weight:600;cursor:pointer;padding:0;}
+.undo-toast__action:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px;}
+@media (prefers-reduced-motion: reduce){
+  .undo-toast{transition:none;}
+}
 .spa-guest-pill{font:inherit;font-size:inherit;font-weight:inherit;min-block-size:44px;padding-inline:var(--space-3);padding-block:calc(var(--space-2) + 2px);display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,color .12s ease;}
 .spa-guest-pill-static{cursor:default;pointer-events:none;}
 .spa-guest-pill--off{background:color-mix(in srgb,var(--surface) 94%,var(--border) 6%);border-color:color-mix(in srgb,var(--border) 82%,transparent);color:color-mix(in srgb,var(--text-muted) 78%,var(--text-primary) 22%);}
