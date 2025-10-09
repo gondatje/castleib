@@ -3950,16 +3950,17 @@
     let currentPickerValue = initialPickerValue;
 
     const overlay=document.createElement('div');
-    overlay.className='custom-overlay';
+    // Reuse the spa shell classes so the custom flow inherits the shared safe-area gutters + clamp sizing.
+    overlay.className='spa-overlay custom-overlay';
 
     const dialog=document.createElement('div');
-    dialog.className='custom-dialog';
+    dialog.className='spa-dialog custom-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
     const header=document.createElement('div');
-    header.className='modal-header';
+    header.className='modal-header custom-header';
     const title=document.createElement('h2');
     title.className='modal-title';
     title.id='custom-dialog-title';
@@ -3968,32 +3969,34 @@
     customModeDescriptor.className='sr-only';
     customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
     title.appendChild(customModeDescriptor);
-    header.appendChild(title);
+    const headerBar=document.createElement('div');
+    headerBar.className='custom-header-bar';
+    headerBar.appendChild(title);
 
     const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
-    header.appendChild(closeBtn);
-
-    dialog.appendChild(header);
-
-    const body=document.createElement('div');
-    // Keep scrolling inside the content wrapper so the header/footer stay
-    // pinned while the dialog respects the viewport-safe max height.
-    body.className='modal-body custom-body';
-    dialog.appendChild(body);
-
-    const layout=document.createElement('div');
-    layout.className='custom-layout';
-    body.appendChild(layout);
+    headerBar.appendChild(closeBtn);
+    header.appendChild(headerBar);
 
     const titleSection=document.createElement('section');
     // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
-    titleSection.className='custom-section custom-section-title spa-section spa-block custom-card';
-    const titleHeading=document.createElement('h3');
+    titleSection.className='custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
+    titleSection.setAttribute('role','group');
+    const titleHeaderRow=document.createElement('div');
+    titleHeaderRow.className='custom-title-header';
+    const freeInputId = `custom-title-${Date.now()}`;
+    const titleHeading=document.createElement('label');
+    titleHeading.className='custom-field-label';
     titleHeading.textContent='Title';
-    titleSection.appendChild(titleHeading);
+    const titleHeadingId = `${freeInputId}-label`;
+    titleHeading.id = titleHeadingId;
+    titleHeading.setAttribute('for', freeInputId);
+    titleHeaderRow.appendChild(titleHeading);
 
     const toggleGroup=document.createElement('div');
     toggleGroup.className='custom-title-toggle-group';
+    titleHeaderRow.appendChild(toggleGroup);
+
+    titleSection.appendChild(titleHeaderRow);
 
     const freeToggle=document.createElement('button');
     freeToggle.type='button';
@@ -4011,12 +4014,11 @@
     if(!catalog.titles.length){ existingToggle.disabled = true; }
     toggleGroup.appendChild(existingToggle);
 
-    titleSection.appendChild(toggleGroup);
-
     const freePane=document.createElement('div');
     freePane.className='custom-title-pane';
     const freeInput=document.createElement('input');
     freeInput.type='text';
+    freeInput.id=freeInputId;
     freeInput.className='custom-title-input';
     freeInput.placeholder='Name this activity';
     freeInput.value = freeTitleValue;
@@ -4040,17 +4042,31 @@
     // Inline list lives inside the field wrapper so the modal height stays fixed
     // while still surfacing catalog titles without a separate popover.
     const existingList=document.createElement('div');
-    existingList.className='custom-existing-list';
-    existingList.setAttribute('role','listbox');
     const existingListId = `custom-existing-list-${Date.now()}`;
+    existingList.className='custom-existing-list';
     existingList.id = existingListId;
+    existingList.setAttribute('role','listbox');
+    existingList.setAttribute('aria-labelledby', titleHeadingId);
     existingToggle.setAttribute('aria-controls', existingListId);
     existingField.appendChild(existingList);
     existingPane.appendChild(existingField);
 
     titleSection.appendChild(freePane);
     titleSection.appendChild(existingPane);
-    layout.appendChild(titleSection);
+    titleSection.setAttribute('aria-labelledby', titleHeadingId);
+
+    header.appendChild(titleSection);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    // Body scroll mirrors Spa so header/footer remain anchored while the cards scroll independently.
+    body.className='modal-body spa-body custom-body';
+    dialog.appendChild(body);
+
+    const layout=document.createElement('div');
+    layout.className='custom-layout';
+    body.appendChild(layout);
 
     const timeSection=document.createElement('section');
     timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
@@ -5694,9 +5710,7 @@
         const segments = [];
         if(timeMarkup) segments.push(timeMarkup);
         if(title) segments.push(title);
-        if(it.type==='custom' && it.location){
-          segments.push(escapeHtml(it.location));
-        }
+        // Location stays internal to the builder so preview copy mirrors the email contract.
         let lineMarkup = segments.join(' | ');
         if(!isDinner && guestNames.length){
           const guestSegment = guestNames.map(name => escapeHtml(name)).join(' | ');
