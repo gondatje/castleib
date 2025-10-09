@@ -2296,15 +2296,29 @@
       }
     });
 
+    let enterSubmitting = false;
     const handleKeyDown = e => {
       if(e.key==='Escape'){
         e.preventDefault();
         closeDinnerPicker({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
+      if(e.key==='Enter' || e.key==='Return'){
+        const target = e.target;
+        if(target && (target.tagName==='BUTTON' || target.closest('textarea') || target.closest('[contenteditable="true"]') || target.closest('[role="listbox"],[role="menu"]'))){
+          return;
+        }
+        if(confirmBtn.disabled || enterSubmitting){
+          return;
+        }
+        // Enter triggers modal primary action; ignored in textarea/when disabled.
         e.preventDefault();
-        confirmSelection();
+        enterSubmitting = true;
+        try{
+          confirmSelection();
+        }finally{
+          enterSubmitting = false;
+        }
         return;
       }
       if(e.key==='Tab'){
@@ -3878,15 +3892,29 @@
       }
     });
 
+    let enterSubmitting = false;
     const handleKeyDown = e => {
       if(e.key==='Escape'){
         e.preventDefault();
         closeSpaEditor({returnFocus:true});
         return;
       }
-      if((e.key==='Enter' || e.key==='Return') && (!e.target || (e.target.tagName!=='BUTTON' && e.target.dataset?.spaNoSubmit!=='true'))){
+      if(e.key==='Enter' || e.key==='Return'){
+        const target = e.target;
+        if(target && (target.tagName==='BUTTON' || target.dataset?.spaNoSubmit==='true' || target.closest('textarea') || target.closest('[contenteditable="true"]') || target.closest('[role="listbox"],[role="menu"]'))){
+          return;
+        }
+        if(confirmBtn.disabled || enterSubmitting){
+          return;
+        }
+        // Enter triggers modal primary action; ignored in textarea/when disabled.
         e.preventDefault();
-        confirmSelection();
+        enterSubmitting = true;
+        try{
+          confirmSelection();
+        }finally{
+          enterSubmitting = false;
+        }
         return;
       }
       if(e.key==='Tab'){
@@ -4679,6 +4707,7 @@
       }
     });
 
+    let enterSubmitting = false;
     const handleKeyDown=event=>{
       if(event.key==='Escape'){
         if(titleMode==='existing' && existingPane.contains(document.activeElement)){
@@ -4690,9 +4719,22 @@
         closeCustomBuilder({returnFocus:true});
         return;
       }
-      if((event.key==='Enter' || event.key==='Return') && event.target && event.target.tagName!=='BUTTON'){
+      if(event.key==='Enter' || event.key==='Return'){
+        const target = event.target;
+        if(!target || target.tagName==='BUTTON' || target.closest('textarea') || target.closest('[contenteditable="true"]') || target.closest('[role="listbox"],[role="menu"]')){
+          return;
+        }
+        if(saveBtn.disabled || enterSubmitting){
+          return;
+        }
+        // Enter triggers modal primary action; ignored in textarea/when disabled.
         event.preventDefault();
-        handleSave();
+        enterSubmitting = true;
+        try{
+          handleSave();
+        }finally{
+          enterSubmitting = false;
+        }
         return;
       }
       if(event.key==='Tab'){
