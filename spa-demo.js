@@ -116,7 +116,7 @@
       select.dispatchEvent(new Event('change', { bubbles:true }));
       await wait(160);
     }
-    const maleBtn = doc.querySelector('.spa-radio-list .spa-radio[data-value="male"]');
+    const maleBtn = doc.querySelector('.spa-option-list-therapist .spa-option-row[data-value="male"]');
     maleBtn?.click();
     await wait(160);
     const confirmBtn = doc.querySelector('.spa-confirm');
