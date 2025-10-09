@@ -189,7 +189,7 @@
     { id: 'in-room', label: 'In-Room' }
   ];
 
-  const defaultSpaStartTime = '14:00';
+  const defaultSpaStartTime = '08:00'; // Default SPA time = 8:00am when unset.
   const generateSpaEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `spa_${Date.now()}_${Math.random().toString(16).slice(2)}`);
 
   const SPA_CATEGORY_BLUEPRINT = [
