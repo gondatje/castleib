@@ -964,9 +964,11 @@
       meridiemGroup = group;
       const meridiemIdPrefix = `time-picker-meridiem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const stepMeridiem = direction => {
-        if(!meridiems.length) return;
+        if(!meridiems.length || !direction) return;
         const index = meridiems.indexOf(currentMeridiem);
-        const nextIndex = (index + direction + meridiems.length) % meridiems.length;
+        const safeIndex = index === -1 ? (direction > 0 ? 0 : meridiems.length - 1) : index;
+        const nextIndex = Math.max(0, Math.min(meridiems.length - 1, safeIndex + direction));
+        if(nextIndex === safeIndex) return; // AM/PM is non-cyclic; clamp index 0..1.
         const nextValue = meridiems[nextIndex];
         syncMeridiem(nextValue);
       };
