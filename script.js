@@ -382,6 +382,7 @@
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
   const arrivalEtaInput=$('#arrivalEta'), departureEtdInput=$('#departureEtd');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
+  const activitiesScroller=document.querySelector('.activities__scroller');
   const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
   const toggleAllBtn=$('#toggleAll');
@@ -1093,12 +1094,26 @@
   function addGuest(name){
     const trimmed = name.trim();
     if(!trimmed) return;
+    const previousScrollTop = activitiesScroller ? activitiesScroller.scrollTop : null;
+    const restoreActivitiesScroll = () => {
+      if(activitiesScroller && previousScrollTop != null){
+        activitiesScroller.scrollTop = previousScrollTop;
+      }
+    };
     const id = (crypto.randomUUID ? crypto.randomUUID() : `g_${Date.now()}_${Math.random().toString(16).slice(2)}`);
     const color = state.colors[state.guests.length % state.colors.length];
     const g = {id,name: trimmed, color, active:true, primary: state.guests.length===0};
     state.guests.push(g);
     guestName.value='';
     renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
+    if(previousScrollTop != null){
+      // preserve/restore scrollTop around add-guest; keep list keys stable
+      if(typeof requestAnimationFrame === 'function'){
+        requestAnimationFrame(restoreActivitiesScroll);
+      }else{
+        setTimeout(restoreActivitiesScroll,0);
+      }
+    }
   }
   function renderGuests(){
     syncDinnerGuests();
