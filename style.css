@@ -1478,7 +1478,10 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
 .spa-section-services{min-block-size:0;}
 .spa-guest-card{grid-area:guests;gap:14px;}
+.spa-guest-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
 .spa-guest-list{display:flex;flex-wrap:wrap;gap:12px;}
+.spa-toggle-all{flex:0 0 auto;}
+.spa-toggle-all:focus-visible{outline:2px solid var(--activity-focus-ring);outline-offset:2px;}
 .spa-guest-chip{position:relative;display:inline-flex;align-items:center;}
 .spa-guest-chip-static .guest-pill{cursor:default;}
 .spa-guest-chip--off .spa-guest-pill{background:color-mix(in srgb,var(--surface) 94%,var(--border) 6%);border-color:color-mix(in srgb,var(--border) 82%,transparent);color:color-mix(in srgb,var(--text-muted) 78%,var(--text-primary) 22%);}
