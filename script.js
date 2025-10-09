@@ -345,6 +345,12 @@
   const TimePickerKit = window.TimePickerKit || {};
   const { createTimePicker } = TimePickerKit;
 
+  // Default ETA/ETD when unset: 12:00pm / 1:00pm.
+  const stayNoteDefaults = Object.freeze({
+    arrival: '12:00',
+    departure: '13:00'
+  });
+
 
 
   // ---------- State ----------
@@ -353,8 +359,8 @@
     focus: zero(new Date()),
     arrival: null,
     departure: null,
-    arrivalNote: null, // Visual ETA note only; intentionally not wired into stay logic.
-    departureNote: null, // Visual ETD note only; intentionally not wired into stay logic.
+    arrivalNote: stayNoteDefaults.arrival, // Visual ETA note only; intentionally not wired into stay logic.
+    departureNote: stayNoteDefaults.departure, // Visual ETD note only; intentionally not wired into stay logic.
     guests: [], // {id,name,color,active,primary}
     colors: ['#6366f1','#06b6d4','#22c55e','#f59e0b','#ef4444','#a855f7','#10b981','#f43f5e','#0ea5e9'],
     schedule: {}, // dateKey -> [{type:'activity',title,start,end,guestIds:Set}]
@@ -6062,7 +6068,12 @@
   if(clearAllBtn){
     clearAllBtn.onclick=()=>{
       if(!confirm('Clear all itinerary data?')) return;
-      state.arrival=null; state.departure=null; state.arrivalNote=null; state.departureNote=null; state.guests.length=0; state.schedule={};
+      state.arrival=null;
+      state.departure=null;
+      state.arrivalNote=stayNoteDefaults.arrival;
+      state.departureNote=stayNoteDefaults.departure;
+      state.guests.length=0;
+      state.schedule={};
       markPreviewDirty();
       renderAll();
     };
