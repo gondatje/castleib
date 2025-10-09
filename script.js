@@ -3950,16 +3950,17 @@
     let currentPickerValue = initialPickerValue;
 
     const overlay=document.createElement('div');
-    overlay.className='custom-overlay';
+    // Reuse the spa shell classes so the custom flow inherits the shared safe-area gutters + clamp sizing.
+    overlay.className='spa-overlay custom-overlay';
 
     const dialog=document.createElement('div');
-    dialog.className='custom-dialog';
+    dialog.className='spa-dialog custom-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
     const header=document.createElement('div');
-    header.className='modal-header';
+    header.className='modal-header custom-header';
     const title=document.createElement('h2');
     title.className='modal-title';
     title.id='custom-dialog-title';
@@ -3968,27 +3969,34 @@
     customModeDescriptor.className='sr-only';
     customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
     title.appendChild(customModeDescriptor);
-    header.appendChild(title);
+    const headerBar=document.createElement('div');
+    headerBar.className='custom-header-bar';
+    headerBar.appendChild(title);
 
     const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
-    header.appendChild(closeBtn);
-
-    dialog.appendChild(header);
-
-    const body=document.createElement('div');
-    // Keep scrolling inside the content wrapper so the header/footer stay
-    // pinned while the dialog respects the viewport-safe max height.
-    body.className='modal-body custom-body';
-    dialog.appendChild(body);
+    headerBar.appendChild(closeBtn);
+    header.appendChild(headerBar);
 
     const titleSection=document.createElement('section');
-    titleSection.className='custom-section custom-section-title';
-    const titleHeading=document.createElement('h3');
+    // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
+    titleSection.className='custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
+    titleSection.setAttribute('role','group');
+    const titleHeaderRow=document.createElement('div');
+    titleHeaderRow.className='custom-title-header';
+    const freeInputId = `custom-title-${Date.now()}`;
+    const titleHeading=document.createElement('label');
+    titleHeading.className='custom-field-label';
     titleHeading.textContent='Title';
-    titleSection.appendChild(titleHeading);
+    const titleHeadingId = `${freeInputId}-label`;
+    titleHeading.id = titleHeadingId;
+    titleHeading.setAttribute('for', freeInputId);
+    titleHeaderRow.appendChild(titleHeading);
 
     const toggleGroup=document.createElement('div');
     toggleGroup.className='custom-title-toggle-group';
+    titleHeaderRow.appendChild(toggleGroup);
+
+    titleSection.appendChild(titleHeaderRow);
 
     const freeToggle=document.createElement('button');
     freeToggle.type='button';
@@ -4006,12 +4014,11 @@
     if(!catalog.titles.length){ existingToggle.disabled = true; }
     toggleGroup.appendChild(existingToggle);
 
-    titleSection.appendChild(toggleGroup);
-
     const freePane=document.createElement('div');
     freePane.className='custom-title-pane';
     const freeInput=document.createElement('input');
     freeInput.type='text';
+    freeInput.id=freeInputId;
     freeInput.className='custom-title-input';
     freeInput.placeholder='Name this activity';
     freeInput.value = freeTitleValue;
@@ -4035,20 +4042,34 @@
     // Inline list lives inside the field wrapper so the modal height stays fixed
     // while still surfacing catalog titles without a separate popover.
     const existingList=document.createElement('div');
-    existingList.className='custom-existing-list';
-    existingList.setAttribute('role','listbox');
     const existingListId = `custom-existing-list-${Date.now()}`;
+    existingList.className='custom-existing-list';
     existingList.id = existingListId;
+    existingList.setAttribute('role','listbox');
+    existingList.setAttribute('aria-labelledby', titleHeadingId);
     existingToggle.setAttribute('aria-controls', existingListId);
     existingField.appendChild(existingList);
     existingPane.appendChild(existingField);
 
     titleSection.appendChild(freePane);
     titleSection.appendChild(existingPane);
-    body.appendChild(titleSection);
+    titleSection.setAttribute('aria-labelledby', titleHeadingId);
+
+    header.appendChild(titleSection);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    // Body scroll mirrors Spa so header/footer remain anchored while the cards scroll independently.
+    body.className='modal-body spa-body custom-body';
+    dialog.appendChild(body);
+
+    const layout=document.createElement('div');
+    layout.className='custom-layout';
+    body.appendChild(layout);
 
     const timeSection=document.createElement('section');
-    timeSection.className='custom-section custom-section-time';
+    timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Time';
     timeSection.appendChild(timeHeading);
@@ -4123,44 +4144,118 @@
     timeError.hidden=true;
     timeSection.appendChild(timeError);
 
-    body.appendChild(timeSection);
+    layout.appendChild(timeSection);
 
     const locationSection=document.createElement('section');
-    locationSection.className='custom-section custom-section-location';
+    locationSection.className='custom-section custom-section-location spa-section spa-block custom-card';
     const locationHeading=document.createElement('h3');
+    locationHeading.id='custom-location-heading';
     locationHeading.textContent='Location (optional)';
     locationSection.appendChild(locationHeading);
     // Location list is sourced from the CHS activities metadata so preview copy
     // and in-app chips both draw from the same canonical venue names.
-    const locationSelect=document.createElement('select');
-    locationSelect.className='custom-location-select';
-    const emptyOption=document.createElement('option');
-    emptyOption.value='';
-    emptyOption.textContent='No location';
-    locationSelect.appendChild(emptyOption);
+    const locationOptions=[{ value:'', label:'No location' }];
+    const seenLocations=new Set();
     catalog.locations.forEach(loc=>{
-      const opt=document.createElement('option');
-      opt.value=loc;
-      opt.textContent=loc;
-      locationSelect.appendChild(opt);
+      const normalized = String(loc || '').trim();
+      if(!normalized || seenLocations.has(normalized)) return;
+      seenLocations.add(normalized);
+      locationOptions.push({ value: normalized, label: normalized });
     });
-    locationSelect.value = locationValue || '';
-    locationSelect.addEventListener('change',()=>{
-      locationManual = true;
-      locationValue = locationSelect.value;
+    if(locationValue && !seenLocations.has(locationValue)){ locationOptions.push({ value: locationValue, label: locationValue }); }
+    const locationList=document.createElement('div');
+    // Swap the native select for a scrollable hairline list so the card matches the spa chooser interactions.
+    locationList.className='custom-location-list list-hairline';
+    locationList.setAttribute('role','listbox');
+    locationList.setAttribute('aria-labelledby','custom-location-heading');
+    locationSection.appendChild(locationList);
+
+    const locationRows=[];
+    const findLocationIndex=value=>{
+      const normalized = String(value ?? '').trim();
+      return locationOptions.findIndex(opt=> opt.value === normalized);
+    };
+    let locationActiveIndex = findLocationIndex(locationValue);
+    if(locationActiveIndex<0){ locationActiveIndex = 0; locationValue = locationOptions[0]?.value || ''; }
+
+    const setLocationActive=(index,{focus=true,fromPointer=false}={})=>{
+      if(!locationRows.length) return;
+      const bounded=Math.max(0,Math.min(index,locationRows.length-1));
+      locationActiveIndex=bounded;
+      locationRows.forEach((row,i)=>{
+        const isSelected=i===bounded;
+        row.classList.toggle('selected',isSelected);
+        row.setAttribute('aria-selected',isSelected ? 'true' : 'false');
+        row.tabIndex=isSelected ? 0 : -1;
+      });
+      const target=locationRows[bounded];
+      if(target){
+        if(focus){ focusWithoutScroll(target); }
+        if(!fromPointer){ target.scrollIntoView({ block:'nearest', inline:'nearest' }); }
+      }
+    };
+
+    const syncLocationSelection=({manual=false,focus=false,fromPointer=false}={})=>{
+      let nextIndex=findLocationIndex(locationValue);
+      if(nextIndex<0){
+        nextIndex=0;
+        locationValue=locationOptions[0]?.value || '';
+      }
+      if(manual){ locationManual = true; }
+      setLocationActive(nextIndex,{ focus, fromPointer });
+    };
+
+    const chooseLocationByIndex=(index,{manual=true,focus=false,fromPointer=false}={})=>{
+      if(index<0 || index>=locationOptions.length) return;
+      const option=locationOptions[index];
+      locationValue = option?.value || '';
+      syncLocationSelection({ manual, focus, fromPointer });
+      if(manual){ refreshSaveState(); }
+    };
+
+    locationOptions.forEach((opt,index)=>{
+      const row=document.createElement('button');
+      row.type='button';
+      row.className='custom-location-row list-row';
+      row.dataset.index=String(index);
+      row.setAttribute('role','option');
+      row.setAttribute('aria-selected','false');
+      row.tabIndex=-1;
+      row.textContent = opt.label;
+      row.addEventListener('click',()=> chooseLocationByIndex(index,{ manual:true, focus:false, fromPointer:true }));
+      row.addEventListener('keydown',event=>{
+        if(event.key==='ArrowDown'){
+          event.preventDefault();
+          const next=Math.min(locationRows.length-1,index+1);
+          chooseLocationByIndex(next,{ manual:true, focus:true });
+        }else if(event.key==='ArrowUp'){
+          event.preventDefault();
+          const prev=Math.max(0,index-1);
+          chooseLocationByIndex(prev,{ manual:true, focus:true });
+        }else if(event.key==='Home'){
+          event.preventDefault();
+          chooseLocationByIndex(0,{ manual:true, focus:true });
+        }else if(event.key==='End'){
+          event.preventDefault();
+          chooseLocationByIndex(locationRows.length-1,{ manual:true, focus:true });
+        }
+      });
+      locationList.appendChild(row);
+      locationRows.push(row);
     });
-    locationSection.appendChild(locationSelect);
-    body.appendChild(locationSection);
+
+    syncLocationSelection({ manual:false, focus:false, fromPointer:true });
+    layout.appendChild(locationSection);
 
     const guestSection=document.createElement('section');
-    guestSection.className='custom-section custom-section-guests';
+    guestSection.className='custom-section custom-section-guests spa-section spa-block custom-card';
     const guestHeading=document.createElement('h3');
     guestHeading.textContent='Guests';
     guestSection.appendChild(guestHeading);
     const guestSummary=document.createElement('p');
     guestSummary.className='custom-guest-summary';
     guestSection.appendChild(guestSummary);
-    body.appendChild(guestSection);
+    layout.appendChild(guestSection);
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
@@ -4262,9 +4357,9 @@
       const matchIndex = findCatalogIndex(value);
       if(matchIndex>=0){
         selectedActivity = catalog.titles[matchIndex];
-        if(!locationManual && selectedActivity.location){
-          locationValue = selectedActivity.location;
-          locationSelect.value = selectedActivity.location;
+        if(!locationManual){
+          locationValue = selectedActivity.location || '';
+          syncLocationSelection({ manual:false, focus:false });
         }
         existingActiveIndex = matchIndex;
       }else{
@@ -4306,9 +4401,9 @@
       selectedActivity = option;
       freeTitleValue = option.title;
       freeInput.value = option.title;
-      if(!locationManual && option.location){
-        locationValue = option.location;
-        locationSelect.value = option.location;
+      if(!locationManual){
+        locationValue = option.location || '';
+        syncLocationSelection({ manual:false, focus:false });
       }
       setExistingActive(index,{ focus:false, fromPointer:true });
       setTitleMode('free');
@@ -5615,9 +5710,7 @@
         const segments = [];
         if(timeMarkup) segments.push(timeMarkup);
         if(title) segments.push(title);
-        if(it.type==='custom' && it.location){
-          segments.push(escapeHtml(it.location));
-        }
+        // Location stays internal to the builder so preview copy mirrors the email contract.
         let lineMarkup = segments.join(' | ');
         if(!isDinner && guestNames.length){
           const guestSegment = guestNames.map(name => escapeHtml(name)).join(' | ');
