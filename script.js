@@ -2223,14 +2223,29 @@
       }
     }) : null;
 
+    const layout=document.createElement('div');
+    layout.className='modal-sections dinner-layout';
+    body.appendChild(layout);
+
+    const timeSection=document.createElement('section');
+    // Unified modal layout structure keeps dinner controls aligned with spa/custom flows.
+    timeSection.className='modal-section dinner-section';
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Time';
+    timeSection.appendChild(timeHeading);
+
+    const pickerShell=document.createElement('div');
+    pickerShell.className='dinner-picker-shell';
     if(!timePicker){
       const fallback = document.createElement('div');
       fallback.className = 'time-picker-fallback';
       fallback.textContent = 'Time picker failed to load.';
-      body.appendChild(fallback);
+      pickerShell.appendChild(fallback);
     }else{
-      body.appendChild(timePicker.element);
+      pickerShell.appendChild(timePicker.element);
     }
+    timeSection.appendChild(pickerShell);
+    layout.appendChild(timeSection);
 
     dialog.appendChild(body);
 
@@ -2525,11 +2540,11 @@
     // service → duration → start time → therapist → location. Mutating one
     // step immediately cascades the data updates so the preview stays in sync.
     const layout=document.createElement('div');
-    layout.className='spa-layout';
+    layout.className='modal-sections spa-layout';
     body.appendChild(layout);
 
     const guestSection=document.createElement('section');
-    guestSection.className='spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
+    guestSection.className='modal-section spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
     const guestHeader=document.createElement('div');
     guestHeader.className='spa-guest-header';
     const guestHeading=document.createElement('h3');
@@ -2749,7 +2764,7 @@
     }
 
     const serviceSection=document.createElement('section');
-    serviceSection.className='spa-section spa-section-services';
+    serviceSection.className='modal-section spa-section spa-section-services';
     const serviceCard=document.createElement('div');
     serviceCard.className='spa-block spa-service-card';
     const serviceHeading=document.createElement('h3');
@@ -3062,7 +3077,7 @@
     layout.appendChild(serviceSection);
 
     const detailsSection=document.createElement('section');
-    detailsSection.className='spa-section spa-section-details';
+    detailsSection.className='modal-section spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
     // SPA right pane → 2×4 grid; pills → scrollable hairline lists.
     detailsGrid.className='spa-details-grid';
@@ -4057,7 +4072,7 @@
 
     const titleSection=document.createElement('section');
     // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
-    titleSection.className='custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
+    titleSection.className='modal-section custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
     titleSection.setAttribute('role','group');
     const titleHeaderRow=document.createElement('div');
     titleHeaderRow.className='custom-title-header';
@@ -4141,14 +4156,14 @@
     dialog.appendChild(body);
 
     const layout=document.createElement('div');
-    layout.className='custom-layout';
+    layout.className='modal-sections custom-layout';
     body.appendChild(layout);
 
     // Custom modal grid: Title → cols 1–2, rows 1–3.
     layout.appendChild(titleSection);
 
     const timeSection=document.createElement('section');
-    timeSection.className='custom-section custom-section-time spa-section spa-block custom-card';
+    timeSection.className='modal-section custom-section custom-section-time spa-section spa-block custom-card';
     // Custom modal: Time section reflow; stack hourglass buttons on right; no internal scroll.
     const timeShell=document.createElement('div');
     timeShell.className='custom-time-shell';
@@ -4241,7 +4256,7 @@
     layout.appendChild(timeSection);
 
     const locationSection=document.createElement('section');
-    locationSection.className='custom-section custom-section-location spa-section spa-block custom-card';
+    locationSection.className='modal-section custom-section custom-section-location spa-section spa-block custom-card';
     const locationHeading=document.createElement('h3');
     locationHeading.id='custom-location-heading';
     locationHeading.textContent='Location (optional)';
@@ -4342,7 +4357,7 @@
     layout.appendChild(locationSection);
 
     const guestSection=document.createElement('section');
-    guestSection.className='custom-section custom-section-guests spa-section spa-block custom-card';
+    guestSection.className='modal-section custom-section custom-section-guests spa-section spa-block custom-card';
     const guestHeading=document.createElement('h3');
     guestHeading.textContent='Guests';
     guestSection.appendChild(guestHeading);
