@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assignment Chip Preview</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="demo-page">
+  <div class="demo-container">
+    <header class="demo-header">
+      <h1>Assignment Chip Preview</h1>
+      <p>Interactive states for the itinerary builder&rsquo;s guest assignment chips. Hover or focus the group pills to view the individual guests just like the production UI.</p>
+      <p><a class="demo-link" href="index.html">Back to itinerary builder</a></p>
+    </header>
+
+    <section class="demo-section" aria-labelledby="demo-static-heading">
+      <div class="demo-section-header">
+        <h2 id="demo-static-heading">Static states</h2>
+        <p class="demo-section-copy">Quickly inspect the required visual logic: single guest, two-guest (Both), three-guest (Everyone), and partial assignment.</p>
+      </div>
+      <div id="demoStatic" class="demo-list" aria-live="polite"></div>
+    </section>
+
+    <section class="demo-section" aria-labelledby="demo-dynamic-heading">
+      <div class="demo-section-header">
+        <h2 id="demo-dynamic-heading">Dynamic transitions</h2>
+        <p class="demo-section-copy">Step through live guest/assignment changes to confirm the pill swaps automatically.</p>
+      </div>
+      <div class="demo-scenario" aria-live="polite">
+        <div class="demo-row">
+          <div class="demo-row-title" id="demoScenarioLabel"></div>
+          <div id="demoScenarioPreview" class="demo-row-preview" role="presentation"></div>
+        </div>
+        <p id="demoScenarioDescription" class="demo-scenario-copy"></p>
+        <p id="demoScenarioAria" class="demo-scenario-aria"></p>
+        <div class="demo-scenario-controls" role="group" aria-label="Demo controls">
+          <button type="button" id="demoPrev">Previous</button>
+          <button type="button" id="demoNext">Next</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="assignment-chip-logic.js"></script>
+  <script src="utils/format.js"></script>
+  <script src="assignment-chip-demo.js"></script>
+</body>
+</html>

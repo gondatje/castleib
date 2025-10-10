@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Layout Preview · CHS Itinerary Builder</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .layout-demo-toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+    .layout-demo-copy{margin:0;color:var(--muted);font-size:14px;}
+    .layout-demo-grid{min-block-size:60vh;}
+    .layout-demo-cardlist{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none;}
+    .layout-demo-cardlist li{padding:10px 12px;border-radius:10px;background:var(--surface-elevated);border:1px solid var(--border);color:var(--text-primary);font-size:14px;}
+    .layout-demo-cardlist li strong{display:block;font-size:15px;margin-bottom:2px;}
+    .layout-demo-pillrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+    .layout-demo-pill{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface-elevated);font-size:13px;letter-spacing:.02em;text-transform:uppercase;}
+    .layout-demo-divider{height:1px;background:var(--border-hairline);margin-block:12px;}
+  </style>
+</head>
+<body class="demo-page">
+  <div class="demo-container">
+    <header class="demo-header">
+      <h1>Three-column layout preview</h1>
+      <p class="demo-section-copy">Use this sandbox to verify the responsive grid at mobile, tablet, and desktop widths. The markup below mirrors the production rails so interactions remain unchanged.</p>
+    </header>
+
+    <section class="demo-section">
+      <div class="layout-demo-toolbar">
+        <button id="layoutDemoTheme" type="button">Toggle dark mode</button>
+        <p id="layoutDemoWidth" class="layout-demo-copy" aria-live="polite">Viewport width: <span data-width>—</span>px</p>
+      </div>
+      <div class="app layout-demo-grid">
+        <section class="left card" aria-labelledby="layout-left-title">
+          <h2 id="layout-left-title">Calendar rail</h2>
+          <p class="layout-demo-copy">Navigation, guest chips, and stay actions live here. Resize the window to watch the column stay proportionate to the others.</p>
+          <div class="layout-demo-divider" role="presentation"></div>
+          <ul class="layout-demo-cardlist">
+            <li><strong>Guests</strong>Manage toggles and quick add.</li>
+            <li><strong>Stay controls</strong>Arrival, departure, and stay markers.</li>
+            <li><strong>Calendar</strong>7-column grid with keyboard navigation.</li>
+          </ul>
+        </section>
+        <section class="center card" aria-labelledby="layout-center-title">
+          <h2 id="layout-center-title">Activities rail</h2>
+          <p class="layout-demo-copy">All interactions, list dividers, and hover/press states are unchanged. The column simply scales with its siblings.</p>
+          <div class="layout-demo-divider" role="presentation"></div>
+          <div class="layout-demo-pillrow" role="list">
+            <span class="layout-demo-pill" role="listitem">Dinner</span>
+            <span class="layout-demo-pill" role="listitem">Spa</span>
+            <span class="layout-demo-pill" role="listitem">Custom</span>
+            <span class="layout-demo-pill" role="listitem">Wave One</span>
+          </div>
+          <ul class="layout-demo-cardlist" aria-label="Sample day plan">
+            <li><strong>3:30pm · Arrival</strong>Guests settle in and drop bags.</li>
+            <li><strong>5:00pm · Welcome cocktails</strong>Courtyard gathering with live music.</li>
+            <li><strong>7:30pm · Dinner</strong>Private dining room in the manor.</li>
+          </ul>
+        </section>
+        <section class="right card" aria-labelledby="layout-right-title">
+          <h2 id="layout-right-title">Preview rail</h2>
+          <p class="layout-demo-copy">Email preview retains typography, hairlines, and copy controls. This rail remains focusable last so keyboard order matches production.</p>
+          <div class="layout-demo-divider" role="presentation"></div>
+          <ul class="layout-demo-cardlist" aria-label="Preview highlights">
+            <li><strong>Live email</strong>Editable content with copy + edit actions.</li>
+            <li><strong>Guest context</strong>Auto-populated recipients and notes.</li>
+            <li><strong>Accessibility</strong>Tab order mirrors the live app.</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <script src="layout-demo.js"></script>
+</body>
+</html>
