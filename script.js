@@ -3,38 +3,356 @@
   // ---------- Utils ----------
   const pad = n => String(n).padStart(2,'0');
   const zero = d => { const x=new Date(d); x.setHours(0,0,0,0); return x; };
+  // Calendar navigation reuses a single helper so month/year rollover flows through the
+  // same code path everywhere we add or subtract days.
+  const addDays = (date, amount) => { const next = new Date(date); next.setDate(next.getDate()+amount); return next; };
   const monthName = (y,m) => new Date(y,m,1).toLocaleString(undefined,{month:'long'});
   const weekdayName = d => d.toLocaleDateString(undefined,{weekday:'long'});
-  const ordinalSuffix = n => { const s=['th','st','nd','rd'],v=n%100; return (s[(v-20)%10]||s[v]||s[0]); };
-  const ordinalSup = n => {
-    const sup=document.createElement('sup');
-    sup.textContent = ordinalSuffix(n);
-    sup.style.fontSize = '0.6em';
-    sup.style.verticalAlign = 'super';
-    return sup;
+  const ordinalSuffix = n => { const s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0]; };
+  const ordinal = n => `${n}${ordinalSuffix(n)}`;
+  const ordinalHtml = n => `${n}<sup>${ordinalSuffix(n)}</sup>`;
+  const escapeHtml = str => String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+  const parse24Time = hm => { const [h,m] = hm.split(':').map(Number); return { hour: h, minute: m }; };
+  // Centralized formatter is provided by utils/format.js so every surface stays in sync.
+  const formatTimeDisplay = (window.CHSFormatUtils && typeof window.CHSFormatUtils.formatTimeDisplay === 'function')
+    ? window.CHSFormatUtils.formatTimeDisplay
+    : (value => (value==null ? '' : String(value)));
+  const minutesFromTime = hm => {
+    if(!hm) return null;
+    const { hour, minute } = parse24Time(hm || '00:00');
+    if(!Number.isFinite(hour) || !Number.isFinite(minute)){
+      return null;
+    }
+    return (hour * 60) + minute;
   };
-  const fmt12 = hm => { let [h,m]=hm.split(':').map(Number); const am=h<12; h=((h+11)%12)+1; return `${h}:${pad(m)}${am?'am':'pm'}`; };
+  const rangesOverlap = (aStart, aEnd, bStart, bEnd) => {
+    if(!Number.isFinite(aStart) || !Number.isFinite(aEnd) || !Number.isFinite(bStart) || !Number.isFinite(bEnd)){
+      return false;
+    }
+    return aStart < bEnd && bStart < aEnd;
+  };
+  const to24Time = ({ hour, minute, meridiem }) => {
+    let h = Number(hour) || 0;
+    const m = Number(minute) || 0;
+    const normalizedMeridiem = (meridiem || '').toUpperCase() === 'PM' ? 'PM' : 'AM';
+    if(normalizedMeridiem === 'AM'){
+      if(h === 12) h = 0;
+    }else{
+      if(h < 12) h += 12;
+      if(h === 24) h = 12; // guard against 12 PM interpreted as 24
+    }
+    return `${pad(h)}:${pad(m)}`;
+  };
+  const from24Time = hm => {
+    const { hour, minute } = parse24Time(hm || '00:00');
+    const meridiem = hour >= 12 ? 'PM' : 'AM';
+    let displayHour = hour % 12;
+    if(displayHour === 0) displayHour = 12;
+    return { hour: displayHour, minute, meridiem };
+  };
+  const addMinutesToTime = (hm, duration) => {
+    const { hour, minute } = parse24Time(hm || '00:00');
+    const total = hour * 60 + minute + duration;
+    const normalized = ((total % (24*60)) + (24*60)) % (24*60);
+    const nextHour = Math.floor(normalized / 60);
+    const nextMinute = normalized % 60;
+    return `${pad(nextHour)}:${pad(nextMinute)}`;
+  };
+  // Duration buttons show compact numerals so the three-option case still fits
+  // inside the fixed grid cell; downstream outputs continue to call the full
+  // label helper so confirmation copy retains the "-Minute" suffix.
+  const formatDurationLabel = minutes => `${minutes}-Minute`;
+  const formatDurationButtonLabel = minutes => minutes.toString();
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
-  const applyStyles = (el, styles={})=>{ Object.assign(el.style, styles); return el; };
-  const createEl = (tag, opts={}, ...children)=>{
-    const el=document.createElement(tag);
-    if(opts.className) el.className = opts.className;
-    if(opts.text!=null) el.textContent = opts.text;
-    if(opts.html!=null) el.innerHTML = opts.html;
-    if(opts.attrs){ for(const [k,v] of Object.entries(opts.attrs)) el.setAttribute(k,v); }
-    if(opts.style) applyStyles(el, opts.style);
-    const kids = opts.children || children;
-    kids.forEach(child=>{
-      if(child==null) return;
-      if(typeof child === 'string' || typeof child === 'number') el.appendChild(document.createTextNode(String(child)));
-      else el.appendChild(child);
-    });
-    return el;
+  // Utility focus helper so we can safely focus elements without the browser
+  // restoring a previous scroll position. Safari will throw if it doesn't
+  // support the options bag, so we fall back to a plain focus when needed.
+  const focusWithoutScroll = element => {
+    if(!element || typeof element.focus !== 'function'){
+      return;
+    }
+    try{
+      element.focus({ preventScroll:true });
+    }catch(err){
+      element.focus();
+    }
   };
 
-  // Exported API stub for Codex (time wheel later)
-  window.createTimeWheelController = (el, initial="12:00") => ({ get:()=>initial, set:()=>{}, mount:()=>{}, destroy:()=>{} });
+  // Shared assignment chip helpers (injected via assignment-chip-logic.js). Provide fallbacks so
+  // the UI continues to render individual chips if the helper fails to load in a dev sandbox.
+  const fallbackAssignmentChipMode = {
+    NONE: 'none',
+    INDIVIDUAL: 'individual',
+    GROUP_BOTH: 'group-both',
+    GROUP_EVERYONE: 'group-everyone'
+  };
+
+  const assignmentChipLogic = window.AssignmentChipLogic || {};
+  const AssignmentChipMode = assignmentChipLogic.AssignmentChipMode || fallbackAssignmentChipMode;
+  const getAssignmentChipRenderPlan = assignmentChipLogic.getAssignmentChipRenderPlan || (({ assignedGuests }) => ({
+    type: fallbackAssignmentChipMode.INDIVIDUAL,
+    guests: (assignedGuests || []).filter(Boolean)
+  }));
+  const attachGroupPillInteractions = assignmentChipLogic.attachGroupPillInteractions || (() => ({ open: () => {}, close: () => {} }));
+
+  // Detect coarse-pointer/mobile surfaces to adjust guest chip affordance.
+  const coarsePointerRemoveQuery = (typeof window !== 'undefined' && typeof window.matchMedia === 'function')
+    ? window.matchMedia('(hover: none) and (pointer: coarse)')
+    : null;
+
+  const attachRowPressInteractions = (window.CHSActivitiesInteractions && typeof window.CHSActivitiesInteractions.attachRowPressInteractions === 'function')
+    ? window.CHSActivitiesInteractions.attachRowPressInteractions
+    : (element, { onActivate }) => {
+        const handler = (event) => {
+          if(event && event.target && event.target.closest && event.target.closest('[data-press-exempt="true"]')){
+            return;
+          }
+          onActivate(event);
+        };
+        element.addEventListener('click', handler);
+        return {
+          dispose(){ element.removeEventListener('click', handler); }
+        };
+      };
+
+  const dinnerIconSvg = `<svg viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon"><path fill="currentColor" d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"></path></svg>`;
+  const spaIconSvg = '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false"><path clip-rule="evenodd" d="M5.99999 2C5.99999 0.895431 6.89542 0 7.99999 0C9.10456 0 9.99999 0.895431 9.99999 2V2.0359L10.0311 2.01795C10.9877 1.46566 12.2108 1.79341 12.7631 2.75C13.3154 3.70659 12.9877 4.92977 12.0311 5.48205L12 5.5L12.0311 5.51795C12.9877 6.07023 13.3154 7.29342 12.7631 8.25C12.2108 9.20658 10.9877 9.53434 10.0311 8.98205L9.99999 8.9641V9C9.99999 10.1046 9.10456 11 7.99999 11C6.89542 11 5.99999 10.1046 5.99999 9V8.9641L5.9689 8.98205C5.01232 9.53434 3.78914 9.20658 3.23685 8.25C2.68457 7.29342 3.01232 6.07023 3.9689 5.51795L3.99999 5.5L3.9689 5.48205C3.01232 4.92977 2.68457 3.70659 3.23685 2.75C3.78913 1.79341 5.01232 1.46566 5.9689 2.01795L5.99999 2.0359V2ZM9.99999 5.5C9.99999 6.60457 9.10456 7.5 7.99999 7.5C6.89542 7.5 5.99999 6.60457 5.99999 5.5C5.99999 4.39543 6.89542 3.5 7.99999 3.5C9.10456 3.5 9.99999 4.39543 9.99999 5.5Z" fill="currentColor" fill-rule="evenodd"/><path d="M7 16H6C3.23858 16 1 13.7614 1 11V10H2C4.76142 10 7 12.2386 7 15V16Z" fill="currentColor"/><path d="M10 16H9V15C9 12.2386 11.2386 10 14 10H15V11C15 13.7614 12.7614 16 10 16Z" fill="currentColor"/></svg>';
+  const checkmarkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.173 12.414 2.586 8.828l1.414-1.414 2.173 2.172 5.657-5.657 1.414 1.415-7.071 7.07Z"/></svg>';
+  // Spec-supplied custom chip icon swaps in a unique glyph until hover/keyboard
+  // focus reveals the standard pencil affordance for editing.
+  const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Shared edit glyph ensures every edit affordance uses the same SVG + token sizing.
+  const editIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit"><path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/></svg>';
+  const lockIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-lock"><path d="M16 4a6 6 0 0 0-6 6v4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V16a2 2 0 0 0-2-2h-2v-4a6 6 0 0 0-6-6zm0 2a4 4 0 0 1 4 4v4h-8v-4a4 4 0 0 1 4-4zm-8 10h16v12H8V16zm8 2a2 2 0 0 0-2 2 2 2 0 0 0 1 1.732V24h2v-2.268A2 2 0 0 0 16 18z" fill="currentColor"/></svg>';
+  const resetIconSvg = '<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false" class="icon icon-reset"><path d="M64,256H34A222,222,0,0,1,430,118.15V85h30V190H355V160h67.27A192.21,192.21,0,0,0,256,64C150.13,64,64,150.13,64,256Zm384,0c0,105.87-86.13,192-192,192A192.21,192.21,0,0,1,89.73,352H157V322H52V427H82V393.85A222,222,0,0,0,478,256Z" fill="currentColor"/></svg>';
+  const copyIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon icon-copy"><path d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V4zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2h-4zm4-2V4H4v10h10z" fill="currentColor"/></svg>';
+  // Shared modal glyphs keep every destructive/save affordance visually in sync while
+  // letting the CSS drive color via `currentColor` so themes remain consistent.
+  const saveIconSvg = '<svg viewBox="-3 -3 24 24" aria-hidden="true" focusable="false"><path d="M2 0h11.22a2 2 0 0 1 1.345.52l2.78 2.527A2 2 0 0 1 18 4.527V16a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 2v14h14V4.527L13.22 2H2zm4 8h6a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm0 2v4h6v-4H6zm7-9a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1zM5 3h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 3h3V5H6v1z" fill="currentColor"/></svg>';
+  const deleteIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2h4a1 1 0 1 1 0 2h-1.069l-.867 12.142A2 2 0 0 1 17.069 22H6.93a2 2 0 0 1-1.995-1.858L4.07 8H3a1 1 0 0 1 0-2h4V4zm2 2h6V4H9v2zM6.074 8l.857 12H17.07l.857-12H6.074zM10 10a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1zm4 0a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1z" fill="currentColor"/></svg>';
+  const addIconSvg = '<svg viewBox="0 0 256 256" aria-hidden="true" focusable="false"><circle cx="128" cy="128" r="112" fill="none" stroke="currentColor" stroke-width="16"/><path d="M 80,128 H 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><path d="M 128,80 V 176" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/></svg>';
+  // Toolbar clear button uses the MIT-licensed Ant Design delete glyph so destructive affordances stay readable at small sizes.
+  const clearToolbarSvg = '<svg viewBox="0 0 1024 1024" aria-hidden="true" focusable="false"><path fill="currentColor" d="M899.1 869.6l-53-305.6H864c14.4 0 26-11.6 26-26V346c0-14.4-11.6-26-26-26H618V138c0-14.4-11.6-26-26-26H432c-14.4 0-26 11.6-26 26v182H160c-14.4 0-26 11.6-26 26v192c0 14.4 11.6 26 26 26h17.9l-53 305.6c-0.3 1.5-0.4 3-0.4 4.4 0 14.4 11.6 26 26 26h723c1.5 0 3-0.1 4.4-0.4 14.2-2.4 23.7-15.9 21.2-30zM204 390h272V182h72v208h272v104H204V390zm468 440V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H416V674c0-4.4-3.6-8-8-8h-48c-4.4 0-8 3.6-8 8v156H202.8l45.1-260H776l45.1 260H672z"/></svg>';
+
+  // Reusable factory keeps icon-only buttons consistent across modals while retaining
+  // semantic labels + tooltips for assistive tech and pointer affordances.
+  const createIconButton = ({ icon, label, extraClass='' }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = ['btn-icon', extraClass].filter(Boolean).join(' ');
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.innerHTML = icon;
+    return button;
+  };
+
+  // Close buttons reuse the shared icon styling so the hit target stays ≥44px and
+  // the "×" glyph remains purely presentational under a uniform "Close" label.
+  const createModalCloseButton = onClick => {
+    const button = createIconButton({ icon: '<span aria-hidden="true">×</span>', label: 'Close', extraClass: 'modal-close' });
+    if(typeof onClick === 'function'){
+      button.addEventListener('click', onClick);
+    }
+    return button;
+  };
+
+  const dinnerMinutes = [0,15,30,45];
+  const dinnerHours = [5,6,7,8];
+
+  const minuteRules = {
+    5: new Set([0,15]),
+    6: new Set([45]),
+    7: new Set(),
+    8: new Set([15,30,45])
+  };
+
+  const dinnerTitle = 'Dinner at Harvest';
+  const defaultDinnerTime = '19:00';
+
+  const SPA_THERAPIST_OPTIONS = [
+    { id: 'no-preference', label: 'No Preference' },
+    { id: 'female', label: 'Female Therapist' },
+    { id: 'male', label: 'Male Therapist' }
+  ];
+
+  const SPA_LOCATION_OPTIONS = [
+    { id: 'same-cabana', label: 'Same Cabana' },
+    { id: 'separate-cabanas', label: 'Separate Cabanas' },
+    { id: 'couples-massage', label: 'Couple’s Massage' },
+    { id: 'in-room', label: 'In-Room' }
+  ];
+
+  const defaultSpaStartTime = '08:00'; // Default SPA time = 8:00am when unset.
+  const generateSpaEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `spa_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+  const SPA_CATEGORY_BLUEPRINT = [
+    {
+      id: 'massages',
+      label: 'Massages',
+      match(entry){
+        return entry.category === 'Massages';
+      }
+    },
+    {
+      id: 'treatments',
+      label: 'Treatments',
+      subcategories: [
+        {
+          id: 'treatments-facials',
+          label: 'Facials',
+          match(entry){
+            return entry.category === 'Facials';
+          }
+        },
+        {
+          id: 'treatments-full-body',
+          label: 'Full Body',
+          match(entry){
+            return entry.category === 'Treatments';
+          }
+        }
+      ]
+    },
+    {
+      id: 'therapies',
+      label: 'Therapies',
+      match(entry){
+        return entry.category === 'Therapies';
+      }
+    },
+    {
+      id: 'intentional',
+      label: 'Intentional Wellness Sessions',
+      match(entry){
+        return entry.category === 'Intentional Wellness';
+      }
+    }
+  ];
+
+  function buildSpaCatalog(dataset){
+    const services = Array.isArray(dataset?.services) ? dataset.services : [];
+    const entries = [];
+    const byName = new Map();
+
+    services.forEach(service => {
+      const entry = {
+        name: service.name,
+        category: service.category,
+        subcategory: service.subcategory,
+        durations: Array.isArray(service.durations) ? service.durations.slice() : Array.isArray(service.durations_minutes) ? service.durations_minutes.slice() : [],
+        supportsInRoom: service.supportsInRoom ?? service.supports_in_room ?? null,
+        displayCategoryId: null,
+        displayCategoryLabel: null,
+        displaySubcategoryId: null,
+        displaySubcategoryLabel: null
+      };
+      entries.push(entry);
+      byName.set(entry.name, entry);
+    });
+
+    const categories = [];
+    SPA_CATEGORY_BLUEPRINT.forEach(categoryBlueprint => {
+      const category = {
+        id: categoryBlueprint.id,
+        label: categoryBlueprint.label,
+        services: [],
+        subcategories: []
+      };
+
+      if(Array.isArray(categoryBlueprint.subcategories) && categoryBlueprint.subcategories.length){
+        categoryBlueprint.subcategories.forEach(subBlueprint => {
+          const matched = entries.filter(entry => subBlueprint.match(entry));
+          if(matched.length === 0) return;
+          const subcategoryId = subBlueprint.id;
+          const subcategory = {
+            id: subcategoryId,
+            label: subBlueprint.label,
+            services: matched.slice().sort((a,b)=> a.name.localeCompare(b.name))
+          };
+          subcategory.services.forEach(entry => {
+            entry.displayCategoryId = categoryBlueprint.id;
+            entry.displayCategoryLabel = categoryBlueprint.label;
+            entry.displaySubcategoryId = subcategoryId;
+            entry.displaySubcategoryLabel = subBlueprint.label;
+          });
+          category.subcategories.push(subcategory);
+        });
+      }else{
+        const matched = entries.filter(entry => categoryBlueprint.match(entry));
+        if(matched.length === 0) return;
+        category.services = matched.slice().sort((a,b)=> a.name.localeCompare(b.name));
+        category.services.forEach(entry => {
+          entry.displayCategoryId = categoryBlueprint.id;
+          entry.displayCategoryLabel = categoryBlueprint.label;
+          entry.displaySubcategoryId = null;
+          entry.displaySubcategoryLabel = null;
+        });
+      }
+
+      if(category.services.length || category.subcategories.length){
+        categories.push(category);
+      }
+    });
+
+    return { categories, byName };
+  }
+
+  // Surface curated activity titles/locations so the custom builder can pull
+  // from the authoritative dataset without mutating it. This lets us mirror
+  // the “pick an existing activity” UX and feed the location select with
+  // known venues pulled from CHSDataLayer metadata.
+  function buildCustomCatalog(activitiesDataset){
+    const titleMap = new Map();
+    const locationSet = new Set();
+    const seasons = Array.isArray(activitiesDataset?.seasons) ? activitiesDataset.seasons : [];
+    const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+    seasons.forEach(season => {
+      dayKeys.forEach(dayKey => {
+        const rows = (window.CHSDataLayer && typeof window.CHSDataLayer.getActivitiesForSeasonDay === 'function')
+          ? window.CHSDataLayer.getActivitiesForSeasonDay(season.name, dayKey)
+          : [];
+        rows.forEach(row => {
+          if(!row || !row.title) return;
+          if(!titleMap.has(row.title)){
+            titleMap.set(row.title, { title: row.title, location: null });
+          }
+          const meta = (window.CHSDataLayer && typeof window.CHSDataLayer.getActivityMetadata === 'function')
+            ? window.CHSDataLayer.getActivityMetadata({ season: season.name, day: dayKey, title: row.title, start: row.start })
+            : null;
+          const location = (meta?.location || '').trim();
+          if(location){
+            locationSet.add(location);
+            const existing = titleMap.get(row.title);
+            if(existing && !existing.location){
+              existing.location = location;
+            }
+          }
+        });
+      });
+    });
+    const titles = Array.from(titleMap.values()).sort((a,b)=> a.title.localeCompare(b.title));
+    const locations = Array.from(locationSet.values()).sort((a,b)=> a.localeCompare(b));
+    return { titles, locations };
+  }
+
+  const TimePickerKit = window.TimePickerKit || {};
+  const { createTimePicker, createWheel } = TimePickerKit;
+
+  let spaPickerSerial = 0;
+
+  // Default ETA/ETD when unset: 12:00pm / 1:00pm.
+  const stayNoteDefaults = Object.freeze({
+    arrival: '12:00',
+    departure: '13:00'
+  });
+
+
 
   // ---------- State ----------
   const state = {
@@ -42,36 +360,594 @@
     focus: zero(new Date()),
     arrival: null,
     departure: null,
+    arrivalNote: stayNoteDefaults.arrival, // Visual ETA note only; intentionally not wired into stay logic.
+    departureNote: stayNoteDefaults.departure, // Visual ETD note only; intentionally not wired into stay logic.
     guests: [], // {id,name,color,active,primary}
     colors: ['#6366f1','#06b6d4','#22c55e','#f59e0b','#ef4444','#a855f7','#10b981','#f43f5e','#0ea5e9'],
     schedule: {}, // dateKey -> [{type:'activity',title,start,end,guestIds:Set}]
     data: null,
-    editing: false
+    dataStatus: 'loading',
+    editing: false,
+    previewMode: 'view',
+    // Single boolean keeps the toggle icon + label in sync without juggling two buttons.
+    isEditingPreview: false,
+    previewState: {
+      isLocked: false,
+      // Granular overrides live here so locking only hides edit chrome while
+      // the generator keeps flowing new data through untouched segments.
+      overrides: { days: {} }
+    },
+    previewBaseSnapshot: new Map(),
+    previewItineraryKey: null,
+    previewDirty: true,
+    spaCatalog: null,
+    customCatalog: { titles: [], locations: [] }
   };
 
   // ---------- DOM ----------
   const $ = sel => document.querySelector(sel);
   const calMonth=$('#calMonth'), calYear=$('#calYear'), calGrid=$('#calGrid'), dow=$('#dow');
+  const arrivalEtaInput=$('#arrivalEta'), departureEtdInput=$('#departureEtd');
   const dayTitle=$('#dayTitle'), activitiesEl=$('#activities'), email=$('#email');
+  const activitiesScroller=document.querySelector('.activities__scroller');
+  const seasonIndicator=$('#seasonIndicator'), seasonValue=$('#seasonValue');
   const guestsEl=$('#guests'), guestName=$('#guestName');
+  const toggleAllBtn=$('#toggleAll');
+  const previewToggleBtn=$('#previewToggle');
+  const resetPreviewBtn=$('#resetPreview');
+  const copyBtn=$('#copy');
+  const addDinnerBtn=$('#addDinner');
+  const addSpaBtn=$('#addSpa');
+  const addCustomBtn=$('#addCustom');
+  const clearAllBtn=$('#clearAll');
+
+  if(resetPreviewBtn){
+    resetPreviewBtn.innerHTML = resetIconSvg;
+  }
+  if(copyBtn){
+    copyBtn.innerHTML = copyIconSvg;
+    copyBtn.title = 'Copy preview';
+    copyBtn.setAttribute('aria-label','Copy preview');
+  }
+  function decorateToolbarButton(button, iconSvg, srText){
+    if(!button){
+      return;
+    }
+    // Toolbar triggers borrow the chip art so icon swaps stay centralized while the sr-only label mirrors aria-label/title.
+    const srLabel = srText || button.getAttribute('aria-label') || '';
+    button.innerHTML = `<span class="toolbar-icon" aria-hidden="true">${iconSvg}</span><span class="sr-only">${srLabel}</span>`;
+  }
+
+  decorateToolbarButton(addDinnerBtn, dinnerIconSvg, 'Add Dinner');
+  decorateToolbarButton(addSpaBtn, spaIconSvg, 'Add SPA Service');
+  decorateToolbarButton(addCustomBtn, customChipIconSvg, 'Add Custom Activity');
+  decorateToolbarButton(clearAllBtn, clearToolbarSvg, 'Clear all itinerary data');
+  if(email){
+    email.contentEditable = 'false';
+    setPreviewAriaLabel();
+  }
+  updatePreviewButtons();
+  calGrid.setAttribute('tabindex','0');
+  const calendarCard=document.querySelector('.left.card');
+  const calendarContainer=calendarCard && calendarCard.querySelector('#calendar');
+
+  (function ensureStableScrollbarGutter(){
+    const scroller=document.querySelector('.activities__scroller');
+    if(!scroller) return;
+
+    const supportsGutter=CSS.supports?.('scrollbar-gutter','stable')||false;
+
+    function computeScrollbarWidth(){
+      // Offscreen measurement mirrors the OS scrollbar footprint without
+      // disturbing layout, letting us reserve space only when a classic bar
+      // would otherwise overlay content.
+      const probe=document.createElement('div');
+      probe.style.cssText='position:absolute;top:-9999px;left:-9999px;width:100px;height:100px;overflow:scroll;';
+      document.body.appendChild(probe);
+      const sbw=probe.offsetWidth-probe.clientWidth;
+      probe.remove();
+      return sbw;
+    }
+
+    function applyCompensation(){
+      const sbw=computeScrollbarWidth();
+      // WebKit relies on ::-webkit-scrollbar width while legacy engines need
+      // explicit padding when they ignore `scrollbar-gutter`, so expose both.
+      scroller.style.setProperty('--sbw',`${sbw}px`);
+      scroller.style.setProperty('--scrollbar-fallback-padding',supportsGutter?'0px':`${sbw}px`);
+    }
+
+    applyCompensation();
+    let resizeFrameId;
+    window.addEventListener('resize',()=>{
+      cancelAnimationFrame(resizeFrameId);
+      resizeFrameId=requestAnimationFrame(applyCompensation);
+    },{passive:true});
+  })();
+  const calendarScroll=calendarContainer && calendarContainer.querySelector('.calendar-scroll');
+  const calendarScrollContent=calendarScroll && calendarScroll.querySelector('.calendar-scroll__content');
+  const calendarScrollThumb=calendarScroll && calendarScroll.querySelector('.calendar-scroll__thumb');
+  const calendarWeekdayRow=calendarScrollContent && calendarScrollContent.querySelector('.dow');
+  const MIN_DAYCELL_HEIGHT=40;
+  const MAX_DAYCELL_HEIGHT=120;
+  const CALENDAR_WEEKS=6;
+  let calendarRowHeightRaf=0;
+  const updateCalendarRowHeights=()=>{
+    if(!calendarScrollContent) return;
+    const hostHeight=calendarScrollContent.clientHeight;
+    if(hostHeight<=0) return;
+    // Row height measurement always divides the host into six rows to match the fixed grid footprint.
+    const weeks=CALENDAR_WEEKS;
+    const weekdayHeaderHeight=calendarWeekdayRow ? calendarWeekdayRow.getBoundingClientRect().height : 0;
+    const hostStyles=getComputedStyle(calendarScrollContent);
+    const hostGap=parseFloat(hostStyles.rowGap || hostStyles.gap || '0') || 0;
+    const gridStyles=getComputedStyle(calGrid);
+    const rowGap=parseFloat(gridStyles.rowGap || '0') || 0;
+    const totalRowGaps=Math.max(0,(weeks-1))*rowGap;
+    // available trims the weekday header + vertical gaps so the remaining block can be evenly divided between week rows.
+    const available=hostHeight - weekdayHeaderHeight - hostGap - totalRowGaps;
+    const rawRow=Math.floor(available / weeks);
+    const clamped=Math.max(MIN_DAYCELL_HEIGHT, Math.min(MAX_DAYCELL_HEIGHT, Number.isFinite(rawRow) ? rawRow : MAX_DAYCELL_HEIGHT));
+    // Expose the measured row height to CSS so the fixed 6-row grid can resize without touching layout elsewhere.
+    calGrid.style.setProperty('--daycell-h', `${clamped}px`);
+  };
+  const scheduleCalendarRowHeightUpdate=()=>{
+    if(calendarRowHeightRaf) cancelAnimationFrame(calendarRowHeightRaf);
+    calendarRowHeightRaf=requestAnimationFrame(()=>{
+      calendarRowHeightRaf=0;
+      updateCalendarRowHeights();
+    });
+  };
+  if(calendarCard && calendarContainer && calendarScroll && calendarScrollContent && calendarScrollThumb){
+    const rootStyle=getComputedStyle(document.documentElement);
+    const baseFontSize=parseFloat(rootStyle.fontSize) || 16;
+    const parseTokenSize=value=>{
+      const token=(value || '').trim();
+      if(!token) return 0;
+      if(token.endsWith('rem') || token.endsWith('em')){
+        return parseFloat(token) * baseFontSize;
+      }
+      if(token.endsWith('px')){
+        return parseFloat(token);
+      }
+      return parseFloat(token) || 0;
+    };
+    const trackPaddingPx=parseTokenSize(rootStyle.getPropertyValue('--space-4'));
+    let scrollIdleTimer=null;
+    let scheduledFrame=null;
+    const clearIdleTimer=()=>{
+      if(scrollIdleTimer){
+        clearTimeout(scrollIdleTimer);
+        scrollIdleTimer=null;
+      }
+    };
+    const beginIdleCountdown=()=>{
+      clearIdleTimer();
+      scrollIdleTimer=window.setTimeout(()=>{
+        calendarScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const scheduleThumbUpdate=()=>{
+      if(scheduledFrame!=null){
+        return;
+      }
+      scheduledFrame=requestAnimationFrame(()=>{
+        scheduledFrame=null;
+        applyThumbMetrics();
+      });
+    };
+    const applyThumbMetrics=()=>{
+      if(!calendarContainer.classList.contains('calendar--scrollable')){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
+      const { clientHeight, scrollHeight, scrollTop } = calendarScroll;
+      if(scrollHeight <= clientHeight + 1){
+        calendarScrollThumb.setAttribute('hidden','');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        calendarScroll.classList.remove('is-scrolling');
+        return;
+      }
+      calendarScrollThumb.removeAttribute('hidden');
+      const trackHeight=Math.max(clientHeight - (trackPaddingPx * 2), 0);
+      if(trackHeight <= 0){
+        calendarScrollThumb.style.setProperty('--calendar-thumb-size','0px');
+        calendarScrollThumb.style.setProperty('--calendar-thumb-offset','0px');
+        return;
+      }
+      // Overlay thumb height mirrors the native formula: visible ratio scaled by the viewport height, capped to the track.
+      const rawThumbSize=clientHeight * (clientHeight / scrollHeight);
+      const thumbSize=Math.min(rawThumbSize, trackHeight);
+      const maxOffset=Math.max(trackHeight - thumbSize, 0);
+      const scrollableRange=Math.max(scrollHeight - clientHeight, 1);
+      const offset=maxOffset * (scrollTop / scrollableRange);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-size', `${thumbSize}px`);
+      calendarScrollThumb.style.setProperty('--calendar-thumb-offset', `${offset}px`);
+    };
+    const activateThumb=()=>{
+      if(calendarScrollThumb.hasAttribute('hidden')){
+        return;
+      }
+      calendarScroll.classList.add('is-scrolling');
+      beginIdleCountdown();
+    };
+    calendarScroll.addEventListener('scroll',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('wheel',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    },{ passive:true });
+    calendarScroll.addEventListener('pointermove',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerdown',()=>{
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerenter',()=>{
+      scheduleThumbUpdate();
+      activateThumb();
+    });
+    calendarScroll.addEventListener('pointerleave',()=>{
+      beginIdleCountdown();
+    });
+    const scrollResizeObserver=new ResizeObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    scrollResizeObserver.observe(calendarScroll);
+    const mutationObserver=new MutationObserver(()=>{
+      scheduleThumbUpdate();
+    });
+    mutationObserver.observe(calendarScroll,{ subtree:true, childList:true });
+    window.addEventListener('resize', scheduleThumbUpdate);
+    window.addEventListener('resize', scheduleCalendarRowHeightUpdate);
+    // Desktop-only compaction: gate density changes behind the desktop media query so tablet/iPad keep the roomy layout.
+    const desktopQuery=window.matchMedia('(min-width: 1024px)');
+    const applyCalendarDensity=()=>{
+      const cardHeight=calendarCard.clientHeight;
+      const isDesktop=desktopQuery.matches;
+      // Container breakpoints: <=900px tightens spacing, <=840px enables the fully compressed token set.
+      let density='regular';
+      if(isDesktop && cardHeight<=840){
+        density='compressed';
+      }else if(isDesktop && cardHeight<=900){
+        density='compact';
+      }
+      calendarContainer.dataset.density=density;
+      // Scroll fallback only kicks in below 800px tall viewports so the column stays static at the target desktop sizes.
+      const shouldEnableScroll=cardHeight<800;
+      calendarContainer.classList.toggle('calendar--scrollable', shouldEnableScroll);
+      if(!shouldEnableScroll){
+        calendarScroll.scrollTop=0;
+      }
+      let scale=1;
+      if(!shouldEnableScroll && isDesktop){
+        const { clientHeight } = calendarScroll;
+        const contentHeight=calendarScrollContent.scrollHeight;
+        if(contentHeight>clientHeight+1){
+          // Scale fallback mirrors the spec clamp: never shrink below 90% so day buttons stay at least 40px tall.
+          scale=Math.max(0.9, Math.min(clientHeight / contentHeight, 1));
+        }
+      }
+      calendarContainer.style.setProperty('--calendar-grid-scale', scale.toFixed(3));
+      scheduleCalendarRowHeightUpdate();
+      scheduleThumbUpdate();
+    };
+    const onDesktopQueryChange=()=>applyCalendarDensity();
+    if(typeof desktopQuery.addEventListener==='function'){
+      desktopQuery.addEventListener('change', onDesktopQueryChange);
+    }else if(typeof desktopQuery.addListener==='function'){
+      desktopQuery.addListener(onDesktopQueryChange);
+    }
+    // Observe the calendar card height so density + scale respond to window and content changes.
+    const densityObserver=new ResizeObserver(()=>{
+      applyCalendarDensity();
+    });
+    densityObserver.observe(calendarCard);
+    const gridHostObserver=new ResizeObserver(()=>{
+      // ResizeObserver keeps the calendar row height in sync with viewport + layout changes.
+      scheduleCalendarRowHeightUpdate();
+    });
+    gridHostObserver.observe(calendarScroll);
+    applyCalendarDensity();
+    scheduleCalendarRowHeightUpdate();
+  }
+  calGrid.addEventListener('focus',event=>{
+    if(event.target===calGrid){
+      const activeCell = calGrid.querySelector(`[data-date-key="${keyDate(state.focus)}"]`);
+      focusWithoutScroll(activeCell);
+    }
+  }, true);
+
+  // Track whether the calendar needs to restore focus after a re-render. Arrow navigation
+  // updates state then triggers a full render, so we keep this flag outside the handler.
+  let calendarFocusIntent = false;
+  const calendarFocusExemptSelector = 'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="combobox"], [role="spinbutton"]';
+  // Calendar keyboard handling lives on the grid container so both the roving cell and
+  // the grid itself can move the focus date with arrow keys.
+  calGrid.addEventListener('keydown',event=>{
+    const key = event.key;
+    const target = event.target;
+    const cellButton = target && target.closest('[data-date-key]');
+    const isDayCell = !!cellButton;
+    const isGridFocused = target === calGrid;
+    if(!isDayCell && !isGridFocused){
+      return;
+    }
+    if(target.closest(calendarFocusExemptSelector)){
+      return;
+    }
+
+    if(key==='Enter' || key===' ' || key==='Spacebar'){
+      event.preventDefault();
+      if(isDayCell){
+        cellButton.click();
+      }
+      return;
+    }
+
+    const deltas = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 };
+    const delta = deltas[key];
+    if(typeof delta !== 'number'){
+      return;
+    }
+
+    event.preventDefault();
+    calendarFocusIntent = true;
+    // Date math helper manages month/year transitions so the render pipeline refreshes
+    // the visible month before we restore focus to the new active cell.
+    const next = addDays(state.focus, delta);
+    state.focus = zero(next);
+    renderAll();
+  });
 
   // DOW header
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(t=>{
-    const d=document.createElement('div'); d.textContent=t; dow.appendChild(d);
+  // Surface compact weekday initials while keeping full names available for assistive tech + tooltips.
+  const weekdayInitials=['S','M','T','W','T','F','S'];
+  const weekdayFull=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  weekdayInitials.forEach((abbr,ix)=>{
+    const d=document.createElement('div');
+    d.textContent=abbr;
+    d.setAttribute('aria-label', weekdayFull[ix]);
+    d.title = weekdayFull[ix];
+    dow.appendChild(d);
   });
 
+  let stayNotePicker=null;
+  function updateStayNoteInputs(){
+    if(arrivalEtaInput){
+      const display = state.arrivalNote ? formatTimeDisplay(state.arrivalNote) : '';
+      arrivalEtaInput.value = display;
+      arrivalEtaInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='arrivalNote' ? 'true' : 'false');
+    }
+    if(departureEtdInput){
+      const display = state.departureNote ? formatTimeDisplay(state.departureNote) : '';
+      departureEtdInput.value = display;
+      departureEtdInput.setAttribute('aria-expanded', stayNotePicker?.stateKey==='departureNote' ? 'true' : 'false');
+    }
+  }
+
+  function closeStayNotePicker({ returnFocus=false }={}){
+    if(!stayNotePicker) return;
+    const { overlay, anchor, timePicker, handleKeydown, handleViewport } = stayNotePicker;
+    document.removeEventListener('keydown', handleKeydown, true);
+    window.removeEventListener('resize', handleViewport, true);
+    window.removeEventListener('scroll', handleViewport, true);
+    if(timePicker && typeof timePicker.dispose==='function'){
+      timePicker.dispose();
+    }
+    if(overlay?.parentNode){
+      overlay.parentNode.removeChild(overlay);
+    }
+    if(anchor){
+      anchor.setAttribute('aria-expanded','false');
+      if(returnFocus){
+        focusWithoutScroll(anchor);
+      }
+    }
+    stayNotePicker=null;
+    updateStayNoteInputs();
+  }
+
+  function openStayNotePicker({ anchor, stateKey, label }){
+    if(!anchor){
+      return;
+    }
+    if(stayNotePicker && stayNotePicker.anchor===anchor){
+      closeStayNotePicker({ returnFocus:true });
+      return;
+    }
+    closeStayNotePicker();
+    if(typeof createTimePicker!=='function'){
+      return;
+    }
+
+    const overlay=document.createElement('div');
+    overlay.className='stay-time-layer';
+    const scrim=document.createElement('div');
+    scrim.className='stay-time-scrim';
+    overlay.appendChild(scrim);
+
+    const surface=document.createElement('div');
+    surface.className='stay-time-surface';
+    surface.setAttribute('role','dialog');
+    surface.setAttribute('aria-modal','true');
+    const labelId=`${stateKey}-stay-time-label`;
+    const srLabel=document.createElement('div');
+    srLabel.className='sr-only';
+    srLabel.id=labelId;
+    srLabel.textContent=label;
+    surface.setAttribute('aria-labelledby', labelId);
+    surface.appendChild(srLabel);
+
+    const pickerHost=document.createElement('div');
+    surface.appendChild(pickerHost);
+
+    const storedValue = state[stateKey];
+    const defaultSnapshot = storedValue ? from24Time(storedValue) : { hour:12, minute:0, meridiem:'PM' };
+    const ariaBase = stateKey==='arrivalNote' ? 'Arrival' : 'Departure';
+    let pendingValue = defaultSnapshot;
+
+    // Match the shared picker physics: 1–12 hours, 5-minute steps, AM/PM toggle.
+    const pickerInstance=createTimePicker({
+      hourRange:[1,12],
+      minuteStep:5,
+      showAmPm:true,
+      defaultValue: defaultSnapshot,
+      ariaLabels:{ hours:`${ariaBase} hour`, minutes:`${ariaBase} minutes`, meridiem:'AM or PM' },
+      onChange:value=>{ pendingValue = value; }
+    });
+
+    if(pickerInstance && pickerInstance.element){
+      pickerHost.appendChild(pickerInstance.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='stay-time-fallback';
+      fallback.textContent='Time picker unavailable.';
+      pickerHost.appendChild(fallback);
+    }
+
+    const actions=document.createElement('div');
+    actions.className='stay-time-actions';
+
+    const clearBtn=document.createElement('button');
+    clearBtn.type='button';
+    clearBtn.className='stay-time-clear';
+    clearBtn.textContent='Clear';
+    clearBtn.setAttribute('aria-label',`Clear ${ariaBase.toLowerCase()} time note`);
+    clearBtn.addEventListener('click',()=>{
+      state[stateKey]=null;
+      closeStayNotePicker({ returnFocus:true });
+      updateStayNoteInputs();
+    });
+    actions.appendChild(clearBtn);
+
+    const saveBtn=document.createElement('button');
+    saveBtn.type='button';
+    saveBtn.className='stay-time-primary';
+    saveBtn.textContent='Save';
+    saveBtn.setAttribute('aria-label',`Save ${ariaBase.toLowerCase()} time note`);
+    saveBtn.addEventListener('click',()=>{
+      const snapshot = (pickerInstance && typeof pickerInstance.getValue==='function') ? pickerInstance.getValue() : pendingValue;
+      if(snapshot){
+        state[stateKey]=to24Time(snapshot);
+      }
+      closeStayNotePicker({ returnFocus:true });
+      updateStayNoteInputs();
+    });
+    actions.appendChild(saveBtn);
+
+    surface.appendChild(actions);
+
+    overlay.appendChild(surface);
+    document.body.appendChild(overlay);
+
+    const reposition=()=>{
+      const rect=anchor.getBoundingClientRect();
+      const surfaceRect=surface.getBoundingClientRect();
+      const viewportWidth=window.innerWidth || document.documentElement.clientWidth;
+      const viewportHeight=window.innerHeight || document.documentElement.clientHeight;
+      let left=rect.left+window.scrollX;
+      let top=rect.bottom+window.scrollY+8;
+      const maxLeft=window.scrollX+viewportWidth-surfaceRect.width-16;
+      left=Math.min(Math.max(left, window.scrollX+16), Math.max(window.scrollX+16, maxLeft));
+      if(top+surfaceRect.height>window.scrollY+viewportHeight-16){
+        top=rect.top+window.scrollY-surfaceRect.height-8;
+      }
+      top=Math.max(top, window.scrollY+16);
+      surface.style.left=`${left}px`;
+      surface.style.top=`${top}px`;
+    };
+
+    // Delay positioning until the picker paints so measurements are accurate.
+    requestAnimationFrame(()=>{
+      reposition();
+      pickerInstance?.focus?.({ preventScroll:true });
+    });
+
+    const getFocusableElements=()=> Array.from(surface.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.hasAttribute('disabled') && el.getAttribute('aria-hidden')!=='true');
+
+    const handleKeydown=e=>{
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeStayNotePicker({ returnFocus:true });
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable=getFocusableElements();
+        if(!focusable.length) return;
+        const active=document.activeElement;
+        let index=focusable.indexOf(active);
+        if(index===-1){
+          index = e.shiftKey ? focusable.length-1 : 0;
+        }else{
+          index += e.shiftKey ? -1 : 1;
+          if(index<0) index = focusable.length-1;
+          if(index>=focusable.length) index = 0;
+        }
+        e.preventDefault();
+        const target=focusable[index];
+        if(target){
+          focusWithoutScroll(target);
+        }
+      }
+    };
+    const handleViewport=()=>{ reposition(); };
+
+    document.addEventListener('keydown', handleKeydown, true);
+    window.addEventListener('resize', handleViewport, true);
+    window.addEventListener('scroll', handleViewport, true);
+
+    scrim.addEventListener('pointerdown', e=>{
+      if(e.target===scrim){
+        closeStayNotePicker({ returnFocus:true });
+      }
+    });
+    surface.addEventListener('pointerdown', e=> e.stopPropagation());
+
+    anchor.setAttribute('aria-expanded','true');
+
+    stayNotePicker={ overlay, anchor, timePicker: pickerInstance, stateKey, handleKeydown, handleViewport };
+    updateStayNoteInputs();
+  }
+
   // ---------- Data load ----------
-  Promise.all([
-    fetch('data/activities.json').then(r=>r.json()),
-    fetch('data/spa.json').then(r=>r.json()),
-    fetch('data/locations.json').then(r=>r.json())
-  ]).then(([acts,spa,locs])=>{
-    state.data = { activities: acts, spa, locations: locs };
-    renderAll();
-  }).catch(e=>{
-    console.error(e);
-    email.textContent = 'Data load failed. Serve via http:// and verify /data files exist.';
-  });
+
+  // Activities + spa data now flow from the global CHSDataLayer helpers defined in data/data-layer.js.
+  // This replaces the old fetch('data/*.json') wiring while keeping the UI render path intact.
+  if(typeof window.CHSDataLayer === 'undefined'){
+    const err = new Error('CHSDataLayer missing. Ensure data/data-layer.js is loaded.');
+    console.error(err);
+    state.data = null;
+    state.dataStatus = 'error';
+    // Defer the render until after script evaluation so const bindings below are initialized.
+    setTimeout(renderAll, 0);
+    email.textContent = 'Data layer missing. Load data/data-layer.js before script.js.';
+  }else{
+    try{
+      const activitiesDataset = window.CHSDataLayer.getActivitiesDataset();
+      const spaDataset = window.CHSDataLayer.getSpaDataset();
+      state.data = { activities: activitiesDataset, spa: spaDataset };
+      state.spaCatalog = buildSpaCatalog(spaDataset);
+      state.customCatalog = buildCustomCatalog(activitiesDataset);
+      state.dataStatus = 'ready';
+      ensureFocusInSeason();
+      // Wait for the rest of this module to register helpers (e.g. toggleIcons) before rendering.
+      setTimeout(renderAll, 0);
+    }catch(e){
+      console.error(e);
+      state.data = null;
+      state.dataStatus = 'error';
+      // Keep the render async so we don't hit TDZ checks while the script continues parsing.
+      setTimeout(renderAll, 0);
+      email.textContent = 'Data layer failed to initialize. See console for details.';
+    }
+  }
 
   // ---------- Season + weekday ----------
   function activeSeason(date){
@@ -81,21 +957,116 @@
     return null;
   }
   const weekdayKey = d => ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+  const SEASON_DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+  const SEASON_NAME_PATTERN = /(Spring|Summer|Fall|Winter)/i;
+  const seasonLabelCache = new Map();
+
+  function normalizeSeasonWord(word){
+    if(!word) return word;
+    const lower = word.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }
+
+  function parseSeasonLabelFromString(value){
+    if(!value) return null;
+    const match = SEASON_NAME_PATTERN.exec(String(value));
+    if(!match) return null;
+    const seasonWord = normalizeSeasonWord(match[1]);
+    const after = String(value).slice(match.index);
+    const afterYear = after.match(/(\d{4})/);
+    if(afterYear) return `${seasonWord} ${afterYear[1]}`;
+    const before = String(value).slice(0, match.index);
+    const beforeYear = before.match(/(\d{4})(?!.*\d{4})/);
+    if(beforeYear) return `${seasonWord} ${beforeYear[1]}`;
+    return null;
+  }
+
+  function resolveSeasonLabelForSeasonDay({ season, dayKey, activities }){
+    if(!season || !window.CHSDataLayer) return null;
+    if(seasonLabelCache.has(season.name)) return seasonLabelCache.get(season.name);
+
+    const daySequence = [];
+    if(dayKey && !daySequence.includes(dayKey)) daySequence.push(dayKey);
+    SEASON_DAY_KEYS.forEach(key=>{ if(!daySequence.includes(key)) daySequence.push(key); });
+
+    for(const key of daySequence){
+      const rows = (key===dayKey && Array.isArray(activities))
+        ? activities
+        : window.CHSDataLayer.getActivitiesForSeasonDay(season.name, key);
+      if(!rows || rows.length===0) continue;
+      for(const row of rows){
+        // Activity metadata already powers the Preview card. Reusing it keeps the
+        // season pill anchored to the same selected-day source instead of
+        // guessing from Date.now(). Preferred fields (if present) cascade from a
+        // dedicated label to the PDF/source title before we bail.
+        const meta = window.CHSDataLayer.getActivityMetadata({ season: season.name, day: key, title: row.title, start: row.start });
+        if(!meta) continue;
+        const explicitLabel = parseSeasonLabelFromString(meta.seasonLabel || meta.title || '');
+        if(explicitLabel){
+          seasonLabelCache.set(season.name, explicitLabel);
+          return explicitLabel;
+        }
+        const fromSource = parseSeasonLabelFromString(meta.source || '');
+        if(fromSource){
+          seasonLabelCache.set(season.name, fromSource);
+          return fromSource;
+        }
+      }
+    }
+
+    // As a final fallback, try to parse the broader season name (date range) in case
+    // the dataset happens to include "Fall 2025" directly in the label.
+    const fallback = parseSeasonLabelFromString(season.name);
+    if(fallback){
+      seasonLabelCache.set(season.name, fallback);
+      return fallback;
+    }
+
+    return null;
+  }
 
   // ---------- Calendar ----------
   function renderCalendar(){
     const y=state.focus.getFullYear(), m=state.focus.getMonth();
+    const focusKey = keyDate(state.focus);
+    const shouldRestoreFocus = calendarFocusIntent || calGrid.contains(document.activeElement);
     calMonth.textContent = monthName(y,m); calYear.textContent = y;
     calGrid.innerHTML='';
-    const first=new Date(y,m,1), startOffset=first.getDay();
-    for(let i=0;i<42;i++){
-      const d=new Date(y,m,1 - startOffset + i);
+    const first=new Date(y,m,1);
+    // Months always render as a fixed 6×7 grid. We anchor the first cell to the
+    // Sunday on/preceding the 1st so the 42-day range covers leading + trailing months.
+    const startOfGrid=new Date(first);
+    startOfGrid.setDate(startOfGrid.getDate() - startOfGrid.getDay());
+    const totalCells=42;
+    calGrid.style.setProperty('--weeks', '6');
+    const days=[];
+    // Build the inclusive 42-day range so leading/trailing days keep the grid full without altering interactions.
+    for(let i=0;i<totalCells;i++){
+      const d=new Date(startOfGrid);
+      d.setDate(startOfGrid.getDate() + i);
+      days.push(d);
+    }
+    for(const d of days){
       const btn=document.createElement('button');
       btn.textContent = d.getDate();
+      btn.setAttribute('role','gridcell');
+      const dateKey = keyDate(d);
+      btn.dataset.dateKey = dateKey;
+      const isFocusDate = dateKey===focusKey;
+      // Roving tabindex: only the active date stays in the tab order so keyboard focus
+      // always lands on the highlighted cell.
+      btn.setAttribute('tabindex', isFocusDate ? '0' : '-1');
+      btn.setAttribute('aria-selected','false');
       btn.setAttribute('aria-label', d.toDateString());
       if(d.getMonth()!==m) btn.classList.add('other');
-      if(d.getTime()===state.today.getTime()) btn.classList.add('today');
-      if(d.getTime()===state.focus.getTime()) btn.classList.add('focus');
+      if(d.getTime()===state.today.getTime()){
+        btn.classList.add('today');
+        btn.setAttribute('aria-current','date');
+      }
+      if(isFocusDate){
+        btn.classList.add('focus');
+        btn.setAttribute('aria-selected','true');
+      }
 
       if(state.arrival && state.departure){
         const t=d.getTime();
@@ -104,227 +1075,4791 @@
       if(state.arrival && d.getTime()===state.arrival.getTime()) btn.classList.add('arrival');
       if(state.departure && d.getTime()===state.departure.getTime()) btn.classList.add('departure');
 
-      btn.addEventListener('click',()=>{ state.focus=zero(d); renderAll(); });
+      btn.addEventListener('click',()=>{
+        state.focus=zero(d);
+        renderAll();
+      });
       calGrid.appendChild(btn);
     }
+    scheduleCalendarRowHeightUpdate();
+    if(shouldRestoreFocus){
+      // After rebuilding the grid, re-focus the active cell without scrolling so arrow
+      // key presses and clicks keep the visible focus ring in place across month changes.
+      const activeCell = calGrid.querySelector(`[data-date-key="${focusKey}"]`);
+      focusWithoutScroll(activeCell);
+    }
+    calendarFocusIntent = false;
+    updateStayNoteInputs();
   }
 
   // ---------- Guests ----------
+  const toggleIcons = {
+    allOn: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`,
+    someOff: `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/><rect x="8.2" y="12.9" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/></svg>`
+  };
+
   function addGuest(name){
-    if(!name) return;
+    const trimmed = name.trim();
+    if(!trimmed) return;
+    const previousScrollTop = activitiesScroller ? activitiesScroller.scrollTop : null;
+    const restoreActivitiesScroll = () => {
+      if(activitiesScroller && previousScrollTop != null){
+        activitiesScroller.scrollTop = previousScrollTop;
+      }
+    };
     const id = (crypto.randomUUID ? crypto.randomUUID() : `g_${Date.now()}_${Math.random().toString(16).slice(2)}`);
     const color = state.colors[state.guests.length % state.colors.length];
-    const g = {id,name, color, active:true, primary: state.guests.length===0};
+    const g = {id,name: trimmed, color, active:true, primary: state.guests.length===0};
     state.guests.push(g);
     guestName.value='';
-    renderGuests(); renderActivities(); renderPreview();
+    renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
+    if(previousScrollTop != null){
+      // preserve/restore scrollTop around add-guest; keep list keys stable
+      if(typeof requestAnimationFrame === 'function'){
+        requestAnimationFrame(restoreActivitiesScroll);
+      }else{
+        setTimeout(restoreActivitiesScroll,0);
+      }
+    }
   }
   function renderGuests(){
+    syncDinnerGuests();
+    syncSpaGuests();
+    syncCustomGuests();
     guestsEl.innerHTML='';
     state.guests.forEach((g,ix)=>{
       const b=document.createElement('button');
       b.className='guest-pill'+(g.active?' active':'');
-      b.style.borderColor=g.color;
-      const star = g.primary ? '<span class="star">★</span>' : '';
-      b.innerHTML = `${star}${g.name} <span class="x" aria-hidden="true" title="Remove">×</span>`;
+
+      b.style.setProperty('--pillColor', g.color);
+      b.textContent='';
+      if(g.primary){
+        const star=document.createElement('span');
+        star.className='star';
+        star.textContent='★';
+        star.setAttribute('aria-hidden','true');
+        b.appendChild(star);
+      }
+
+      const nameSpan=document.createElement('span');
+      nameSpan.className='label';
+      nameSpan.textContent=g.name;
+      b.appendChild(nameSpan);
+
+      const remove=document.createElement('span');
+      remove.className='x';
+      remove.setAttribute('aria-hidden','true');
+      remove.title='Remove';
+      remove.textContent='×';
+      b.appendChild(remove);
       b.onclick=(e)=>{
         if(e.target.classList.contains('x')){
           const wasPrimary = g.primary;
           state.guests.splice(ix,1);
           if(wasPrimary && state.guests.length){ state.guests[0].primary=true; }
-          renderGuests(); renderActivities(); renderPreview();
+          renderGuests(); renderActivities(); markPreviewDirty(); renderPreview();
         }else{
           g.active=!g.active; renderGuests();
         }
       };
       guestsEl.appendChild(b);
     });
+    updateToggleAllButton();
   }
-  $('#addGuest').onclick=()=>addGuest(guestName.value.trim());
-  guestName.addEventListener('keydown',e=>{ if(e.key==='Enter') addGuest(guestName.value.trim()); });
-  $('#toggleAll').onclick=()=>{
+  const tryAddGuestFromInput = ()=> addGuest(guestName.value);
+  guestName.addEventListener('keydown',e=>{
+    const key=(e.key||'').toLowerCase();
+    if(key==='enter' || key==='numpadenter' || key==='return'){
+      e.preventDefault();
+      if(e.repeat) return;
+      tryAddGuestFromInput();
+    }
+  });
+  guestName.addEventListener('blur', tryAddGuestFromInput);
+  if(toggleAllBtn){
+    toggleAllBtn.addEventListener('click',()=>{
+      const anyInactive = state.guests.some(g=>!g.active);
+      state.guests.forEach(g=>g.active = anyInactive ? true : false);
+      renderGuests();
+    });
+  }
+
+  if(addDinnerBtn){
+    addDinnerBtn.addEventListener('click',()=>{
+      openDinnerPicker({ mode:'add', dateKey: keyDate(state.focus) });
+    });
+  }
+
+  if(addSpaBtn){
+    addSpaBtn.addEventListener('click',()=>{
+      const activeGuestsSnapshot = state.guests.filter(g=>g.active).map(g=>g.id);
+      openSpaEditor({ mode:'add', dateKey: keyDate(state.focus), guestIds: activeGuestsSnapshot });
+    });
+  }
+
+  if(addCustomBtn){
+    addCustomBtn.addEventListener('click',()=>{
+      const activeGuestsSnapshot = state.guests.filter(g=>g.active).map(g=>g.id);
+      openCustomBuilder({ mode:'add', dateKey: keyDate(state.focus), guestIds: activeGuestsSnapshot });
+    });
+  }
+
+  renderAll();
+
+  function updateToggleAllButton(){
+    if(!toggleAllBtn) return;
+    const total = state.guests.length;
+    const allActive = total>0 && state.guests.every(g=>g.active);
     const anyInactive = state.guests.some(g=>!g.active);
-    state.guests.forEach(g=>g.active = anyInactive ? true : false);
-    renderGuests();
-  };
+    toggleAllBtn.disabled = total===0;
+    toggleAllBtn.setAttribute('aria-pressed', total>0 && allActive ? 'true' : 'false');
+    if(total===0){
+      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      toggleAllBtn.setAttribute('aria-label','Toggle all guests');
+      toggleAllBtn.title = 'Toggle all guests';
+      return;
+    }
+    if(anyInactive){
+      toggleAllBtn.innerHTML = toggleIcons.someOff;
+      toggleAllBtn.setAttribute('aria-label','Turn all guests on');
+      toggleAllBtn.title = 'Turn all guests on';
+    }else{
+      toggleAllBtn.innerHTML = toggleIcons.allOn;
+      toggleAllBtn.setAttribute('aria-label','Turn all guests off');
+      toggleAllBtn.title = 'Turn all guests off';
+    }
+  }
+
+  function updateSeasonPill(label){
+    if(!seasonIndicator || !seasonValue) return;
+    if(!label){
+      seasonValue.textContent='';
+      seasonIndicator.hidden = true;
+      delete seasonIndicator.dataset.visible;
+      seasonIndicator.removeAttribute('aria-label');
+      return;
+    }
+    seasonValue.textContent = label;
+    seasonIndicator.setAttribute('aria-label', `Season: ${label}`);
+    if(seasonIndicator.hidden){
+      seasonIndicator.hidden = false;
+      requestAnimationFrame(()=>{ seasonIndicator.dataset.visible='true'; });
+    }else{
+      seasonIndicator.dataset.visible='true';
+    }
+  }
 
   // ---------- Activities ----------
   function renderActivities(){
     const wname=weekdayName(state.focus);
-    dayTitle.innerHTML = '';
-    const dayNum = state.focus.getDate();
-    dayTitle.append(`${wname}, ${state.focus.toLocaleString(undefined,{month:'long'})} ${dayNum}`);
-    dayTitle.appendChild(ordinalSup(dayNum));
+    dayTitle.innerHTML = `${escapeHtml(wname)}, ${escapeHtml(state.focus.toLocaleString(undefined,{month:'long'}))} ${ordinalHtml(state.focus.getDate())}`;
 
-    const season = activeSeason(state.focus);
+    updateAddDinnerButton();
+    updateAddSpaButton();
+    updateAddCustomButton();
+
     const weekKey = weekdayKey(state.focus);
-    const list = (season?.weekly?.[weekKey] || []).slice().sort((a,b)=> a.start.localeCompare(b.start));
+    let season = null;
+    let baseList = [];
+    let seasonLabel = null;
 
-    activitiesEl.innerHTML='';
-    list.forEach(row=>{
-      const div=document.createElement('div'); div.className='item';
-      const left=document.createElement('div'); left.className='item-left';
-
-      const text=document.createElement('div');
-      text.textContent = `${fmt12(row.start)} - ${fmt12(row.end)} | ${row.title}`;
-      left.appendChild(text);
-
-      const tagWrap=document.createElement('div'); tagWrap.className='tag-row';
-
-      const dateK = keyDate(state.focus);
-      const day = getOrCreateDay(dateK);
-      const ent = day.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
-      const assignedIds = ent ? Array.from(ent.guestIds) : [];
-
-      if(state.guests.length>0){
-        if(assignedIds.length===state.guests.length){
-          const ev=document.createElement('span');
-          ev.className='tag-everyone'; ev.textContent='Everyone'; ev.title='Click to show guests';
-          ev.onclick=()=>{ ev.remove(); renderGuestChips(tagWrap, assignedIds); };
-          tagWrap.appendChild(ev);
-        }else{
-          renderGuestChips(tagWrap, assignedIds);
-        }
+    if(state.dataStatus==='ready'){
+      season = activeSeason(state.focus);
+      if(season){
+        baseList = window.CHSDataLayer.getActivitiesForSeasonDay(season.name, weekKey).slice().sort((a,b)=> a.start.localeCompare(b.start));
+        seasonLabel = resolveSeasonLabelForSeasonDay({ season, dayKey: weekKey, activities: baseList });
       }
-
-      left.appendChild(tagWrap);
-
-      const add=document.createElement('button');
-      add.className='add'; add.textContent='+'; add.title='Assign active guests';
-      add.onclick=()=>{
-        const actives = state.guests.filter(g=>g.active);
-        if(actives.length===0){ alert('Toggle at least one guest pill before assigning.'); return; }
-        const d = getOrCreateDay(dateK);
-        let entry = d.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
-        if(!entry){ entry = {type:'activity', title:row.title, start:row.start, end:row.end, guestIds:new Set()}; d.push(entry); }
-        actives.forEach(g=> entry.guestIds.add(g.id));
-        renderActivities(); renderPreview();
-      };
-
-      div.appendChild(left); div.appendChild(add);
-      activitiesEl.appendChild(div);
-    });
-
-    function renderGuestChips(container, ids){
-      container.innerHTML='';
-      ids.forEach(id=>{
-        const g = state.guests.find(x=>x.id===id); if(!g) return;
-        const c=document.createElement('span'); c.className='chip';
-        c.style.borderColor=g.color; c.style.background='#fff';
-        c.textContent = g.name.charAt(0).toUpperCase();
-        const x=document.createElement('button'); x.className='x'; x.title=`Remove ${g.name}`; x.textContent='×';
-        x.onclick=()=>{
-          const dk = keyDate(state.focus);
-          const day = state.schedule[dk]||[];
-          day.forEach(e=>{ if(e.guestIds) e.guestIds.delete(g.id); });
-          renderActivities(); renderPreview();
-        };
-        c.appendChild(x);
-        container.appendChild(c);
-      });
     }
-  }
-  function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
 
-  // ---------- Preview ----------
-  function renderPreview(){
-    if(state.editing) return;
+    updateSeasonPill(seasonLabel);
 
-    email.innerHTML='';
-    applyStyles(email, {
-      fontFamily: '"Helvetica Neue", Arial, sans-serif',
-      fontSize: '15px',
-      lineHeight: '1.6',
-      color: '#111827'
-    });
-
-    const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
-    const greeting = createEl('div',{style:{marginBottom:'18px'}},
-      createEl('p',{text:`Hello ${primary},`, style:{margin:'0 0 8px', fontSize:'16px'}}),
-      createEl('p',{text:'Current Itinerary:', style:{margin:'0', fontSize:'16px', fontWeight:'600', textDecoration:'underline'}})
-    );
-    email.appendChild(greeting);
-
-    const buildDayHeading = (date)=>{
-      const heading = createEl('div',{style:{fontSize:'18px', fontWeight:'700', margin:'0 0 10px'}});
-      heading.append(`${weekdayName(date)}, ${date.toLocaleString(undefined,{month:'long'})} ${date.getDate()}`);
-      heading.appendChild(ordinalSup(date.getDate()));
-      return heading;
-    };
-
-    const lineEntry = ()=> createEl('div',{style:{margin:'0 0 8px', fontSize:'15px'}});
-
-    const infoEntry = (timeLabel, label, subtitle)=>{
-      const row = lineEntry();
-      row.appendChild(createEl('strong',{text:timeLabel, style:{fontSize:'15px', fontWeight:'700'}}));
-      if(label){
-        row.append(' ');
-        row.append(label);
-      }
-      if(subtitle){
-        row.append(' | ');
-        row.append(subtitle);
-      }
-      return row;
-    };
-
-    const activityEntry = (it, names, everyone)=>{
-      const row = lineEntry();
-      const label = it.end ? `${fmt12(it.start)} - ${fmt12(it.end)}` : fmt12(it.start);
-      row.appendChild(createEl('strong',{text:label, style:{fontSize:'15px', fontWeight:'700'}}));
-      row.append(' | ');
-      row.append(it.title);
-      if(!everyone && names.length){
-        row.append(' | ');
-        row.append(names.join(' | '));
-      }
-      return row;
-    };
-
-    const keys = new Set(Object.keys(state.schedule));
-    if(state.arrival) keys.add(keyDate(state.arrival));
-    if(state.departure) keys.add(keyDate(state.departure));
-    const sorted = Array.from(keys).sort();
-
-    if(sorted.length===0){
-      const fallback = createEl('div',{},
-        buildDayHeading(state.focus),
-        createEl('p',{text:'Assign an activity with + to start building the itinerary.', style:{margin:'4px 0 0', color:'#4b5563', fontStyle:'italic'}})
-      );
-      email.appendChild(fallback);
+    if(state.dataStatus==='loading'){
+      renderStatusMessage('Loading activities…');
       return;
     }
 
-    sorted.forEach(k=>{
-      const [y,m,d] = k.split('-').map(Number);
-      const date = new Date(y, m-1, d);
-      const daySection = createEl('section',{style:{margin:'0 0 20px'}});
-      daySection.appendChild(buildDayHeading(date));
+    if(state.dataStatus==='error'){
+      renderStatusMessage('Activities unavailable — data failed to load.');
+      return;
+    }
 
-      const entriesWrap = createEl('div',{style:{display:'flex', flexDirection:'column'}});
-      const isArrival = state.arrival && keyDate(state.arrival)===k;
-      const isDeparture = state.departure && keyDate(state.departure)===k;
+    if(!season){
+      renderStatusMessage(buildOutOfSeasonMessage());
+      return;
+    }
+    const dateK = keyDate(state.focus);
+    const dinnerEntry = getDinnerEntry(dateK);
+    mergeSpaEntriesForDay(dateK);
+    const spaEntries = getSpaEntries(dateK);
+    const customEntries = getCustomEntries(dateK);
+    const spaOverlapById = computeSpaOverlapMap(spaEntries);
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const combined = baseList.map(row=>({kind:'activity', data: row}));
+    if(dinnerEntry){ combined.push({kind:'dinner', data: dinnerEntry}); }
+    // Inject saved SPA blocks alongside activities/dinner so the list remains time-ordered.
+    spaEntries.forEach(entry => combined.push({ kind:'spa', data: entry }));
+    customEntries.forEach(entry => combined.push({ kind:'custom', data: entry }));
+    combined.sort((a,b)=>{
+      const resolveStart = item => {
+        if(item.kind==='activity') return item.data.start || '';
+        return item.data.start || '';
+      };
+      const aStart = resolveStart(a);
+      const bStart = resolveStart(b);
+      return aStart.localeCompare(bStart);
+    });
 
-      if(isDeparture){
-        entriesWrap.appendChild(infoEntry('11:00am','Check-Out','Welcome to stay on property until 1:00pm'));
+    activitiesEl.innerHTML='';
+    combined.forEach(item=>{
+      if(item.kind==='dinner'){
+        renderDinner(item.data);
+        return;
       }
-
-      if(isArrival){
-        entriesWrap.appendChild(infoEntry('4:00pm','Guaranteed Check-In','Welcome to arrive as early as 12:00pm'));
+      if(item.kind==='spa'){
+        renderSpa(item.data);
+        return;
       }
+      if(item.kind==='custom'){
+        renderCustom(item.data);
+        return;
+      }
+      const row = item.data;
+      const div=document.createElement('div');
+      div.className='activity-row';
+      div.setAttribute('role','button');
+      const disabled = !!row.disabled;
+      if(disabled){
+        div.dataset.disabled='true';
+        div.setAttribute('aria-disabled','true');
+        div.tabIndex = -1;
+      }else{
+        div.tabIndex = 0;
+        div.removeAttribute('aria-disabled');
+      }
+      const ariaLabel = `Add activity: ${formatTimeDisplay(row.start)} to ${formatTimeDisplay(row.end)} ${row.title}`;
+      div.setAttribute('aria-label', ariaLabel);
 
-      const items = (state.schedule[k]||[]).slice().sort((a,b)=> a.start.localeCompare(b.start));
-      items.forEach(it=>{
-        const rawIds = Array.from(it.guestIds||[]);
-        const names = rawIds.map(id=> state.guests.find(g=>g.id===id)?.name).filter(Boolean);
-        if(names.length===0) return;
-        const everyone = rawIds.length===state.guests.length;
-        entriesWrap.appendChild(activityEntry(it, names, everyone));
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      time.textContent = `${formatTimeDisplay(row.start)} – ${formatTimeDisplay(row.end)}`;
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = row.title;
+      headline.appendChild(title);
+
+      body.appendChild(headline);
+
+      const dateK = keyDate(state.focus);
+      const day = getOrCreateDay(dateK);
+      const entry = day.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
+      const assignedIds = entry ? Array.from(entry.guestIds) : [];
+
+      // Split the trailing rail into guest + action clusters so chips sit to the
+      // right of the title stack without affecting row height.
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests guest-chips';
+
+      const actionRail=document.createElement('div');
+      actionRail.className='activity-row-rail add-chips';
+
+      // Wrapper keeps the trailing controls as a single right-aligned cluster.
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(actionRail);
+
+      const setPressedState = (pressed)=>{
+        if(pressed){
+          div.dataset.pressed='true';
+        }else{
+          delete div.dataset.pressed;
+        }
+      };
+
+      const activate = ()=>{
+        if(disabled){ return; }
+        const listNode = activitiesEl?.parentElement || activitiesEl;
+        const savedScrollTop = listNode ? listNode.scrollTop : null; // preserve & restore scrollTop around row add
+        const actives = state.guests.filter(g=>g.active);
+        if(actives.length===0){ alert('Toggle at least one guest pill before assigning.'); return; }
+        const d = getOrCreateDay(dateK);
+        let target = d.find(e=> e.type==='activity' && e.title===row.title && e.start===row.start && e.end===row.end);
+        if(!target){ target = {type:'activity', title:row.title, start:row.start, end:row.end, guestIds:new Set()}; d.push(target); }
+        actives.forEach(g=> target.guestIds.add(g.id));
+        sortDayEntries(dateK);
+        renderActivities(); markPreviewDirty(); renderPreview();
+        if(listNode && savedScrollTop !== null){
+          const restore = () => { listNode.scrollTop = savedScrollTop; };
+          if(typeof requestAnimationFrame === 'function'){
+            requestAnimationFrame(restore);
+          }else{
+            restore();
+          }
+        }
+      };
+
+      // Guard against accidental scroll taps via shared pointer controller.
+      attachRowPressInteractions(div, {
+        onActivate: activate,
+        isDisabled: () => disabled,
+        onPressChange: setPressedState
       });
 
-      daySection.appendChild(entriesWrap);
+      let keyboardPress = false;
+      div.addEventListener('keydown', (event)=>{
+        if(disabled) return;
+        if(event.key===' ' || event.key==='Spacebar'){
+          event.preventDefault();
+          if(!keyboardPress){
+            keyboardPress = true;
+            setPressedState(true);
+          }
+        }else if(event.key==='Enter'){
+          event.preventDefault();
+          activate();
+        }
+      });
+
+      div.addEventListener('keyup', (event)=>{
+        if(!keyboardPress) return;
+        if(event.key===' ' || event.key==='Spacebar'){
+          event.preventDefault();
+          keyboardPress = false;
+          setPressedState(false);
+          if(!disabled){ activate(); }
+        }
+      });
+
+      div.addEventListener('blur', ()=>{
+        keyboardPress = false;
+        setPressedState(false);
+      });
+
+      div.appendChild(body);
+      div.appendChild(trailing);
+      activitiesEl.appendChild(div);
+
+      if(state.guests.length>0){
+        renderAssignments(guestCluster, entry, assignedIds, dateK);
+      }
+    });
+
+    function renderAssignments(container, entry, ids, dateK){
+      if(!container) return;
+      container.innerHTML='';
+      container.dataset.hasGuests='false';
+      if(!Array.isArray(ids) || ids.length===0) return;
+
+      const idSet = new Set(ids);
+      const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
+      const orderedIds = state.guests.map(g=>g.id).filter(id=>idSet.has(id));
+      const assignedGuests = orderedIds.map(id=>guestLookup.get(id)).filter(Boolean);
+
+      if(assignedGuests.length===0){
+        return;
+      }
+
+      const plan = getAssignmentChipRenderPlan({
+        totalGuestsInStay: state.guests.length,
+        assignedGuests
+      });
+
+      if(plan.type===AssignmentChipMode.NONE || plan.guests.length===0){
+        return;
+      }
+
+      if(container.__groupInlineCleanup){
+        container.__groupInlineCleanup();
+      }
+
+      const handledGroup = renderGroupInlineSwap(container, plan, {
+        createChips: ()=> plan.guests.map(guest=> createChip(guest, entry, dateK)),
+        focusSelector: '.chip .x',
+        hideDelay: 260,
+        clusterOptions: {
+          popoverLabel: 'Assigned guests',
+          ariaLabelPrefix: 'More assigned guests'
+        }
+      });
+
+      if(handledGroup){
+        return;
+      }
+
+      const chips = plan.guests.map(guest=> createChip(guest, entry, dateK));
+      layoutGuestCluster(container, chips, {
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
+      });
+    }
+
+    // Measure the guest rail and collapse overflow into a +N pill whose popover
+    // keeps the hidden chips interactive without altering the row height.
+    function layoutGuestCluster(container, chips, options={}){
+      if(!container) return;
+      const items = Array.isArray(chips) ? chips.filter(Boolean) : [];
+      container.innerHTML='';
+      if(items.length===0){
+        container.dataset.hasGuests='false';
+        return;
+      }
+
+      const visible = items.slice();
+      const hidden = [];
+      const measurementPadding = 1;
+      let overflowButton = null;
+      let rafToken = null;
+
+      const applyLayout = () => {
+        container.innerHTML='';
+        visible.forEach(chip => container.appendChild(chip));
+        if(hidden.length>0){
+          if(!overflowButton){
+            overflowButton = buildOverflowButton(options);
+          }
+          updateOverflowButton(overflowButton, hidden, options);
+          container.appendChild(overflowButton);
+        }
+        container.dataset.hasGuests='true';
+      };
+
+      const scheduleReflow = () => {
+        if(rafToken!==null) return;
+        if(typeof requestAnimationFrame==='function'){
+          rafToken = requestAnimationFrame(()=>{
+            rafToken = null;
+            layoutGuestCluster(container, items, options);
+          });
+        }
+      };
+
+      applyLayout();
+
+      if(container.clientWidth<=0){
+        scheduleReflow();
+        return;
+      }
+
+      let guard = 0;
+      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+        hidden.unshift(visible.pop());
+        guard+=1;
+        applyLayout();
+      }
+
+      if(hidden.length===0){
+        container.dataset.hasGuests='true';
+        return;
+      }
+
+      guard = 0;
+      while(visible.length>0 && container.scrollWidth>container.clientWidth+measurementPadding && guard<items.length){
+        hidden.unshift(visible.pop());
+        guard+=1;
+        applyLayout();
+      }
+
+      applyLayout();
+    }
+
+    function renderGroupInlineSwap(container, plan, options={}){
+      if(!container || !plan) return false;
+      const isGroup = plan.type===AssignmentChipMode.GROUP_BOTH || plan.type===AssignmentChipMode.GROUP_EVERYONE;
+      if(!isGroup) return false;
+
+      const {
+        createChips,
+        focusSelector = '.chip .x',
+        hideDelay = 260,
+        clusterOptions = {}
+      } = options || {};
+
+      if(typeof createChips !== 'function'){
+        return false;
+      }
+
+      const mergedClusterOptions = Object.assign({
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
+      }, clusterOptions);
+
+      let expanded = false;
+      let hideTimer = null;
+      const cleanupFns = [];
+      const register = (target, type, handler, opts) => {
+        if(!target) return;
+        target.addEventListener(type, handler, opts);
+        cleanupFns.push(()=> target.removeEventListener(type, handler, opts));
+      };
+
+      const cancelHide = () => {
+        if(hideTimer){
+          clearTimeout(hideTimer);
+          hideTimer = null;
+        }
+      };
+
+      const collapse = (opts={}) => {
+        cancelHide();
+        renderPill(opts);
+      };
+
+      const scheduleHide = () => {
+        // Delay collapsing so brief exits (especially across chips) do not immediately snap back.
+        cancelHide();
+        hideTimer = setTimeout(() => {
+          if(!expanded) return;
+          if(typeof document !== 'undefined' && container.contains(document.activeElement)){
+            return;
+          }
+          collapse();
+        }, hideDelay);
+      };
+
+      const pill = document.createElement('button');
+      pill.type='button';
+      pill.className='tag-everyone';
+      pill.dataset.assignmentPill = plan.type;
+      pill.setAttribute('aria-label', plan.pillAriaLabel || plan.pillLabel || 'Assigned guests');
+      pill.setAttribute('aria-expanded','false');
+      pill.dataset.pressExempt='true';
+      pill.addEventListener('pointerdown', e=> e.stopPropagation());
+      pill.addEventListener('click', e=> e.stopPropagation());
+
+      const label=document.createElement('span');
+      label.textContent=plan.pillLabel || '';
+      pill.appendChild(label);
+
+      const focusFirstChip = () => {
+        if(!focusSelector) return;
+        const firstAction = container.querySelector(focusSelector);
+        if(firstAction && typeof firstAction.focus==='function'){
+          firstAction.focus();
+        }
+      };
+
+      const renderChips = (opts={}) => {
+        expanded = true;
+        pill.setAttribute('aria-expanded','true');
+        // Swap the pill inline for the real guest chips so the layout slot stays fixed
+        // while reusing layoutGuestCluster for +N overflow handling.
+        layoutGuestCluster(container, createChips(), mergedClusterOptions);
+        container.dataset.groupExpanded='true';
+        if(opts.focusFirst){
+          const focusTask = () => focusFirstChip();
+          if(typeof requestAnimationFrame==='function'){
+            requestAnimationFrame(()=> focusTask());
+          }else{
+            focusTask();
+          }
+        }
+      };
+
+      const renderPill = (opts={}) => {
+        expanded = false;
+        pill.setAttribute('aria-expanded','false');
+        container.innerHTML='';
+        container.appendChild(pill);
+        container.dataset.groupExpanded='false';
+        container.dataset.hasGuests='true';
+        if(opts.focusPill && typeof pill.focus==='function'){
+          pill.focus();
+        }
+      };
+
+      const expand = (opts={}) => {
+        cancelHide();
+        if(expanded) return;
+        renderChips(opts);
+      };
+
+      register(container,'pointerenter',()=> cancelHide());
+      register(container,'pointerleave',()=>{
+        if(expanded){
+          scheduleHide();
+        }
+      });
+
+      register(container,'focusin',()=> cancelHide());
+      register(container,'focusout',()=>{
+        if(expanded){
+          scheduleHide();
+        }
+      });
+
+      register(container,'keydown',(event)=>{
+        if(event.key==='Escape' && expanded){
+          event.preventDefault();
+          collapse({ focusPill:true });
+        }
+      }, true);
+
+      register(pill,'pointerenter',()=> expand());
+      register(pill,'focus',()=>{
+        const shouldFocusChips=!pill.matches(':hover');
+        expand({ focusFirst: shouldFocusChips });
+      });
+      register(pill,'keydown',(event)=>{
+        if(event.key==='Enter' || event.key===' '){
+          event.preventDefault();
+          expand({ focusFirst:true });
+        }else if(event.key==='Escape' && expanded){
+          event.preventDefault();
+          collapse({ focusPill:true });
+        }
+      });
+
+      register(container,'click',(event)=>{
+        if(event.target && event.target.matches('.chip, .chip *')){
+          cancelHide();
+        }
+      });
+
+      renderPill();
+
+      container.__groupInlineCleanup=()=>{
+        cancelHide();
+        cleanupFns.forEach(fn=>fn());
+        delete container.__groupInlineCleanup;
+      };
+
+      return true;
+    }
+
+    function buildOverflowButton(options={}){
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='tag-everyone guest-overflow-pill';
+      button.dataset.pressExempt='true';
+      button.dataset.overflowChip='true';
+      button.setAttribute('aria-haspopup','true');
+      button.setAttribute('aria-expanded','false');
+      button.addEventListener('pointerdown', e=> e.stopPropagation());
+      button.addEventListener('click', e=> e.stopPropagation());
+
+      const label=document.createElement('span');
+      label.className='guest-overflow-label';
+      button.appendChild(label);
+
+      const pop=document.createElement('div');
+      pop.className='popover';
+      pop.setAttribute('role','group');
+      pop.setAttribute('aria-label', options.popoverLabel || 'Additional guests');
+      button.appendChild(pop);
+
+      attachGroupPillInteractions(button);
+      return button;
+    }
+
+    function updateOverflowButton(button, hiddenChips, options={}){
+      if(!button) return;
+      const count = hiddenChips.length;
+      const label = button.querySelector('.guest-overflow-label');
+      if(label){
+        label.textContent = `+${count}`;
+      }
+      const pop = button.querySelector('.popover');
+      if(pop){
+        pop.innerHTML='';
+        hiddenChips.forEach(chip => pop.appendChild(chip));
+      }
+      const tooltipNames = hiddenChips.map(chip => chip?.title || chip?.getAttribute?.('aria-label') || chip?.textContent || '').filter(Boolean);
+      const prefix = options.ariaLabelPrefix || 'More guests';
+      if(tooltipNames.length>0){
+        const joined = tooltipNames.join(', ');
+        button.title = joined;
+        button.setAttribute('aria-label', `${prefix}: ${joined}`);
+      }else{
+        button.removeAttribute('title');
+        button.setAttribute('aria-label', `${prefix} (${count})`);
+      }
+    }
+
+    function createChip(guest, entry, dateK){
+      const c=document.createElement('span');
+      c.className='chip';
+      c.dataset.guestChip='true';
+      c.style.borderColor = guest.color;
+      c.style.color = guest.color;
+      c.title = guest.name;
+
+      const initial=document.createElement('span');
+      initial.className='initial';
+      initial.textContent = guest.name.charAt(0).toUpperCase();
+      c.appendChild(initial);
+
+      const x=document.createElement('button');
+      x.className='x';
+      x.type='button';
+      x.setAttribute('aria-label', `Remove ${guest.name}`);
+      x.title=`Remove ${guest.name}`;
+      x.textContent='×';
+      x.dataset.pressExempt='true';
+      x.addEventListener('pointerdown', e=> e.stopPropagation());
+      const handleRemove = (event) => {
+        if(event) event.stopPropagation();
+        if(!entry) return;
+        entry.guestIds.delete(guest.id);
+        if(entry.guestIds.size===0){
+          const day = state.schedule[dateK];
+          if(day){
+            const idx = day.indexOf(entry);
+            if(idx>-1) day.splice(idx,1);
+            if(day.length===0) delete state.schedule[dateK];
+          }
+        }
+        sortDayEntries(dateK);
+        renderActivities();
+        markPreviewDirty();
+        renderPreview();
+      };
+      x.addEventListener('click', handleRemove);
+      c.appendChild(x);
+
+      if(coarsePointerRemoveQuery && coarsePointerRemoveQuery.matches){
+        // Mobile coarse pointers hide the X; delegate removal to the chip tap.
+        c.addEventListener('pointerdown', event => event.stopPropagation());
+        c.addEventListener('click', handleRemove);
+      }
+      return c;
+    }
+    function renderStatusMessage(text){
+      activitiesEl.innerHTML='';
+      const msg=document.createElement('div');
+      msg.className='data-status';
+      msg.textContent=text;
+      msg.style.padding='16px';
+      msg.style.background='var(--panel)';
+      msg.style.border='1px solid var(--border)';
+      msg.style.borderRadius='14px';
+      msg.style.color='var(--muted)';
+      msg.style.textAlign='center';
+      msg.style.boxShadow='0 1px 2px rgba(12,18,32,.06)';
+      activitiesEl.appendChild(msg);
+    }
+
+    function renderDinner(entry){
+      const div=document.createElement('div');
+      div.className='activity-row dinner-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      time.textContent = formatTimeDisplay(entry.start);
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = entry.title;
+      headline.appendChild(time);
+      headline.appendChild(title);
+      body.appendChild(headline);
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='dinner-chip';
+      chip.innerHTML = `<span class="chip-icon">${dinnerIconSvg}</span><span class="chip-pencil">${editIconSvg}</span><span class="sr-only">Edit dinner time</span>`;
+      chip.setAttribute('aria-label','Edit dinner time');
+      chip.title='Edit dinner time';
+      chip.dataset.pressExempt='true';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
+      chip.addEventListener('click',()=> openDinnerPicker({ mode:'edit', dateKey: dateK }));
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests guest-chips';
+
+      // Keep the dinner edit affordance in a dedicated rail so it pins to the right.
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail add-chips';
+      rail.appendChild(chip);
+
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
+      div.appendChild(body);
+      div.appendChild(trailing);
+      activitiesEl.appendChild(div);
+    }
+
+    function renderSpa(entry){
+      const div=document.createElement('div');
+      div.className='activity-row spa-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      const startLabel = entry.start ? formatTimeDisplay(entry.start) : '';
+      const endLabel = entry.end ? formatTimeDisplay(entry.end) : '';
+      time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      // Activities column hides duration/sub-notes for spa rows so the service name
+      // is the only label while preview/email continue to render the full summary.
+      const summary = spaActivitiesTitle(entry);
+      title.textContent = summary;
+      headline.appendChild(title);
+
+      body.appendChild(headline);
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='spa-chip chip chip--spa';
+      chip.innerHTML = `<span class="chip-layer chip-layer--spa" aria-hidden="true">${spaIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span><span class="sr-only">Edit spa appointment</span>`;
+      chip.setAttribute('aria-label','Edit spa appointment');
+      chip.title='Edit spa appointment';
+      chip.dataset.pressExempt='true';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
+      chip.addEventListener('click',()=> openSpaEditor({ mode:'edit', dateKey: dateK, entryId: entry.id }));
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests guest-chips';
+
+      // Share the right rail treatment so every activity action aligns consistently.
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail add-chips';
+      rail.appendChild(chip);
+
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
+      div.appendChild(body);
+      div.appendChild(trailing);
+      activitiesEl.appendChild(div);
+
+      renderSpaGuestChips(guestCluster, entry, dateK);
+    }
+
+    function renderCustom(entry){
+      if(!entry) return;
+      const div=document.createElement('div');
+      div.className='activity-row custom-item';
+      const body=document.createElement('div');
+      body.className='activity-row-body';
+
+      const headline=document.createElement('div');
+      headline.className='activity-row-headline';
+
+      const time=document.createElement('span');
+      time.className='activity-row-time';
+      const startLabel = entry.start ? formatTimeDisplay(entry.start) : '';
+      const endLabel = entry.end ? formatTimeDisplay(entry.end) : '';
+      time.textContent = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel || endLabel || '';
+      headline.appendChild(time);
+
+      const title=document.createElement('span');
+      title.className='activity-row-title';
+      title.textContent = entry.title || 'Custom Activity';
+      headline.appendChild(title);
+
+      body.appendChild(headline);
+
+      const guestIds = Array.isArray(entry.guestIds) ? entry.guestIds : Array.from(entry.guestIds || []);
+
+      const chip=document.createElement('button');
+      chip.type='button';
+      chip.className='chip chip--custom';
+      // Layer both icons so the custom glyph renders immediately and we can flip
+      // to the pencil via hover/:focus-visible without resizing the pill.
+      chip.innerHTML = `<span class="chip-layer chip-layer--custom" aria-hidden="true">${customChipIconSvg}</span><span class="chip-layer chip-layer--edit" aria-hidden="true">${editIconSvg}</span>`;
+      chip.dataset.pressExempt='true';
+      chip.setAttribute('aria-label','Edit custom activity');
+      chip.title='Edit custom activity';
+      chip.addEventListener('pointerdown', e=> e.stopPropagation());
+      chip.addEventListener('click',()=> openCustomBuilder({ mode:'edit', dateKey: dateK, entryId: entry.id }));
+
+      const guestCluster=document.createElement('div');
+      guestCluster.className='activity-row-guests guest-chips';
+
+      const rail=document.createElement('div');
+      rail.className='activity-row-rail add-chips';
+      rail.appendChild(chip);
+
+      const trailing=document.createElement('div');
+      trailing.className='activity-row-trailing row-trailing';
+      trailing.appendChild(guestCluster);
+      trailing.appendChild(rail);
+
+      div.appendChild(body);
+      div.appendChild(trailing);
+      activitiesEl.appendChild(div);
+
+      if(state.guests.length>0){
+        renderAssignments(guestCluster, entry, guestIds, dateK);
+      }
+    }
+
+    function renderSpaGuestChips(container, entry, dateK){
+      if(!container || !entry) return;
+      container.innerHTML='';
+      container.dataset.hasGuests='false';
+      const guestIds = Array.from(entry.guestIds || []);
+      if(guestIds.length===0) return;
+      const idSet = new Set(guestIds);
+      const orderedGuests = [];
+      const seen = new Set();
+      state.guests.forEach(guest => {
+        if(idSet.has(guest.id) && !seen.has(guest.id)){
+          orderedGuests.push(guest);
+          seen.add(guest.id);
+        }
+      });
+      guestIds.forEach(id => {
+        if(!seen.has(id)){
+          const guest = guestLookup.get(id);
+          if(guest){
+            orderedGuests.push(guest);
+            seen.add(id);
+          }
+        }
+      });
+      if(orderedGuests.length===0) return;
+      const plan = getAssignmentChipRenderPlan({
+        totalGuestsInStay: state.guests.length,
+        assignedGuests: orderedGuests
+      });
+      if(plan.type === AssignmentChipMode.NONE || plan.guests.length===0){
+        return;
+      }
+      if(container.__groupInlineCleanup){
+        container.__groupInlineCleanup();
+      }
+
+      const handledGroup = renderGroupInlineSwap(container, plan, {
+        createChips: () => plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK)),
+        focusSelector: '.chip .x',
+        hideDelay: 260,
+        clusterOptions: {
+          popoverLabel: 'Assigned guests',
+          ariaLabelPrefix: 'More assigned guests'
+        }
+      });
+
+      if(handledGroup){
+        return;
+      }
+      const chips = plan.guests.map(guest => createSpaAssignmentChip(guest, entry, dateK));
+      layoutGuestCluster(container, chips, {
+        popoverLabel: 'Assigned guests',
+        ariaLabelPrefix: 'More assigned guests'
+      });
+    }
+
+    function createSpaAssignmentChip(guest, entry, dateK){
+      if(!guest) return document.createElement('span');
+      const chip=document.createElement('span');
+      chip.className='chip';
+      chip.style.borderColor = guest.color;
+      chip.style.color = guest.color;
+      chip.title = guest.name;
+      const initial=document.createElement('span');
+      initial.className='initial';
+      initial.textContent = guest.name.charAt(0).toUpperCase();
+      chip.appendChild(initial);
+      const removeBtn=document.createElement('button');
+      removeBtn.className='x';
+      removeBtn.type='button';
+      removeBtn.dataset.pressExempt='true';
+      removeBtn.setAttribute('aria-label', `Remove ${guest.name}`);
+      removeBtn.title=`Remove ${guest.name}`;
+      removeBtn.textContent='×';
+      removeBtn.addEventListener('pointerdown', e=> e.stopPropagation());
+      removeBtn.addEventListener('click', event => {
+        event.stopPropagation();
+        if(removeSpaGuestFromEntry(dateK, entry?.id, guest.id)){
+          // Inline removal only peels a single guest off the merged row; the
+          // modal exposes a dedicated destructive control when the entire
+          // appointment should be cleared.
+          markPreviewDirty();
+          renderActivities();
+          renderPreview();
+        }
+      });
+      chip.appendChild(removeBtn);
+      return chip;
+    }
+
+    function summarizeSpaTitle(entry){
+      if(!entry || !Array.isArray(entry.appointments) || entry.appointments.length===0){
+        return 'Spa Appointment';
+      }
+      const first = entry.appointments[0];
+      const sameService = entry.appointments.every(app => app.serviceName === first.serviceName);
+      const sameDuration = entry.appointments.every(app => app.durationMinutes === first.durationMinutes);
+      if(sameService && sameDuration){
+        return `${formatDurationLabel(first.durationMinutes)} ${first.serviceName}`;
+      }
+      return 'Spa Appointments';
+    }
+
+    function spaActivitiesTitle(entry){
+      if(!entry || !Array.isArray(entry.appointments) || entry.appointments.length===0){
+        return 'Spa Appointment';
+      }
+      const first = entry.appointments[0];
+      const sameService = entry.appointments.every(app => app.serviceName === first.serviceName);
+      if(sameService && first?.serviceName){
+        return first.serviceName;
+      }
+      return 'Spa Appointments';
+    }
+  }
+
+  let dinnerDialog = null;
+  let spaDialog = null;
+  let customDialog = null;
+
+  function updateAddDinnerButton(){
+    if(!addDinnerBtn) return;
+    const enabled = state.dataStatus==='ready';
+    addDinnerBtn.disabled = !enabled;
+    const entry = enabled ? getDinnerEntry(keyDate(state.focus)) : null;
+    addDinnerBtn.setAttribute('aria-pressed', entry ? 'true' : 'false');
+  }
+
+  function updateAddSpaButton(){
+    if(!addSpaBtn) return;
+    const enabled = state.dataStatus==='ready' && state.spaCatalog && state.spaCatalog.categories.length>0;
+    addSpaBtn.disabled = !enabled;
+    const hasEntry = enabled ? getSpaEntries(keyDate(state.focus)).length>0 : false;
+    addSpaBtn.setAttribute('aria-pressed', hasEntry ? 'true' : 'false');
+  }
+
+  function updateAddCustomButton(){
+    if(!addCustomBtn) return;
+    const enabled = state.dataStatus==='ready';
+    addCustomBtn.disabled = !enabled;
+    const hasEntry = enabled ? getCustomEntries(keyDate(state.focus)).length>0 : false;
+    addCustomBtn.setAttribute('aria-pressed', hasEntry ? 'true' : 'false');
+  }
+
+  function closeDinnerPicker({returnFocus=false}={}){
+    if(!dinnerDialog) return;
+    const { overlay, previousFocus, cleanup } = dinnerDialog;
+    overlay.remove();
+    if(typeof cleanup === 'function'){
+      cleanup();
+    }
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    dinnerDialog = null;
+    document.body.classList.remove('dinner-lock');
+  }
+
+  function openDinnerPicker({mode='add', dateKey}={}){
+    if(state.dataStatus!=='ready') return;
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = getDinnerEntry(targetDateKey);
+    const initialTime = existing?.start || defaultDinnerTime;
+    const [hour24Str, minuteStr] = initialTime.split(':');
+    const hour24 = Number(hour24Str);
+    const minuteNum = Number(minuteStr);
+    const hour12 = hour24>12 ? hour24-12 : hour24;
+    const initialHour = dinnerHours.includes(hour12) ? hour12 : 7;
+    const initialMinute = dinnerMinutes.includes(minuteNum) ? minuteNum : 0;
+
+    closeDinnerPicker();
+
+    const overlay=document.createElement('div');
+    overlay.className='dinner-overlay';
+
+    const dialog=document.createElement('div');
+    dialog.className='dinner-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+
+    // Shared modal header keeps the typography + spacing identical across flows.
+    const header=document.createElement('div');
+    header.className='modal-header';
+    const title=document.createElement('h2');
+    title.className='modal-title';
+    title.textContent='Dinner';
+    title.id='dinner-dialog-title';
+    const modeDescriptor=document.createElement('span');
+    modeDescriptor.className='sr-only';
+    modeDescriptor.textContent = (mode==='edit' || existing) ? ' – Editing dinner time' : ' – Add dinner time';
+    title.appendChild(modeDescriptor);
+    dialog.setAttribute('aria-labelledby','dinner-dialog-title');
+    header.appendChild(title);
+
+    const closeBtn=createModalCloseButton(()=> closeDinnerPicker({returnFocus:true}));
+    header.appendChild(closeBtn);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    body.className='modal-body dinner-body';
+
+    const timePicker = (typeof createTimePicker === 'function') ? createTimePicker({
+      hourRange: [dinnerHours[0], dinnerHours[dinnerHours.length-1]],
+      minuteStep: 15,
+      showAmPm: false,
+      fixedMeridiem: 'PM',
+      staticMeridiemLabel: 'pm',
+      defaultValue: { hour: initialHour, minute: initialMinute, meridiem: 'PM' },
+      isMinuteDisabled: ({hour, minute}) => {
+        const disabledSet = minuteRules[hour] || new Set();
+        return disabledSet.has(minute);
+      },
+      ariaLabels: {
+        hours: 'Dinner hour',
+        minutes: 'Dinner minutes'
+      }
+    }) : null;
+
+    const layout=document.createElement('div');
+    layout.className='modal-sections dinner-layout';
+    body.appendChild(layout);
+
+    const timeSection=document.createElement('section');
+    // Unified modal layout structure keeps dinner controls aligned with spa/custom flows.
+    timeSection.className='modal-section dinner-section';
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Time';
+    timeSection.appendChild(timeHeading);
+
+    const pickerShell=document.createElement('div');
+    pickerShell.className='dinner-picker-shell';
+    if(!timePicker){
+      const fallback = document.createElement('div');
+      fallback.className = 'time-picker-fallback';
+      fallback.textContent = 'Time picker failed to load.';
+      pickerShell.appendChild(fallback);
+    }else{
+      pickerShell.appendChild(timePicker.element);
+    }
+    timeSection.appendChild(pickerShell);
+    layout.appendChild(timeSection);
+
+    dialog.appendChild(body);
+
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    // Shared footer layout keeps destructive controls on the left while primary
+    // actions stay grouped on the right for every modal.
+
+    const confirmIsEdit = mode==='edit' && !!existing;
+    const confirmLabel = confirmIsEdit ? 'Save dinner time' : 'Add dinner time';
+    const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
+    const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    footerEnd.appendChild(confirmBtn);
+
+    let removeBtn=null;
+    if(confirmIsEdit){
+      removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete dinner', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(removeBtn);
+    }
+
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
+
+    const previousFocus = document.activeElement;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('dinner-lock');
+
+    function confirmSelection(){
+      if(!timePicker) return;
+      const { hour, minute } = timePicker.getValue();
+      const disabledSet = minuteRules[hour] || new Set();
+      if(disabledSet.has(minute)) return;
+      const hour24Value = hour + 12;
+      const time = `${pad(hour24Value)}:${pad(minute)}`;
+      upsertDinner(targetDateKey, time);
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeDinnerPicker({returnFocus:true});
+    }
+
+    confirmBtn.addEventListener('click', confirmSelection);
+
+    if(removeBtn){
+      removeBtn.addEventListener('click',()=>{
+        removeDinner(targetDateKey);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeDinnerPicker({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click',e=>{
+      if(e.target===overlay){
+        closeDinnerPicker({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown = e => {
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeDinnerPicker({returnFocus:true});
+        return;
+      }
+      if((e.key==='Enter' || e.key==='Return') && (!e.target || e.target.tagName!=='BUTTON')){
+        e.preventDefault();
+        confirmSelection();
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length-1];
+        if(e.shiftKey){
+          if(document.activeElement===first){
+            e.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    dinnerDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        timePicker?.dispose?.();
+      }
+    };
+
+    setTimeout(()=>{
+      if(timePicker?.focus){
+        // Explicitly focus the picker without scrolling so the sheet stays
+        // anchored at the top when it first opens.
+        timePicker.focus({ preventScroll:true });
+      }
+    },0);
+  }
+
+  function closeSpaEditor({returnFocus=false}={}){
+    if(!spaDialog) return;
+    const { overlay, previousFocus, cleanup } = spaDialog;
+    overlay.remove();
+    if(typeof cleanup === 'function') cleanup();
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    spaDialog = null;
+    document.body.classList.remove('spa-lock');
+  }
+
+  function openSpaEditor({mode='add', dateKey, entryId, guestIds}={}){
+    if(state.dataStatus!=='ready' || !state.spaCatalog || state.spaCatalog.categories.length===0) return;
+    closeSpaEditor();
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = entryId ? getSpaEntry(targetDateKey, entryId) : null;
+    const catalog = state.spaCatalog;
+    const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const singleGuestStay = state.guests.length === 1;
+    const normalizeGuestIds = ids => {
+      const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      const requestedSet = new Set(requested);
+      const seen = new Set();
+      const normalized = [];
+      state.guests.forEach(guest => {
+        if(requestedSet.has(guest.id) && !seen.has(guest.id)){
+          seen.add(guest.id);
+          normalized.push(guest.id);
+        }
+      });
+      requested.forEach(id => {
+        if(!seen.has(id) && stayGuestLookup.has(id)){
+          seen.add(id);
+          normalized.push(id);
+        }
+      });
+      return normalized;
+    };
+    const existingGuestIds = existing?.appointments ? existing.appointments.map(app => app.guestId) : [];
+    // Capture the guest roster snapshot when the modal opens so the create flow
+    // mirrors the exact toggle state at click time while edits always surface
+    // every guest already represented on the activities row.
+    const modalGuestIds = existing
+      ? normalizeGuestIds(existingGuestIds)
+      : normalizeGuestIds(Array.isArray(guestIds) ? guestIds : state.guests.filter(g=>g.active).map(g=>g.id));
+    const modalGuestSet = new Set(modalGuestIds);
+    const findService = name => catalog.byName.get(name) || (catalog.categories[0]?.services[0] || null);
+    const orderedGuests = () => modalGuestIds.slice();
+    const assignedSet = new Set();
+
+    const defaultService = (()=>{
+      if(existing && existing.appointments?.length){
+        const match = findService(existing.appointments[0].serviceName);
+        if(match) return match;
+      }
+      return catalog.categories[0]?.services[0] || null;
+    })();
+
+    const createSelection = (service, overrides={}) => {
+      const svc = service || defaultService;
+      const baseDuration = Array.isArray(svc?.durations) && svc.durations.length ? svc.durations[0] : 60;
+      const duration = overrides.durationMinutes ?? baseDuration;
+      const start = overrides.start || defaultSpaStartTime;
+      const derivedEnd = addMinutesToTime(start, duration);
+      const overrideEnd = overrides.end ? String(overrides.end).trim() : '';
+      const hasOverrideEnd = overrideEnd !== '';
+      const explicitEnd = overrides.explicitEnd ?? (hasOverrideEnd && overrideEnd !== derivedEnd);
+      const end = explicitEnd ? overrideEnd : derivedEnd;
+      return {
+        guestId: overrides.guestId || '',
+        serviceName: svc?.name || overrides.serviceName || '',
+        serviceCategory: svc?.category || overrides.serviceCategory || '',
+        durationMinutes: duration,
+        start,
+        end,
+        explicitEnd,
+        therapist: overrides.therapist || 'no-preference',
+        location: overrides.location || 'same-cabana',
+        supportsInRoom: svc?.supportsInRoom !== false
+      };
+    };
+
+    const TEMPLATE_ID = '__template__';
+    // Modal form state lives in `selections`; every time-related update mutates
+    // these entries so the save handler can diff against this single source of truth.
+    const selections = new Map();
+    if(existing?.appointments?.length){
+      const baseExisting = existing.appointments[0];
+      const svc = findService(baseExisting.serviceName);
+      const seededTemplate = createSelection(svc, {
+        guestId: TEMPLATE_ID,
+        serviceName: baseExisting.serviceName,
+        serviceCategory: baseExisting.serviceCategory,
+        durationMinutes: baseExisting.durationMinutes,
+        start: baseExisting.start,
+        end: baseExisting.end,
+        explicitEnd: baseExisting.explicitEnd === true,
+        therapist: baseExisting.therapist,
+        location: baseExisting.location,
+        supportsInRoom: svc?.supportsInRoom !== false
+      });
+      if(seededTemplate.location==='in-room' && seededTemplate.supportsInRoom===false){
+        seededTemplate.location = 'same-cabana';
+      }
+      selections.set(TEMPLATE_ID, seededTemplate);
+    }else{
+      // The template slot retains the in-progress configuration so opening without
+      // guests (or temporarily removing all assignees) keeps the flow populated.
+      selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
+    }
+
+    if(existing?.appointments?.length){
+      // SPA modal: default guest pills ON in edit mode by seeding existing snapshots.
+      existing.appointments.forEach(app => {
+        if(!app || !app.guestId || !modalGuestSet.has(app.guestId)){
+          return;
+        }
+        const svc = findService(app.serviceName) || defaultService;
+        const selection = createSelection(svc, {
+          guestId: app.guestId,
+          serviceName: app.serviceName,
+          serviceCategory: app.serviceCategory,
+          durationMinutes: app.durationMinutes,
+          start: app.start,
+          end: app.end,
+          explicitEnd: app.explicitEnd === true,
+          therapist: app.therapist,
+          location: app.location,
+          supportsInRoom: svc?.supportsInRoom !== false
+        });
+        if(selection.location==='in-room' && selection.supportsInRoom===false){
+          // SPA modal: keep edit flows consistent if a service now blocks in-room.
+          selection.location='same-cabana';
+        }
+        assignedSet.add(app.guestId);
+        selections.set(app.guestId, selection);
+      });
+    }
+
+    const orderedAssigned = () => orderedGuests().filter(id => assignedSet.has(id));
+
+    const ensureTemplateSelection = () => {
+      if(!selections.has(TEMPLATE_ID)){
+        selections.set(TEMPLATE_ID, createSelection(defaultService, { guestId: TEMPLATE_ID }));
+      }
+      return selections.get(TEMPLATE_ID);
+    };
+
+    const syncTemplateFromSourceId = sourceId => {
+      const source = sourceId ? selections.get(sourceId) : null;
+      const base = source ? { ...source, guestId: TEMPLATE_ID } : createSelection(defaultService, { guestId: TEMPLATE_ID });
+      selections.set(TEMPLATE_ID, base);
+      return base;
+    };
+
+    const resolveEditableTargets = () => {
+      ensureTemplateSelection();
+      return [TEMPLATE_ID];
+    };
+
+    const getSelectionFor = (id, fallbackService) => {
+      if(id===TEMPLATE_ID){
+        return ensureTemplateSelection();
+      }
+      let selection = selections.get(id);
+      if(!selection){
+        selection = createSelection(fallbackService || defaultService, { guestId: id });
+        selections.set(id, selection);
+      }
+      return selection;
+    };
+
+    const getCanonicalSelection = () => ensureTemplateSelection();
+
+    // SPA modal: single-value picker rows for Therapist/Location/Duration
+    const pickerNamespace = `spa-picker-${++spaPickerSerial}`;
+    const therapistLabelById = new Map(SPA_THERAPIST_OPTIONS.map(opt => [opt.id, opt.label]));
+    const locationLabelById = new Map(SPA_LOCATION_OPTIONS.map(opt => [opt.id, opt.label]));
+    let therapistWheel = null;
+    let locationWheel = null;
+    let durationWheel = null;
+    let durationWheelValues = [];
+    let therapistValueLabel = null;
+    let locationValueLabel = null;
+    let durationValueLabel = null;
+
+    const overlay = document.createElement('div');
+    overlay.className='spa-overlay';
+    const dialog = document.createElement('div');
+    dialog.className='spa-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+
+    const header = document.createElement('div');
+    header.className='modal-header';
+    const title=document.createElement('h2');
+    title.className='modal-title';
+    title.id='spa-dialog-title';
+    title.textContent='Spa';
+    const spaModeDescriptor=document.createElement('span');
+    spaModeDescriptor.className='sr-only';
+    spaModeDescriptor.textContent = existing ? ' – Editing spa appointment' : ' – Add spa appointment';
+    title.appendChild(spaModeDescriptor);
+    dialog.setAttribute('aria-labelledby','spa-dialog-title');
+    const closeBtn=createModalCloseButton(()=> closeSpaEditor({returnFocus:true}));
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className='modal-body spa-body';
+    dialog.appendChild(body);
+
+    // Compose the SPA flow left-to-right so each decision feeds the next stage:
+    // service → duration → start time → therapist → location. Mutating one
+    // step immediately cascades the data updates so the preview stays in sync.
+    const layout=document.createElement('div');
+    layout.className='modal-sections spa-layout';
+    body.appendChild(layout);
+
+    const guestSection=document.createElement('section');
+    guestSection.className='modal-section spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
+    const guestHeader=document.createElement('div');
+    guestHeader.className='spa-guest-header';
+    const guestHeading=document.createElement('h3');
+    guestHeading.textContent='Guests';
+    guestHeader.appendChild(guestHeading);
+    const guestToggleAllBtn=document.createElement('button');
+    guestToggleAllBtn.type='button';
+    guestToggleAllBtn.className='icon-btn spa-toggle-all';
+    guestToggleAllBtn.dataset.spaNoSubmit='true';
+    guestToggleAllBtn.setAttribute('aria-pressed','false');
+    guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
+    guestToggleAllBtn.title='Turn all guests on';
+    guestToggleAllBtn.innerHTML=toggleIcons.someOff;
+    guestHeader.appendChild(guestToggleAllBtn);
+    guestSection.appendChild(guestHeader);
+    const guestList=document.createElement('div');
+    guestList.className='spa-option-list spa-option-list-guests list-hairline';
+    guestList.setAttribute('role','listbox');
+    guestList.setAttribute('aria-label','Guests');
+    guestList.setAttribute('aria-multiselectable','true');
+    guestSection.appendChild(guestList);
+    const guestHint=document.createElement('p');
+    guestHint.className='spa-helper-text spa-guest-hint';
+    guestHint.id='spa-guest-hint';
+    guestHint.setAttribute('aria-live','polite');
+    guestHint.hidden=true;
+    guestSection.appendChild(guestHint);
+    guestList.setAttribute('aria-describedby', guestHint.id);
+
+    const buildGuestLabel = guest => guest.name;
+
+    // The confirm button stays inactive until every visible guest pill is ON.
+    function areGuestsReady(){
+      const visibleIds = orderedGuests();
+      return visibleIds.length>0 && visibleIds.every(id => assignedSet.has(id));
+    }
+
+    const updateToggleAllControl = visibleIds => {
+      const total = visibleIds.length;
+      const allOn = total>0 && visibleIds.every(id => assignedSet.has(id));
+      const shouldEnable = total>0;
+      guestToggleAllBtn.disabled = !shouldEnable;
+      guestToggleAllBtn.setAttribute('aria-pressed', allOn ? 'true' : 'false');
+      if(!shouldEnable){
+        guestToggleAllBtn.innerHTML = toggleIcons.allOn;
+        guestToggleAllBtn.setAttribute('aria-label','Toggle all guests');
+        guestToggleAllBtn.title='Toggle all guests';
+        return;
+      }
+      if(allOn){
+        guestToggleAllBtn.innerHTML = toggleIcons.allOn;
+        guestToggleAllBtn.setAttribute('aria-label','Turn all guests off');
+        guestToggleAllBtn.title='Turn all guests off';
+      }else{
+        guestToggleAllBtn.innerHTML = toggleIcons.someOff;
+        guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
+        guestToggleAllBtn.title='Turn all guests on';
+      }
+    };
+
+    // Modal pills reuse the roster styling while acting as the toggle. Each guest
+    // starts OFF so toggling ON captures the current template snapshot.
+    function updateGuestControls(){
+      guestList.innerHTML='';
+      const visibleIds = orderedGuests();
+      const visibleGuests = visibleIds.map(id => stayGuestLookup.get(id)).filter(Boolean);
+
+      guestHeading.textContent = visibleIds.length===1 ? 'Guest' : 'Guests';
+      guestList.setAttribute('aria-label', guestHeading.textContent);
+      updateToggleAllControl(visibleIds);
+
+      if(visibleGuests.length===0){
+        guestHint.hidden=true;
+        guestHint.textContent='';
+        guestHint.classList.add('spa-helper-error');
+        updateConfirmState();
+        return;
+      }
+
+      visibleGuests.forEach(guest => {
+        const guestLabel = buildGuestLabel(guest);
+        const isOn = assignedSet.has(guest.id);
+        const row=document.createElement('button');
+        row.type='button';
+        row.className='spa-option-row spa-guest-row';
+        row.dataset.guestId = guest.id;
+        row.dataset.spaNoSubmit='true';
+        row.setAttribute('role','option');
+        row.setAttribute('aria-selected', isOn ? 'true' : 'false');
+        row.classList.toggle('is-selected', isOn);
+        row.classList.toggle('is-off', !isOn);
+        row.addEventListener('click',()=>{
+          toggleGuest(guest.id);
+        });
+
+        const swatch=document.createElement('span');
+        swatch.className='spa-guest-swatch';
+        swatch.setAttribute('aria-hidden','true');
+        if(guest.color){
+          swatch.style.setProperty('--spa-guest-color', guest.color);
+        }
+
+        const labelWrapper=document.createElement('span');
+        labelWrapper.className='spa-option-label';
+        labelWrapper.title = guestLabel;
+        if(guest.primary){
+          const star=document.createElement('span');
+          star.className='spa-guest-star';
+          star.textContent='★';
+          star.setAttribute('aria-hidden','true');
+          labelWrapper.appendChild(star);
+        }
+        const labelText=document.createElement('span');
+        labelText.className='spa-option-text';
+        labelText.textContent=guestLabel;
+        labelWrapper.appendChild(labelText);
+
+        const checkSpan=document.createElement('span');
+        checkSpan.className='spa-option-check';
+        checkSpan.innerHTML=checkmarkSvg;
+        checkSpan.setAttribute('aria-hidden','true');
+
+        row.appendChild(swatch);
+        row.appendChild(labelWrapper);
+        row.appendChild(checkSpan);
+
+        guestList.appendChild(row);
+      });
+
+      // SPA modal: remove guest hint copy per latest guidance.
+      guestHint.hidden=true;
+      guestHint.textContent='';
+      guestHint.classList.remove('spa-helper-error');
+
+      updateConfirmState();
+    }
+
+    // Pill presses reuse the include/remove helpers so analytics hooks tied to
+    // the original chip toggles continue to fire without a new event surface.
+    function toggleGuest(id){
+      if(!id || !modalGuestSet.has(id)){
+        return;
+      }
+      if(assignedSet.has(id)){
+        removeGuest(id);
+      }else{
+        includeGuest(id);
+      }
+    }
+
+    // Toggle All mirrors the roster control: ON applies the current template
+    // snapshot to every guest, OFF clears all pending assignments.
+    function setAllGuests(on){
+      const targetIds = orderedGuests();
+      if(targetIds.length===0){
+        return;
+      }
+      if(on){
+        const templateSnapshot = { ...ensureTemplateSelection() };
+        targetIds.forEach(id => {
+          assignedSet.add(id);
+          selections.set(id, { ...templateSnapshot, guestId: id });
+        });
+      }else{
+        targetIds.forEach(id => {
+          assignedSet.delete(id);
+          selections.delete(id);
+        });
+      }
+      updateGuestControls();
+      refreshAllControls();
+    }
+
+    // When a guest flips back ON, clone the current staged config template so the
+    // latest settings apply immediately while preserving other guests' snapshots.
+    function includeGuest(id,{ silent=false }={}){
+      if(!id || !modalGuestSet.has(id) || assignedSet.has(id)){
+        return;
+      }
+      const templateSnapshot = { ...ensureTemplateSelection() };
+      assignedSet.add(id);
+      selections.set(id, { ...templateSnapshot, guestId: id });
+      if(!silent){
+        updateGuestControls();
+        refreshAllControls();
+      }
+    }
+
+    // OFF guests simply drop out of the assigned set; snapshots remain per-guest
+    // so a subsequent ON applies the latest template instead of mutating history.
+    function removeGuest(id,{ silent=false }={}){
+      if(!assignedSet.has(id)) return;
+      assignedSet.delete(id);
+      selections.delete(id);
+      if(!silent){
+        updateGuestControls();
+        refreshAllControls();
+      }
+    }
+
+    guestToggleAllBtn.addEventListener('click',()=>{
+      if(areGuestsReady()){
+        setAllGuests(false);
+      }else{
+        setAllGuests(true);
+      }
+    });
+
+    function markGuestsDirty(){
+      updateConfirmState();
+    }
+
+    const serviceSection=document.createElement('section');
+    serviceSection.className='modal-section spa-section spa-section-services';
+    const serviceCard=document.createElement('div');
+    serviceCard.className='spa-block spa-service-card';
+    const serviceHeading=document.createElement('h3');
+    serviceHeading.textContent='Service';
+    serviceCard.appendChild(serviceHeading);
+    const serviceList=document.createElement('div');
+    serviceList.className='spa-service-list';
+    serviceList.setAttribute('role','tree');
+    serviceList.setAttribute('aria-label','Spa services');
+    const serviceScroll=document.createElement('div');
+    serviceScroll.className='spa-service-scroll';
+    serviceScroll.appendChild(serviceList);
+    serviceCard.appendChild(serviceScroll);
+    serviceSection.appendChild(serviceCard);
+
+    // Auto-hide scrollbar: apply a class while the user scrolls or hovers so we
+    // can expose a thin thumb, then clear it after a short idle period.
+    let serviceScrollTimer=null;
+    const queueServiceScrollReset=()=>{
+      if(serviceScrollTimer) clearTimeout(serviceScrollTimer);
+      serviceScrollTimer=setTimeout(()=>{
+        serviceScroll.classList.remove('is-scrolling');
+      }, 650);
+    };
+    const activateServiceScroll=()=>{
+      serviceScroll.classList.add('is-scrolling');
+      queueServiceScrollReset();
+    };
+    serviceScroll.addEventListener('scroll', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('wheel', activateServiceScroll, { passive:true });
+    serviceScroll.addEventListener('pointermove', activateServiceScroll);
+    serviceScroll.addEventListener('pointerdown', activateServiceScroll);
+    serviceScroll.addEventListener('pointerenter', activateServiceScroll);
+    serviceScroll.addEventListener('pointerleave', queueServiceScrollReset);
+
+    // Category/subcategory accordions share a single state object so only one path
+    // stays open at a time. This keeps the vertical stack compact, aligns the
+    // hairline separators with the Activities column, and lets the scrollable
+    // services pane live entirely inside the modal body.
+    const cascadeState = {
+      expandedCategoryId: null,
+      expandedSubcategoryId: null
+    };
+    const categoryRows = new Map();
+    const categoryPanels = new Map();
+    const subcategoryRows = new Map();
+    const subcategoryPanels = new Map();
+    const serviceOptionButtons = new Map();
+    let cascadeUserNavigated = false;
+
+    const chevronSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5.22 2.97a.75.75 0 0 0 0 1.06L9.19 8l-3.97 3.97a.75.75 0 1 0 1.06 1.06l4.5-4.5a.75.75 0 0 0 0-1.06l-4.5-4.5a.75.75 0 0 0-1.06 0Z" fill="currentColor"/></svg>';
+    const createChevron = () => {
+      const span=document.createElement('span');
+      span.className='spa-cascade-chevron';
+      span.innerHTML=chevronSvg;
+      span.setAttribute('aria-hidden','true');
+      return span;
+    };
+
+    const setPanelState = (panel, open) => {
+      if(!panel) return;
+      panel.dataset.open = open ? 'true' : 'false';
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    };
+
+    const applyCascadeState = () => {
+      const activeCategoryId = cascadeState.expandedCategoryId;
+      if(activeCategoryId && !categoryRows.has(activeCategoryId)){
+        cascadeState.expandedCategoryId = null;
+      }
+      const activeSubId = cascadeState.expandedSubcategoryId;
+      if(activeSubId && (!cascadeState.expandedCategoryId || !subcategoryPanels.has(`${cascadeState.expandedCategoryId}::${activeSubId}`))){
+        cascadeState.expandedSubcategoryId = null;
+      }
+
+      categoryRows.forEach((row, id) => {
+        const open = cascadeState.expandedCategoryId === id;
+        row.setAttribute('aria-expanded', open ? 'true' : 'false');
+        row.setAttribute('aria-label', `${open ? 'Collapse' : 'Open'} category: ${row.dataset.label}`);
+        row.classList.toggle('open', open);
+        setPanelState(categoryPanels.get(id), open);
+        if(!open && activeSubId && subcategoryPanels.has(`${id}::${activeSubId}`)){
+          cascadeState.expandedSubcategoryId = null;
+        }
+      });
+      subcategoryRows.forEach((row, key) => {
+        const catId = row.dataset.categoryId;
+        const subId = row.dataset.subcategoryId;
+        const categoryOpen = cascadeState.expandedCategoryId === catId;
+        const open = categoryOpen && cascadeState.expandedSubcategoryId === subId;
+        row.setAttribute('aria-expanded', open ? 'true' : 'false');
+        row.setAttribute('aria-label', `${open ? 'Collapse' : 'Open'} sub-category: ${row.dataset.label}`);
+        row.classList.toggle('open', open);
+        row.tabIndex = categoryOpen ? 0 : -1;
+        setPanelState(subcategoryPanels.get(key), open);
+      });
+      serviceOptionButtons.forEach(meta => {
+        const { button, categoryId, subcategoryId } = meta;
+        const categoryOpen = cascadeState.expandedCategoryId === categoryId;
+        const subOpen = subcategoryId ? cascadeState.expandedSubcategoryId === subcategoryId : true;
+        const visible = categoryOpen && subOpen;
+        button.tabIndex = visible ? 0 : -1;
+      });
+    };
+
+    const ensureCascadeForService = serviceName => {
+      if(!cascadeUserNavigated) return;
+      const meta = catalog.byName.get(serviceName);
+      if(!meta) return;
+      cascadeState.expandedCategoryId = meta.displayCategoryId || cascadeState.expandedCategoryId;
+      if(meta.displaySubcategoryId){
+        cascadeState.expandedSubcategoryId = meta.displaySubcategoryId;
+      }else if(cascadeState.expandedCategoryId === meta.displayCategoryId){
+        cascadeState.expandedSubcategoryId = null;
+      }
+    };
+
+    catalog.categories.forEach(category => {
+      const categoryRow=document.createElement('button');
+      categoryRow.type='button';
+      categoryRow.className='spa-cascade-row spa-category-row';
+      categoryRow.dataset.label = category.label;
+      categoryRow.dataset.categoryId = category.id;
+      categoryRow.id = `spa-category-trigger-${category.id}`;
+      categoryRow.setAttribute('aria-expanded','false');
+      categoryRow.setAttribute('aria-controls', `spa-category-panel-${category.id}`);
+      categoryRow.setAttribute('aria-label',`Open category: ${category.label}`);
+      categoryRow.tabIndex = 0;
+      const categoryLabel=document.createElement('span');
+      categoryLabel.className='spa-cascade-label';
+      categoryLabel.textContent=category.label;
+      categoryRow.appendChild(categoryLabel);
+      categoryRow.appendChild(createChevron());
+      serviceList.appendChild(categoryRow);
+      categoryRows.set(category.id, categoryRow);
+
+      const categoryPanel=document.createElement('div');
+      categoryPanel.className='spa-cascade-panel spa-category-panel';
+      categoryPanel.id = `spa-category-panel-${category.id}`;
+      categoryPanel.setAttribute('role','group');
+      categoryPanel.dataset.categoryPanel = category.id;
+      const categoryPanelInner=document.createElement('div');
+      categoryPanelInner.className='spa-cascade-panel-inner';
+      categoryPanel.appendChild(categoryPanelInner);
+      serviceList.appendChild(categoryPanel);
+      categoryPanels.set(category.id, categoryPanel);
+
+      const expandCategory = () => {
+        cascadeUserNavigated = true;
+        const isOpen = cascadeState.expandedCategoryId === category.id;
+        cascadeState.expandedCategoryId = isOpen ? null : category.id;
+        if(isOpen){
+          cascadeState.expandedSubcategoryId = null;
+        }
+        applyCascadeState();
+      };
+
+      categoryRow.addEventListener('click', expandCategory);
+      categoryRow.addEventListener('keydown', e => {
+        if(e.key==='ArrowRight'){
+          e.preventDefault();
+          if(cascadeState.expandedCategoryId !== category.id){
+            cascadeUserNavigated = true;
+            cascadeState.expandedCategoryId = category.id;
+            applyCascadeState();
+          }else if(category.subcategories && category.subcategories.length){
+            const first = category.subcategories[0];
+            if(first){
+              cascadeUserNavigated = true;
+              cascadeState.expandedSubcategoryId = first.id;
+              applyCascadeState();
+              const key = `${category.id}::${first.id}`;
+              subcategoryRows.get(key)?.focus();
+            }
+          }else if(category.services.length){
+            const firstService = serviceOptionButtons.get(category.services[0].name);
+            firstService?.button.focus();
+          }
+        }
+          if(e.key==='ArrowLeft'){
+            e.preventDefault();
+            if(category.subcategories && category.subcategories.length && cascadeState.expandedSubcategoryId){
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }else if(cascadeState.expandedCategoryId === category.id){
+              cascadeState.expandedCategoryId = null;
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+            }
+          }
+      });
+
+      if(category.subcategories && category.subcategories.length){
+        category.subcategories.forEach(subcategory => {
+          const subKey = `${category.id}::${subcategory.id}`;
+          const subRow=document.createElement('button');
+          subRow.type='button';
+          subRow.className='spa-cascade-row spa-subcategory-row';
+          subRow.dataset.categoryId = category.id;
+          subRow.dataset.subcategoryId = subcategory.id;
+          subRow.dataset.label = subcategory.label;
+          subRow.id = `spa-subcategory-trigger-${subcategory.id}`;
+          subRow.setAttribute('aria-expanded','false');
+          subRow.setAttribute('aria-controls',`spa-subcategory-panel-${subcategory.id}`);
+          subRow.setAttribute('aria-label',`Open sub-category: ${subcategory.label}`);
+          subRow.tabIndex = -1;
+          const subLabel=document.createElement('span');
+          subLabel.className='spa-cascade-label';
+          subLabel.textContent=subcategory.label;
+          subRow.appendChild(subLabel);
+          subRow.appendChild(createChevron());
+          categoryPanelInner.appendChild(subRow);
+          subcategoryRows.set(subKey, subRow);
+
+          const subPanel=document.createElement('div');
+          subPanel.className='spa-cascade-panel spa-subcategory-panel';
+          subPanel.id = `spa-subcategory-panel-${subcategory.id}`;
+          subPanel.setAttribute('role','group');
+          subPanel.dataset.subcategoryPanel = subcategory.id;
+          const subPanelInner=document.createElement('div');
+          subPanelInner.className='spa-cascade-panel-inner';
+          subPanel.appendChild(subPanelInner);
+          categoryPanelInner.appendChild(subPanel);
+          subcategoryPanels.set(subKey, subPanel);
+
+          const expandSub = () => {
+            cascadeUserNavigated = true;
+            const categoryOpen = cascadeState.expandedCategoryId === category.id;
+            const isOpen = categoryOpen && cascadeState.expandedSubcategoryId === subcategory.id;
+            cascadeState.expandedCategoryId = category.id;
+            cascadeState.expandedSubcategoryId = isOpen ? null : subcategory.id;
+            applyCascadeState();
+          };
+
+          subRow.addEventListener('click', expandSub);
+          subRow.addEventListener('keydown', e => {
+            if(e.key==='ArrowRight'){
+              e.preventDefault();
+              cascadeState.expandedCategoryId = category.id;
+              cascadeState.expandedSubcategoryId = subcategory.id;
+              cascadeUserNavigated = true;
+              applyCascadeState();
+              const firstService = subcategory.services[0];
+              if(firstService){
+                serviceOptionButtons.get(firstService.name)?.button.focus();
+              }
+            }
+            if(e.key==='ArrowLeft'){
+              e.preventDefault();
+              cascadeState.expandedSubcategoryId = null;
+              applyCascadeState();
+              categoryRow.focus();
+            }
+          });
+
+          subcategory.services.forEach(service => {
+            const option=document.createElement('button');
+            option.type='button';
+            option.className='spa-service-button';
+            option.dataset.serviceName = service.name;
+            option.dataset.categoryId = category.id;
+            option.dataset.subcategoryId = subcategory.id;
+            option.textContent=service.name;
+            option.setAttribute('aria-pressed','false');
+            option.setAttribute('aria-label',`Select service: ${service.name}`);
+            option.tabIndex = -1;
+            option.addEventListener('click',()=>{
+              cascadeUserNavigated = true;
+              selectService(service.name);
+            });
+            option.addEventListener('keydown', e => {
+              if(e.key==='ArrowLeft'){
+                e.preventDefault();
+                subRow.focus();
+              }
+            });
+            subPanelInner.appendChild(option);
+            serviceOptionButtons.set(service.name, { button: option, categoryId: category.id, subcategoryId: subcategory.id });
+          });
+        });
+      }else{
+        category.services.forEach(service => {
+          const option=document.createElement('button');
+          option.type='button';
+          option.className='spa-service-button';
+          option.dataset.serviceName = service.name;
+          option.dataset.categoryId = category.id;
+          option.textContent=service.name;
+          option.setAttribute('aria-pressed','false');
+          option.setAttribute('aria-label',`Select service: ${service.name}`);
+          option.tabIndex = -1;
+          option.addEventListener('click',()=>{
+            cascadeUserNavigated = true;
+            selectService(service.name);
+          });
+          option.addEventListener('keydown', e => {
+            if(e.key==='ArrowLeft'){
+              e.preventDefault();
+              categoryRow.focus();
+            }
+          });
+          categoryPanelInner.appendChild(option);
+          serviceOptionButtons.set(service.name, { button: option, categoryId: category.id, subcategoryId: null });
+        });
+      }
+    });
+
+    applyCascadeState();
+
+    layout.appendChild(serviceSection);
+
+    const detailsSection=document.createElement('section');
+    detailsSection.className='modal-section spa-section spa-section-details';
+    const detailsGrid=document.createElement('div');
+    // SPA right pane → 2×4 grid; pills → scrollable hairline lists.
+    detailsGrid.className='spa-details-grid';
+    detailsSection.appendChild(detailsGrid);
+    layout.appendChild(detailsSection);
+
+    const durationGroup=document.createElement('div');
+    durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
+    const durationHeading=document.createElement('h3');
+    durationHeading.textContent='Duration';
+    durationHeading.id = `${pickerNamespace}-duration-heading`;
+    durationGroup.appendChild(durationHeading);
+    const durationPickerContainer=document.createElement('div');
+    durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
+    durationGroup.appendChild(durationPickerContainer);
+    durationValueLabel=document.createElement('span');
+    durationValueLabel.className='sr-only spa-picker-value';
+    durationValueLabel.id = `${pickerNamespace}-duration-value`;
+    durationValueLabel.setAttribute('aria-live','polite');
+    durationGroup.appendChild(durationValueLabel);
+    durationPickerContainer.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
+
+    const timeGroup=document.createElement('div');
+    timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Start Time';
+    timeGroup.appendChild(timeHeading);
+    const timeContainer=document.createElement('div');
+    timeContainer.className='spa-time-picker';
+    timeGroup.appendChild(timeContainer);
+    const endPreview=document.createElement('div');
+    endPreview.className='spa-end-preview';
+    endPreview.setAttribute('aria-live','polite');
+    const startTimeDisplay=document.createElement('button');
+    startTimeDisplay.type='button';
+    startTimeDisplay.className='spa-start-time-display';
+    startTimeDisplay.setAttribute('aria-label','Edit start time manually');
+    const timeSeparator=document.createElement('span');
+    timeSeparator.className='spa-time-separator';
+    timeSeparator.textContent='–';
+    const endTimeValue=document.createElement('span');
+    endTimeValue.className='spa-end-time-value';
+    endPreview.appendChild(startTimeDisplay);
+    endPreview.appendChild(timeSeparator);
+    endPreview.appendChild(endTimeValue);
+    timeGroup.appendChild(endPreview);
+    const timeHint=document.createElement('p');
+    timeHint.className='spa-helper-text spa-time-hint';
+    timeHint.id='spa-time-hint';
+    timeHint.hidden=true;
+    startTimeDisplay.setAttribute('aria-describedby', timeHint.id);
+    timeGroup.appendChild(timeHint);
+
+    let startTimeInput=null;
+    let startTimeEditing=false;
+
+    const therapistGroup=document.createElement('div');
+    therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
+    const therapistHeading=document.createElement('h3');
+    therapistHeading.textContent='Therapist Preference';
+    therapistHeading.id = `${pickerNamespace}-therapist-heading`;
+    therapistGroup.appendChild(therapistHeading);
+    const therapistPickerContainer=document.createElement('div');
+    therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
+    therapistGroup.appendChild(therapistPickerContainer);
+    therapistValueLabel=document.createElement('span');
+    therapistValueLabel.className='sr-only spa-picker-value';
+    therapistValueLabel.id = `${pickerNamespace}-therapist-value`;
+    therapistValueLabel.setAttribute('aria-live','polite');
+    therapistGroup.appendChild(therapistValueLabel);
+    therapistPickerContainer.setAttribute('aria-labelledby', `${therapistHeading.id} ${therapistValueLabel.id}`);
+    if(typeof createWheel === 'function'){
+      therapistPickerContainer.removeAttribute('role');
+      therapistPickerContainer.removeAttribute('aria-label');
+      const therapistValues = SPA_THERAPIST_OPTIONS.map(opt => opt.id);
+      therapistWheel = createWheel(therapistValues, {
+        loop: false,
+        idPrefix: `${pickerNamespace}-therapist`,
+        formatValue: value => therapistLabelById.get(value) || '',
+        getOptionLabel: value => therapistLabelById.get(value) || '',
+        ariaLabel: 'Therapist preference',
+        onChange(value){
+          selectTherapist(value);
+        }
+      });
+      therapistWheel.element.classList.add('spa-single-wheel');
+      therapistWheel.element.setAttribute('aria-labelledby', `${therapistHeading.id} ${therapistValueLabel.id}`);
+      therapistPickerContainer.appendChild(therapistWheel.element);
+    }else{
+      therapistPickerContainer.setAttribute('role','listbox');
+      therapistPickerContainer.setAttribute('aria-label','Therapist preference');
+      SPA_THERAPIST_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-option-row';
+        btn.dataset.value=option.id;
+        btn.setAttribute('role','option');
+        const labelSpan=document.createElement('span');
+        labelSpan.className='spa-option-label';
+        labelSpan.textContent=option.label;
+        const checkSpan=document.createElement('span');
+        checkSpan.className='spa-option-check';
+        checkSpan.innerHTML=checkmarkSvg;
+        checkSpan.setAttribute('aria-hidden','true');
+        btn.appendChild(labelSpan);
+        btn.appendChild(checkSpan);
+        btn.addEventListener('click',()=> selectTherapist(option.id));
+        therapistPickerContainer.appendChild(btn);
+      });
+    }
+
+    const locationGroup=document.createElement('div');
+    locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
+    const locationHeading=document.createElement('h3');
+    locationHeading.textContent='Location';
+    locationHeading.id = `${pickerNamespace}-location-heading`;
+    locationGroup.appendChild(locationHeading);
+    const locationPickerContainer=document.createElement('div');
+    locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
+    locationGroup.appendChild(locationPickerContainer);
+    locationValueLabel=document.createElement('span');
+    locationValueLabel.className='sr-only spa-picker-value';
+    locationValueLabel.id = `${pickerNamespace}-location-value`;
+    locationValueLabel.setAttribute('aria-live','polite');
+    locationGroup.appendChild(locationValueLabel);
+    locationPickerContainer.setAttribute('aria-labelledby', `${locationHeading.id} ${locationValueLabel.id}`);
+    const locationHelper=document.createElement('p');
+    locationHelper.className='spa-helper-text sr-only';
+    locationHelper.id='spa-location-inroom-helper';
+    locationHelper.setAttribute('aria-live','polite');
+    if(typeof createWheel === 'function'){
+      locationPickerContainer.removeAttribute('role');
+      locationPickerContainer.removeAttribute('aria-label');
+      locationPickerContainer.removeAttribute('aria-describedby');
+      const locationValues = SPA_LOCATION_OPTIONS.map(opt => opt.id);
+      locationWheel = createWheel(locationValues, {
+        loop: false,
+        idPrefix: `${pickerNamespace}-location`,
+        formatValue: value => locationLabelById.get(value) || '',
+        getOptionLabel: value => locationLabelById.get(value) || '',
+        ariaLabel: 'Location',
+        onChange(value){
+          selectLocation(value);
+        }
+      });
+      locationWheel.element.classList.add('spa-single-wheel');
+      locationWheel.element.setAttribute('aria-labelledby', `${locationHeading.id} ${locationValueLabel.id}`);
+      locationWheel.element.setAttribute('aria-describedby', locationHelper.id);
+      locationPickerContainer.appendChild(locationWheel.element);
+    }else{
+      locationPickerContainer.setAttribute('role','listbox');
+      locationPickerContainer.setAttribute('aria-label','Location');
+      locationPickerContainer.setAttribute('aria-describedby', locationHelper.id);
+      SPA_LOCATION_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-option-row';
+        btn.dataset.value=option.id;
+        btn.setAttribute('role','option');
+        const labelSpan=document.createElement('span');
+        labelSpan.className='spa-option-label';
+        labelSpan.textContent=option.label;
+        const checkSpan=document.createElement('span');
+        checkSpan.className='spa-option-check';
+        checkSpan.innerHTML=checkmarkSvg;
+        checkSpan.setAttribute('aria-hidden','true');
+        btn.appendChild(labelSpan);
+        btn.appendChild(checkSpan);
+        btn.addEventListener('click',()=> selectLocation(option.id));
+        locationPickerContainer.appendChild(btn);
+      });
+    }
+    // Keep the helper text sr-only so the gating reason is announced for assistive
+    // tech without reserving vertical space, preventing layout shifts when
+    // availability toggles.
+    locationGroup.appendChild(locationHelper);
+    detailsGrid.appendChild(therapistGroup);
+    detailsGrid.appendChild(locationGroup);
+    detailsGrid.appendChild(durationGroup);
+    detailsGrid.appendChild(timeGroup);
+    detailsGrid.appendChild(guestSection);
+
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    const confirmIsEdit = mode==='edit' && !!existing;
+    const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
+    const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
+    const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
+    confirmBtn.classList.add('spa-confirm');
+    confirmBtn.setAttribute('aria-describedby', guestHint.id);
+    footerEnd.appendChild(confirmBtn);
+    let removeBtn=null;
+    if(confirmIsEdit){
+      // Editing exposes a destructive control that clears the entire merged
+      // appointment; inline chips remain responsible for single-guest removals.
+      removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete spa appointment', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(removeBtn);
+    }
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
+
+    const previousFocus=document.activeElement;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('spa-lock');
+    // Reset scroll so reopen/edit flows land at the top of the sheet regardless
+    // of the previous scroll position.
+    body.scrollTop = 0;
+    dialog.scrollTop = 0;
+    requestAnimationFrame(()=>{
+      // Running the reset again on the next frame guards against any focus
+      // shifting that might try to restore the previous scroll offset.
+      body.scrollTop = 0;
+      dialog.scrollTop = 0;
+      body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+      dialog.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    });
+
+    const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
+
+    const handleTimeChange = value => {
+      const targets = resolveEditableTargets();
+      const assigned = orderedAssigned();
+      const effectiveTargets = targets.length>0
+        ? targets
+        : (assigned.length>0 ? assigned : [TEMPLATE_ID]);
+      const nextStart = to24Time(value);
+      let touched = false;
+      effectiveTargets.forEach(id => {
+        const selection = getSelectionFor(id);
+        const prevStart = selection.start;
+        const prevEnd = selection.end;
+        selection.start = nextStart;
+        if(selection.explicitEnd){
+          // Manual end times should persist unless explicitly changed by the user.
+        }else{
+          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        }
+        if(prevStart !== selection.start || prevEnd !== selection.end){
+          touched = true;
+        }
+      });
+      const sourceId = effectiveTargets.find(id => id!==TEMPLATE_ID) || effectiveTargets[0] || TEMPLATE_ID;
+      syncTemplateFromSourceId(sourceId);
+      if(touched){
+        markGuestsDirty();
+      }else{
+        updateConfirmState();
+      }
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      if(startTimeEditing && startTimeInput){
+        startTimeInput.removeAttribute('aria-invalid');
+      }
+      refreshEndPreview();
+    };
+
+    const timePicker = createTimePicker ? createTimePicker({
+      hourRange:[1,12],
+      minuteStep:5,
+      showAmPm:true,
+      defaultValue: initialTimeValue,
+      ariaLabels:{ hours:'Spa hour', minutes:'Spa minutes', meridiem:'AM or PM' },
+      onChange: handleTimeChange
+    }) : null;
+
+    startTimeDisplay.textContent='—';
+    timeSeparator.hidden=true;
+
+    if(timePicker){
+      timeContainer.appendChild(timePicker.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='time-picker-fallback';
+      fallback.textContent='Time picker unavailable.';
+      timeContainer.appendChild(fallback);
+    }
+
+    // Parse freeform times like “7am” or “7 00 am” while rejecting entries that
+    // omit a meridiem. Canonicalised values snap to the 5-minute wheel cadence
+    // so manual edits remain in sync with the kinetic picker.
+    function parseManualTimeInput(raw){
+      if(raw==null) return { error:'missing-meridiem' };
+      const trimmed = String(raw).trim();
+      if(trimmed==='') return { error:'missing-meridiem' };
+      const compact = trimmed.toLowerCase().replace(/\s+/g,'');
+      if(!/(am|pm)$/.test(compact)){
+        return { error:'missing-meridiem' };
+      }
+      const match = compact.match(/^(\d{1,2})(?::?(\d{2}))?(am|pm)$/);
+      if(!match) return { error:'invalid' };
+      const hour = Number(match[1]);
+      const minute = match[2]!==undefined ? Number(match[2]) : 0;
+      if(!Number.isInteger(hour) || hour<1 || hour>12) return { error:'invalid' };
+      if(!Number.isInteger(minute) || minute<0 || minute>59) return { error:'invalid' };
+      if(minute % 5 !== 0) return { error:'invalid' };
+      return { hour, minute, meridiem: match[3].toUpperCase() };
+    }
+
+    function finalizeStartTimeEdit(commit){
+      if(!startTimeEditing) return;
+      const input = startTimeInput;
+      if(!input) return;
+      if(commit){
+        const parsed = parseManualTimeInput(input.value);
+        if(parsed.error){
+          timeHint.textContent = parsed.error==='missing-meridiem' ? 'Include am or pm' : 'Enter a valid time (e.g., 7:00am)';
+          timeHint.hidden = false;
+          input.setAttribute('aria-invalid','true');
+          setTimeout(()=>{
+            input.focus({ preventScroll:true });
+            input.select();
+          },0);
+          return;
+        }
+        input.removeAttribute('aria-invalid');
+        timeHint.hidden = true;
+        const canonical = formatTimeDisplay(to24Time(parsed));
+        startTimeDisplay.textContent = canonical;
+        if(timePicker){
+          const normalizedMeridiem = parsed.meridiem === 'PM' ? 'PM' : 'AM';
+          timePicker.hourWheel?.setValue?.(parsed.hour);
+          timePicker.minuteWheel?.setValue?.(parsed.minute);
+          if(typeof timePicker.setMeridiem === 'function'){
+            timePicker.setMeridiem(normalizedMeridiem);
+          }else{
+            timePicker.meridiemWheel?.setValue?.(normalizedMeridiem);
+          }
+          handleTimeChange({ ...parsed, meridiem: normalizedMeridiem });
+        }else{
+          handleTimeChange(parsed);
+        }
+      }else{
+        timeHint.hidden = true;
+        timeHint.textContent='';
+      }
+      input.replaceWith(startTimeDisplay);
+      startTimeInput = null;
+      startTimeEditing = false;
+      if(!commit){
+        startTimeDisplay.focus({ preventScroll:true });
+      }
+    }
+
+    function openStartTimeEditor(){
+      if(startTimeEditing) return;
+      startTimeEditing = true;
+      timeHint.hidden = true;
+      timeHint.textContent='';
+      const input=document.createElement('input');
+      input.type='text';
+      input.className='spa-start-time-input';
+      input.value = startTimeDisplay.textContent?.trim() || '';
+      input.setAttribute('aria-label','Start time');
+      input.setAttribute('aria-describedby', timeHint.id);
+      input.setAttribute('autocomplete','off');
+      input.setAttribute('autocapitalize','none');
+      input.setAttribute('spellcheck','false');
+      input.setAttribute('inputmode','text');
+      input.placeholder='e.g. 7:00am';
+      input.dataset.spaNoSubmit='true';
+      startTimeDisplay.replaceWith(input);
+      startTimeInput = input;
+      requestAnimationFrame(()=>{
+        input.focus({ preventScroll:true });
+        input.select();
+      });
+      input.addEventListener('blur',()=> finalizeStartTimeEdit(true));
+      // Enter commits the parsed time but never auto-submits the dialog so users
+      // can move on to other fields.
+      input.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){
+          e.preventDefault();
+          e.stopPropagation();
+          finalizeStartTimeEdit(true);
+        }
+        if(e.key==='Escape'){
+          e.preventDefault();
+          e.stopPropagation();
+          finalizeStartTimeEdit(false);
+        }
+      });
+    }
+
+    startTimeDisplay.addEventListener('click', openStartTimeEditor);
+
+    function refreshServiceOptions(){
+      const selection = getCanonicalSelection();
+      const activeName = selection?.serviceName || defaultService?.name || '';
+      if(activeName){
+        ensureCascadeForService(activeName);
+      }
+      serviceOptionButtons.forEach(({ button }, name) => {
+        const selected = name===activeName;
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        button.setAttribute('aria-label', selected ? `Selected service: ${name}` : `Select service: ${name}`);
+      });
+      applyCascadeState();
+    }
+
+    function refreshDurationOptions(){
+      const selection = getCanonicalSelection();
+      const service = findService(selection?.serviceName) || defaultService;
+      const durations = service?.durations?.slice() || [];
+      if(typeof createWheel === 'function'){
+        const changed = durations.length !== durationWheelValues.length || durations.some((value, index) => value !== durationWheelValues[index]);
+        if(changed){
+          durationWheelValues = durations.slice();
+          if(durationWheel && typeof durationWheel.dispose === 'function'){
+            durationWheel.dispose();
+          }
+          durationPickerContainer.innerHTML='';
+          durationPickerContainer.removeAttribute('role');
+          durationPickerContainer.removeAttribute('aria-label');
+          durationWheel = null;
+          if(durations.length){
+            durationWheel = createWheel(durations, {
+              loop: false,
+              idPrefix: `${pickerNamespace}-duration`,
+              formatValue: value => formatDurationButtonLabel(value),
+              getOptionLabel: value => formatDurationLabel(value),
+              ariaLabel: 'Duration',
+              onChange(value){
+                selectDuration(value);
+              }
+            });
+            durationWheel.element.classList.add('spa-single-wheel');
+            durationWheel.element.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
+            durationPickerContainer.appendChild(durationWheel.element);
+          }
+        }
+        if(durationWheel){
+          const canonical = selection?.durationMinutes;
+          const fallback = durations.includes(canonical) ? canonical : durations[0];
+          if(fallback !== undefined){
+            durationWheel.setValue(fallback);
+            const label = formatDurationLabel(fallback);
+            durationValueLabel.textContent = label;
+            durationWheel.element.setAttribute('aria-label', `Duration, ${label}`);
+          }else{
+            durationValueLabel.textContent = '';
+            durationWheel.element.setAttribute('aria-label', 'Duration');
+          }
+        }else{
+          durationValueLabel.textContent = '';
+        }
+      }else{
+        durationWheel = null;
+        durationWheelValues = durations.slice();
+        durationPickerContainer.innerHTML='';
+        durationPickerContainer.setAttribute('role','listbox');
+        durationPickerContainer.setAttribute('aria-label','Duration');
+        const canonical = selection?.durationMinutes;
+        durations.forEach(minutes => {
+          const btn=document.createElement('button');
+          btn.type='button';
+          btn.className='spa-option-row';
+          btn.dataset.value=String(minutes);
+          btn.setAttribute('role','option');
+          const labelSpan=document.createElement('span');
+          labelSpan.className='spa-option-label';
+          labelSpan.textContent=formatDurationButtonLabel(minutes);
+          btn.setAttribute('aria-label', formatDurationLabel(minutes));
+          const checkSpan=document.createElement('span');
+          checkSpan.className='spa-option-check';
+          checkSpan.innerHTML=checkmarkSvg;
+          checkSpan.setAttribute('aria-hidden','true');
+          btn.appendChild(labelSpan);
+          btn.appendChild(checkSpan);
+          const selected = canonical===minutes;
+          btn.classList.toggle('is-selected', selected);
+          btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+          btn.addEventListener('click',()=> selectDuration(minutes));
+          durationPickerContainer.appendChild(btn);
+        });
+        let fallbackLabel='';
+        if(canonical !== undefined){
+          fallbackLabel = formatDurationLabel(canonical);
+        }else if(durations.length){
+          fallbackLabel = formatDurationLabel(durations[0]);
+        }
+        durationValueLabel.textContent = fallbackLabel;
+        durationPickerContainer.setAttribute('aria-label', fallbackLabel ? `Duration, ${fallbackLabel}` : 'Duration');
+      }
+    }
+
+    function refreshTherapistOptions(){
+      const selection = getCanonicalSelection();
+      const current = selection?.therapist || 'no-preference';
+      const label = therapistLabelById.get(current) || therapistLabelById.get('no-preference') || 'No Preference';
+      if(therapistWheel){
+        therapistWheel.setValue(current);
+        therapistValueLabel.textContent = label;
+        therapistWheel.element.setAttribute('aria-label', `Therapist Preference, ${label}`);
+      }else{
+        const rows = therapistPickerContainer.querySelectorAll('.spa-option-row');
+        rows.forEach(btn => {
+          const selected = btn.dataset.value===current;
+          btn.classList.toggle('is-selected', selected);
+          btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        therapistValueLabel.textContent = label;
+        therapistPickerContainer.setAttribute('aria-label', `Therapist preference, ${label}`);
+      }
+    }
+
+    function refreshLocationOptions(){
+      const selection = getCanonicalSelection();
+      const service = findService(selection?.serviceName) || defaultService;
+      const supportsInRoom = service?.supportsInRoom !== false;
+      const disabledFn = value => {
+        const singleGuestLocked = singleGuestStay && value !== 'in-room';
+        return (value==='in-room' && !supportsInRoom) || singleGuestLocked;
+      };
+      if(locationWheel){
+        locationWheel.setDisabledChecker(disabledFn);
+        const activeSelection = getCanonicalSelection();
+        const activeLocation = activeSelection?.location;
+        const validLocation = activeLocation && !disabledFn(activeLocation)
+          ? activeLocation
+          : (SPA_LOCATION_OPTIONS.find(opt => !disabledFn(opt.id))?.id || activeLocation || '');
+        if(validLocation){
+          locationWheel.setValue(validLocation);
+        }
+        const label = locationLabelById.get(validLocation) || locationLabelById.get(activeLocation) || '';
+        locationValueLabel.textContent = label;
+        locationWheel.element.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+      }else{
+        const buttons = locationPickerContainer.querySelectorAll('.spa-option-row');
+        buttons.forEach(btn => {
+          const value = btn.dataset.value;
+          const disabled = disabledFn(value);
+          const isSelected = selection?.location===value && !disabled;
+          btn.classList.toggle('is-selected', isSelected);
+          btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+          btn.classList.toggle('is-disabled', disabled);
+          btn.disabled = disabled;
+          btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        });
+        const label = locationLabelById.get(selection?.location) || '';
+        locationValueLabel.textContent = label;
+        locationPickerContainer.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+      }
+      // The helper content remains present for screen readers only; visually the
+      // layout stays fixed because the element never takes up space.
+      const helperMessages = [];
+      if(!supportsInRoom){
+        helperMessages.push('In-Room service is unavailable for this treatment.');
+      }
+      if(singleGuestStay){
+        helperMessages.push('Cabana sharing is available once another guest is added to the stay.');
+      }
+      locationHelper.textContent = helperMessages.join(' ');
+    }
+
+    function refreshTimePickerSelection(){
+      const selection = getCanonicalSelection();
+      if(!selection || !timePicker) return;
+      const { hour, minute, meridiem } = from24Time(selection.start);
+      timePicker.hourWheel?.setValue?.(hour);
+      timePicker.minuteWheel?.setValue?.(minute);
+      if(typeof timePicker.setMeridiem === 'function'){
+        timePicker.setMeridiem(meridiem);
+      }else{
+        timePicker.meridiemWheel?.setValue?.(meridiem);
+      }
+    }
+
+    function refreshEndPreview(){
+      const selection = getCanonicalSelection();
+      if(selection){
+        const startLabel = formatTimeDisplay(selection.start);
+        const endLabel = formatTimeDisplay(selection.end);
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = startLabel;
+        }else{
+          startTimeDisplay.textContent = startLabel;
+        }
+        timeSeparator.hidden = false;
+        endTimeValue.textContent = endLabel;
+      }else{
+        if(startTimeEditing && startTimeInput){
+          startTimeInput.value = '';
+        }else{
+          startTimeDisplay.textContent = '—';
+        }
+        timeSeparator.hidden = true;
+        endTimeValue.textContent = '';
+      }
+    }
+
+    function refreshAllControls(){
+      refreshServiceOptions();
+      refreshDurationOptions();
+      refreshTherapistOptions();
+      refreshLocationOptions();
+      refreshTimePickerSelection();
+      refreshEndPreview();
+      updateConfirmState();
+    }
+
+    function updateConfirmState(){
+      const ready = areGuestsReady();
+      confirmBtn.disabled = !ready;
+      confirmBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+      confirmBtn.title = confirmLabel;
+    }
+
+    function selectService(name){
+      const service = findService(name) || defaultService;
+      const targets = resolveEditableTargets();
+      let touched = false;
+      targets.forEach(id => {
+        const selection = getSelectionFor(id, service);
+        const prevService = selection.serviceName;
+        const prevDuration = selection.durationMinutes;
+        const prevLocation = selection.location;
+        const prevSupports = selection.supportsInRoom;
+        const prevEnd = selection.end;
+        selection.serviceName = service?.name || name;
+        selection.serviceCategory = service?.category || '';
+        selection.supportsInRoom = service?.supportsInRoom !== false;
+        const durations = service?.durations?.slice() || [];
+        if(!durations.includes(selection.durationMinutes)){
+          selection.durationMinutes = durations[0] || selection.durationMinutes;
+        }
+        // Whenever duration shifts, recompute the derived end time so the preview follows.
+        if(!selection.explicitEnd){
+          selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
+        }
+        if(selection.location==='in-room' && selection.supportsInRoom===false){
+          selection.location='same-cabana';
+        }
+        if(selection.serviceName!==prevService || selection.durationMinutes!==prevDuration || selection.location!==prevLocation || selection.supportsInRoom!==prevSupports || selection.end!==prevEnd){
+          touched = true;
+        }
+      });
+      if(touched){
+        markGuestsDirty();
+      }else{
+        updateConfirmState();
+      }
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
+      }
+      refreshAllControls();
+    }
+
+    function selectDuration(minutes){
+      const targets = resolveEditableTargets();
+      let touched = false;
+      targets.forEach(id => {
+        const selection = getSelectionFor(id);
+        const prevDuration = selection.durationMinutes;
+        const prevEnd = selection.end;
+        selection.durationMinutes = minutes;
+        if(!selection.explicitEnd){
+          selection.end = addMinutesToTime(selection.start, minutes);
+        }
+        if(selection.durationMinutes!==prevDuration || selection.end!==prevEnd){
+          touched = true;
+        }
+      });
+      if(touched){
+        markGuestsDirty();
+      }else{
+        updateConfirmState();
+      }
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
+      }
+      refreshAllControls();
+    }
+
+    function selectTherapist(id){
+      const targets = resolveEditableTargets();
+      let touched = false;
+      targets.forEach(targetId => {
+        const selection = getSelectionFor(targetId);
+        const prevTherapist = selection.therapist;
+        selection.therapist = id;
+        if(selection.therapist!==prevTherapist){
+          touched = true;
+        }
+      });
+      if(touched){
+        markGuestsDirty();
+      }else{
+        updateConfirmState();
+      }
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
+      }
+      refreshTherapistOptions();
+      updateConfirmState();
+    }
+
+    function selectLocation(id){
+      if(singleGuestStay && id !== 'in-room'){
+        // Single-guest stays only allow in-room treatments; other cabana choices
+        // remain visible but locked so ignore programmatic attempts as well.
+        return;
+      }
+      const canonical = getCanonicalSelection();
+      const canonicalService = canonical ? findService(canonical.serviceName) || defaultService : defaultService;
+      // Location gating mirrors the data model: if the current service blocks in-room,
+      // surface the helper text and ignore attempts to re-enable the option.
+      if(id==='in-room' && canonicalService?.supportsInRoom===false){
+        // Surface the same helper copy for assistive tech without revealing
+        // a visual banner so the modal never jumps.
+        locationHelper.textContent='In-Room service is unavailable for this treatment.';
+        return;
+      }
+      const targets = resolveEditableTargets();
+      let touched = false;
+      targets.forEach(targetId => {
+        const selection = getSelectionFor(targetId);
+        const service = findService(selection.serviceName) || defaultService;
+        const supportsInRoom = service?.supportsInRoom !== false;
+        if(id==='in-room' && !supportsInRoom){
+          return;
+        }
+        const prevLocation = selection.location;
+        selection.location = id;
+        if(selection.location!==prevLocation){
+          touched = true;
+        }
+      });
+      if(touched){
+        markGuestsDirty();
+      }else{
+        updateConfirmState();
+      }
+      if(targets.length){
+        syncTemplateFromSourceId(targets[0]);
+      }
+      refreshLocationOptions();
+      updateConfirmState();
+    }
+
+    updateGuestControls();
+    refreshAllControls();
+
+    function confirmSelection(){
+      const assigned = orderedAssigned();
+      if(assigned.length===0) return;
+      if(!areGuestsReady()){
+        updateGuestControls();
+        return;
+      }
+      const canonical = getCanonicalSelection() || ensureTemplateSelection();
+      // Capture the final snapshot for every guest so we can either apply them
+      // uniformly or split them into individual activities when variations exist.
+      const snapshots = assigned.map(id => {
+        const base = selections.get(id) || canonical;
+        const startValue = base.start || defaultSpaStartTime;
+        const computedEnd = addMinutesToTime(startValue, base.durationMinutes);
+        const hasExplicitEnd = base.explicitEnd && !!base.end;
+        const endValue = hasExplicitEnd ? base.end : computedEnd;
+        const snapshot = {
+          guestId: id,
+          serviceName: base.serviceName,
+          serviceCategory: base.serviceCategory,
+          durationMinutes: base.durationMinutes,
+          start: startValue,
+          end: endValue,
+          therapist: base.therapist,
+          location: base.location,
+          explicitEnd: hasExplicitEnd
+        };
+        selections.set(id, {
+          ...base,
+          guestId: id,
+          start: startValue,
+          end: endValue,
+          explicitEnd: hasExplicitEnd
+        });
+        return snapshot;
+      });
+
+      const allIdentical = snapshots.every(snap => {
+        const ref = snapshots[0];
+        return snap.serviceName===ref.serviceName &&
+          snap.serviceCategory===ref.serviceCategory &&
+          snap.durationMinutes===ref.durationMinutes &&
+          snap.start===ref.start &&
+          snap.end===ref.end &&
+          snap.therapist===ref.therapist &&
+          snap.location===ref.location;
+      });
+
+      if(existing?.id && !allIdentical){
+        removeSpaEntry(targetDateKey, existing.id);
+      }
+
+      // Persist by patching the existing schedule entry so activities + preview
+      // immediately redraw from the updated state (the store handles resorting).
+      if(allIdentical){
+        const entryId = existing?.id || null;
+        upsertSpaEntry(targetDateKey, { id: entryId, appointments: snapshots });
+      }else{
+        // Per-guest variations become independent rows so each guest carries their
+        // own chip, edit affordance, and preview line.
+        snapshots.forEach((snapshot, index) => {
+          const entryId = (existing && index===0) ? existing.id : null;
+          upsertSpaEntry(targetDateKey, { id: entryId, appointments: [snapshot] });
+        });
+      }
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeSpaEditor({returnFocus:true});
+    }
+
+    confirmBtn.addEventListener('click', confirmSelection);
+
+    if(removeBtn){
+      removeBtn.addEventListener('click',()=>{
+        removeSpaEntry(targetDateKey, existing.id);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeSpaEditor({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click', e=>{
+      if(e.target===overlay){
+        closeSpaEditor({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown = e => {
+      if(e.key==='Escape'){
+        e.preventDefault();
+        closeSpaEditor({returnFocus:true});
+        return;
+      }
+      if((e.key==='Enter' || e.key==='Return') && (!e.target || (e.target.tagName!=='BUTTON' && e.target.dataset?.spaNoSubmit!=='true'))){
+        e.preventDefault();
+        confirmSelection();
+        return;
+      }
+      if(e.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,select,input[type="checkbox"],[tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length-1];
+        if(e.shiftKey){
+          if(document.activeElement===first){
+            e.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    spaDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        timePicker?.dispose?.();
+      }
+    };
+
+    setTimeout(()=>{
+      timePicker?.focus?.();
+    },0);
+  }
+
+  function closeCustomBuilder({returnFocus=false}={}){
+    if(!customDialog) return;
+    const { overlay, previousFocus, cleanup } = customDialog;
+    overlay.remove();
+    if(typeof cleanup === 'function') cleanup();
+    if(returnFocus && previousFocus && typeof previousFocus.focus==='function'){
+      previousFocus.focus();
+    }
+    customDialog = null;
+    document.body.classList.remove('custom-lock');
+  }
+
+  // Custom builder surfaces the dual title inputs (free text vs catalog) and
+  // funnels start/end selection through the shared time picker kit so physics
+  // stay consistent with dinner/spa flows.
+  function openCustomBuilder({mode='add', dateKey, entryId, guestIds}={}){
+    if(state.dataStatus!=='ready') return;
+    closeCustomBuilder();
+
+    const targetDateKey = dateKey || keyDate(state.focus);
+    const existing = entryId ? getCustomEntry(targetDateKey, entryId) : null;
+    const previousFocus = document.activeElement;
+    const catalog = state.customCatalog || { titles: [], locations: [] };
+    const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const normalizeGuestIds = ids => {
+      const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
+      const requestedSet = new Set(requested);
+      const seen = new Set();
+      const normalized = [];
+      state.guests.forEach(guest => {
+        if(requestedSet.has(guest.id) && !seen.has(guest.id)){
+          seen.add(guest.id);
+          normalized.push(guest.id);
+        }
+      });
+      requested.forEach(id => {
+        if(!seen.has(id) && stayGuestLookup.has(id)){
+          seen.add(id);
+          normalized.push(id);
+        }
+      });
+      return normalized;
+    };
+
+    const defaultActiveIds = state.guests.filter(g=>g.active).map(g=>g.id);
+    const requestedIds = existing
+      ? Array.from(existing.guestIds || [])
+      : (Array.isArray(guestIds) ? guestIds : defaultActiveIds);
+    let modalGuestIds = normalizeGuestIds(requestedIds);
+    if(modalGuestIds.length===0){
+      modalGuestIds = normalizeGuestIds(defaultActiveIds);
+    }
+    // Guest assignments reuse the same chip helpers as the activities rail, so
+    // we only need to capture the IDs once here before the chips handle any
+    // inline removals after save.
+
+    const initialTitle = existing?.title || '';
+    const matchingActivity = catalog.titles.find(opt => opt.title === initialTitle) || null;
+    let titleMode = 'free';
+    let selectedActivity = matchingActivity;
+    let freeTitleValue = initialTitle;
+    let locationValue = existing?.location || selectedActivity?.location || '';
+    let locationManual = Boolean(existing?.location);
+    let startValue = existing?.start || '';
+    let endValue = existing?.end || '';
+    let currentTimeError = '';
+    const initialPickerValue = startValue ? from24Time(startValue) : { hour:9, minute:0, meridiem:'AM' };
+    let currentPickerValue = initialPickerValue;
+
+    const overlay=document.createElement('div');
+    // Reuse the spa shell classes so the custom flow inherits the shared safe-area gutters + clamp sizing.
+    overlay.className='spa-overlay custom-overlay';
+
+    const dialog=document.createElement('div');
+    dialog.className='spa-dialog custom-dialog';
+    dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-modal','true');
+    dialog.setAttribute('aria-labelledby','custom-dialog-title');
+
+    const header=document.createElement('div');
+    header.className='modal-header custom-header';
+    const title=document.createElement('h2');
+    title.className='modal-title';
+    title.id='custom-dialog-title';
+    title.textContent='Custom';
+    const customModeDescriptor=document.createElement('span');
+    customModeDescriptor.className='sr-only';
+    customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
+    title.appendChild(customModeDescriptor);
+    const headerBar=document.createElement('div');
+    headerBar.className='custom-header-bar';
+    headerBar.appendChild(title);
+
+    const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
+    headerBar.appendChild(closeBtn);
+    header.appendChild(headerBar);
+
+    const titleSection=document.createElement('section');
+    // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
+    titleSection.className='modal-section custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
+    titleSection.setAttribute('role','group');
+    const titleHeaderRow=document.createElement('div');
+    titleHeaderRow.className='custom-title-header';
+    const freeInputId = `custom-title-${Date.now()}`;
+    const titleHeading=document.createElement('label');
+    titleHeading.className='custom-field-label';
+    titleHeading.textContent='Title';
+    const titleHeadingId = `${freeInputId}-label`;
+    titleHeading.id = titleHeadingId;
+    titleHeading.setAttribute('for', freeInputId);
+    titleHeaderRow.appendChild(titleHeading);
+
+    const toggleGroup=document.createElement('div');
+    toggleGroup.className='custom-title-toggle-group';
+    titleHeaderRow.appendChild(toggleGroup);
+
+    titleSection.appendChild(titleHeaderRow);
+
+    const freeToggle=document.createElement('button');
+    freeToggle.type='button';
+    freeToggle.className='custom-title-toggle';
+    freeToggle.dataset.mode='free';
+    freeToggle.textContent='Type a title';
+    toggleGroup.appendChild(freeToggle);
+
+    const existingToggle=document.createElement('button');
+    existingToggle.type='button';
+    existingToggle.className='custom-title-toggle';
+    existingToggle.dataset.mode='existing';
+    existingToggle.textContent='Choose existing';
+    existingToggle.setAttribute('aria-haspopup','listbox');
+    if(!catalog.titles.length){ existingToggle.disabled = true; }
+    toggleGroup.appendChild(existingToggle);
+
+    const freePane=document.createElement('div');
+    freePane.className='custom-title-pane';
+    const freeInput=document.createElement('input');
+    freeInput.type='text';
+    freeInput.id=freeInputId;
+    freeInput.className='custom-title-input';
+    freeInput.placeholder='Name this activity';
+    freeInput.value = freeTitleValue;
+    freePane.appendChild(freeInput);
+
+    const existingPane=document.createElement('div');
+    existingPane.className='custom-title-pane custom-existing-pane';
+    const existingField=document.createElement('div');
+    existingField.className='custom-existing-field';
+    const existingHeader=document.createElement('div');
+    existingHeader.className='custom-existing-header';
+    const typeInsteadBtn=document.createElement('button');
+    typeInsteadBtn.type='button';
+    typeInsteadBtn.className='custom-existing-back';
+    typeInsteadBtn.textContent='Type instead';
+    typeInsteadBtn.setAttribute('aria-label','Return to typing');
+    typeInsteadBtn.addEventListener('click',()=> setTitleMode('free'));
+    existingHeader.appendChild(typeInsteadBtn);
+    existingField.appendChild(existingHeader);
+
+    // Inline list lives inside the field wrapper so the modal height stays fixed
+    // while still surfacing catalog titles without a separate popover.
+    const existingList=document.createElement('div');
+    const existingListId = `custom-existing-list-${Date.now()}`;
+    existingList.className='custom-existing-list';
+    existingList.id = existingListId;
+    existingList.setAttribute('role','listbox');
+    existingList.setAttribute('aria-labelledby', titleHeadingId);
+    existingToggle.setAttribute('aria-controls', existingListId);
+    existingField.appendChild(existingList);
+    existingPane.appendChild(existingField);
+
+    titleSection.appendChild(freePane);
+    titleSection.appendChild(existingPane);
+    titleSection.setAttribute('aria-labelledby', titleHeadingId);
+
+    dialog.appendChild(header);
+
+    const body=document.createElement('div');
+    // Body scroll mirrors Spa so header/footer remain anchored while the cards scroll independently.
+    body.className='modal-body spa-body custom-body';
+    dialog.appendChild(body);
+
+    const layout=document.createElement('div');
+    layout.className='modal-sections custom-layout';
+    body.appendChild(layout);
+
+    // Custom modal grid: Title → cols 1–2, rows 1–3.
+    layout.appendChild(titleSection);
+
+    const timeSection=document.createElement('section');
+    timeSection.className='modal-section custom-section custom-section-time spa-section spa-block custom-card';
+    // Custom modal: Time section reflow; stack hourglass buttons on right; no internal scroll.
+    const timeShell=document.createElement('div');
+    timeShell.className='custom-time-shell';
+    timeSection.appendChild(timeShell);
+
+    const timeContent=document.createElement('div');
+    timeContent.className='custom-time-content';
+    timeShell.appendChild(timeContent);
+
+    const timeHeaderRow=document.createElement('div');
+    timeHeaderRow.className='custom-time-header-row';
+    timeContent.appendChild(timeHeaderRow);
+
+    const timeHeading=document.createElement('h3');
+    timeHeading.textContent='Time';
+    timeHeaderRow.appendChild(timeHeading);
+
+    const timeSummary=document.createElement('div');
+    timeSummary.className='custom-time-summary';
+    timeHeaderRow.appendChild(timeSummary);
+
+    const startPill=document.createElement('div');
+    startPill.className='custom-time-pill';
+    const startLabel=document.createElement('span');
+    startLabel.className='custom-time-pill-label';
+    startLabel.textContent='Start';
+    const startValueNode=document.createElement('span');
+    startValueNode.className='custom-time-value';
+    startPill.appendChild(startLabel);
+    startPill.appendChild(startValueNode);
+    timeSummary.appendChild(startPill);
+
+    const endPill=document.createElement('div');
+    endPill.className='custom-time-pill optional';
+    const endLabel=document.createElement('span');
+    endLabel.className='custom-time-pill-label';
+    endLabel.textContent='End';
+    const endValueNode=document.createElement('span');
+    endValueNode.className='custom-time-value';
+    const clearEndBtn=document.createElement('button');
+    clearEndBtn.type='button';
+    clearEndBtn.className='custom-clear-end';
+    clearEndBtn.textContent='Clear';
+    clearEndBtn.addEventListener('click',()=>{
+      endValue='';
+      updateEndDisplay();
+      setTimeError('');
+      refreshSaveState();
+    });
+    endPill.appendChild(endLabel);
+    endPill.appendChild(endValueNode);
+    endPill.appendChild(clearEndBtn);
+    timeSummary.appendChild(endPill);
+
+    const pickerContainer=document.createElement('div');
+    pickerContainer.className='custom-picker';
+    timeContent.appendChild(pickerContainer);
+
+    const timeError=document.createElement('p');
+    timeError.className='custom-time-error';
+    timeError.hidden=true;
+    timeContent.appendChild(timeError);
+
+    layout.appendChild(timeSection);
+
+    const locationSection=document.createElement('section');
+    locationSection.className='modal-section custom-section custom-section-location spa-section spa-block custom-card';
+    const locationHeading=document.createElement('h3');
+    locationHeading.id='custom-location-heading';
+    locationHeading.textContent='Location (optional)';
+    locationSection.appendChild(locationHeading);
+    // Location list is sourced from the CHS activities metadata so preview copy
+    // and in-app chips both draw from the same canonical venue names.
+    const locationOptions=[{ value:'', label:'No location' }];
+    const seenLocations=new Set();
+    catalog.locations.forEach(loc=>{
+      const normalized = String(loc || '').trim();
+      if(!normalized || seenLocations.has(normalized)) return;
+      seenLocations.add(normalized);
+      locationOptions.push({ value: normalized, label: normalized });
+    });
+    if(locationValue && !seenLocations.has(locationValue)){ locationOptions.push({ value: locationValue, label: locationValue }); }
+    const locationList=document.createElement('div');
+    // Swap the native select for a scrollable hairline list so the card matches the spa chooser interactions.
+    locationList.className='custom-location-list list-hairline';
+    locationList.setAttribute('role','listbox');
+    locationList.setAttribute('aria-labelledby','custom-location-heading');
+    locationSection.appendChild(locationList);
+
+    const locationRows=[];
+    const findLocationIndex=value=>{
+      const normalized = String(value ?? '').trim();
+      return locationOptions.findIndex(opt=> opt.value === normalized);
+    };
+    let locationActiveIndex = findLocationIndex(locationValue);
+    if(locationActiveIndex<0){ locationActiveIndex = 0; locationValue = locationOptions[0]?.value || ''; }
+
+    const setLocationActive=(index,{focus=true,fromPointer=false}={})=>{
+      if(!locationRows.length) return;
+      const bounded=Math.max(0,Math.min(index,locationRows.length-1));
+      locationActiveIndex=bounded;
+      locationRows.forEach((row,i)=>{
+        const isSelected=i===bounded;
+        row.classList.toggle('selected',isSelected);
+        row.setAttribute('aria-selected',isSelected ? 'true' : 'false');
+        row.tabIndex=isSelected ? 0 : -1;
+      });
+      const target=locationRows[bounded];
+      if(target){
+        if(focus){ focusWithoutScroll(target); }
+        if(!fromPointer){ target.scrollIntoView({ block:'nearest', inline:'nearest' }); }
+      }
+    };
+
+    const syncLocationSelection=({manual=false,focus=false,fromPointer=false}={})=>{
+      let nextIndex=findLocationIndex(locationValue);
+      if(nextIndex<0){
+        nextIndex=0;
+        locationValue=locationOptions[0]?.value || '';
+      }
+      if(manual){ locationManual = true; }
+      setLocationActive(nextIndex,{ focus, fromPointer });
+    };
+
+    const chooseLocationByIndex=(index,{manual=true,focus=false,fromPointer=false}={})=>{
+      if(index<0 || index>=locationOptions.length) return;
+      const option=locationOptions[index];
+      locationValue = option?.value || '';
+      syncLocationSelection({ manual, focus, fromPointer });
+      if(manual){ refreshSaveState(); }
+    };
+
+    locationOptions.forEach((opt,index)=>{
+      const row=document.createElement('button');
+      row.type='button';
+      row.className='custom-location-row list-row';
+      row.dataset.index=String(index);
+      row.setAttribute('role','option');
+      row.setAttribute('aria-selected','false');
+      row.tabIndex=-1;
+      row.textContent = opt.label;
+      row.addEventListener('click',()=> chooseLocationByIndex(index,{ manual:true, focus:false, fromPointer:true }));
+      row.addEventListener('keydown',event=>{
+        if(event.key==='ArrowDown'){
+          event.preventDefault();
+          const next=Math.min(locationRows.length-1,index+1);
+          chooseLocationByIndex(next,{ manual:true, focus:true });
+        }else if(event.key==='ArrowUp'){
+          event.preventDefault();
+          const prev=Math.max(0,index-1);
+          chooseLocationByIndex(prev,{ manual:true, focus:true });
+        }else if(event.key==='Home'){
+          event.preventDefault();
+          chooseLocationByIndex(0,{ manual:true, focus:true });
+        }else if(event.key==='End'){
+          event.preventDefault();
+          chooseLocationByIndex(locationRows.length-1,{ manual:true, focus:true });
+        }
+      });
+      locationList.appendChild(row);
+      locationRows.push(row);
+    });
+
+    syncLocationSelection({ manual:false, focus:false, fromPointer:true });
+    layout.appendChild(locationSection);
+
+    const guestSection=document.createElement('section');
+    guestSection.className='modal-section custom-section custom-section-guests spa-section spa-block custom-card';
+    const guestHeading=document.createElement('h3');
+    guestHeading.textContent='Guests';
+    guestSection.appendChild(guestHeading);
+    const guestSummary=document.createElement('p');
+    guestSummary.className='custom-guest-summary';
+    guestSection.appendChild(guestSummary);
+    layout.appendChild(guestSection);
+
+    const footer=document.createElement('div');
+    footer.className='modal-footer';
+    const footerStart=document.createElement('div');
+    footerStart.className='modal-footer-start';
+    const footerEnd=document.createElement('div');
+    footerEnd.className='modal-footer-end';
+    const saveIsEdit = !!existing;
+    const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
+    const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
+    const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
+    footerEnd.appendChild(saveBtn);
+    let deleteBtn=null;
+    if(saveIsEdit){
+      deleteBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete custom activity', extraClass: 'btn-icon--subtle' });
+      footerStart.appendChild(deleteBtn);
+    }
+    footer.appendChild(footerStart);
+    footer.appendChild(footerEnd);
+    dialog.appendChild(footer);
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    document.body.classList.add('custom-lock');
+    body.scrollTop = 0;
+    body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    requestAnimationFrame(()=>{
+      body.scrollTop = 0;
+      body.scrollTo?.({ top:0, left:0, behavior:'auto' });
+    });
+
+    const updateGuestSummary=()=>{
+      const names=[];
+      const seen=new Set();
+      modalGuestIds.forEach(id=>{
+        if(seen.has(id)) return;
+        seen.add(id);
+        const guest=stayGuestLookup.get(id);
+        if(guest?.name){
+          names.push(guest.name);
+        }
+      });
+      if(names.length){
+        guestSummary.textContent = `Guests: ${names.join(', ')}`;
+        guestSummary.dataset.empty='false';
+      }else{
+        guestSummary.textContent = 'Guests: None selected (toggle guest pills before saving).';
+        guestSummary.dataset.empty='true';
+      }
+    };
+
+    const updateStartDisplay=()=>{
+      if(startValue){
+        startValueNode.textContent = formatTimeDisplay(startValue);
+        startPill.dataset.empty='false';
+      }else{
+        startValueNode.textContent = 'Set start';
+        startPill.dataset.empty='true';
+      }
+    };
+
+    const updateEndDisplay=()=>{
+      if(endValue){
+        endValueNode.textContent = formatTimeDisplay(endValue);
+        endPill.dataset.empty='false';
+        clearEndBtn.disabled=false;
+      }else{
+        endValueNode.textContent = 'Optional';
+        endPill.dataset.empty='true';
+        clearEndBtn.disabled=true;
+      }
+    };
+
+    const setTimeError=message=>{
+      currentTimeError = message ? String(message) : '';
+      if(currentTimeError){
+        timeError.textContent = currentTimeError;
+        timeError.hidden=false;
+      }else{
+        timeError.textContent='';
+        timeError.hidden=true;
+      }
+    };
+
+    const findCatalogIndex=title=>{
+      if(!title) return -1;
+      const normalized=String(title).trim().toLowerCase();
+      if(!normalized) return -1;
+      return catalog.titles.findIndex(opt=> opt.title.toLowerCase()===normalized);
+    };
+
+    const existingRows=[];
+    let existingActiveIndex = selectedActivity ? findCatalogIndex(selectedActivity.title) : 0;
+    if(existingActiveIndex<0) existingActiveIndex = 0;
+
+    const resolveTitle=()=> freeTitleValue.trim();
+
+    const syncSelectedActivityFromTitle=value=>{
+      const matchIndex = findCatalogIndex(value);
+      if(matchIndex>=0){
+        selectedActivity = catalog.titles[matchIndex];
+        if(!locationManual){
+          locationValue = selectedActivity.location || '';
+          syncLocationSelection({ manual:false, focus:false });
+        }
+        existingActiveIndex = matchIndex;
+      }else{
+        selectedActivity = null;
+        existingActiveIndex = 0;
+      }
+    };
+
+    // Roving focus keeps the embedded list keyboardable without moving the
+    // surrounding shell, and we reuse the same helper for pointer + key input.
+    const setExistingActive=(index,{focus=true,fromPointer=false}={})=>{
+      if(!existingRows.length) return;
+      const bounded = Math.max(0, Math.min(index, existingRows.length-1));
+      existingActiveIndex = bounded;
+      existingRows.forEach((row,i)=>{
+        const isActive = i===bounded;
+        row.classList.toggle('active', isActive);
+        row.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        row.tabIndex = isActive ? 0 : -1;
+      });
+      const target = existingRows[bounded];
+      if(target){
+        if(focus){
+          focusWithoutScroll(target);
+        }
+        if(!fromPointer){
+          target.scrollIntoView({ block:'nearest', inline:'nearest' });
+        }
+      }
+    };
+
+    // Selecting a catalog row writes the title back into the text field so the
+    // builder returns to its normal state without losing the dataset link.
+    const chooseExistingByIndex=index=>{
+      if(index<0 || index>=catalog.titles.length) return;
+      const option = catalog.titles[index];
+      if(!option) return;
+      existingActiveIndex = index;
+      selectedActivity = option;
+      freeTitleValue = option.title;
+      freeInput.value = option.title;
+      if(!locationManual){
+        locationValue = option.location || '';
+        syncLocationSelection({ manual:false, focus:false });
+      }
+      setExistingActive(index,{ focus:false, fromPointer:true });
+      setTitleMode('free');
+      refreshSaveState();
+    };
+
+    catalog.titles.forEach((opt,index)=>{
+      const row=document.createElement('button');
+      row.type='button';
+      row.className='custom-existing-row';
+      row.dataset.index=String(index);
+      row.setAttribute('role','option');
+      row.setAttribute('aria-selected','false');
+      row.tabIndex=-1;
+      const titleLine=document.createElement('span');
+      titleLine.className='custom-existing-title';
+      titleLine.textContent = opt.title;
+      row.appendChild(titleLine);
+      if(opt.location){
+        const locationLine=document.createElement('span');
+        locationLine.className='custom-existing-sub';
+        locationLine.textContent = opt.location;
+        row.appendChild(locationLine);
+        row.setAttribute('aria-label', `${opt.title} – ${opt.location}`);
+      }else{
+        row.setAttribute('aria-label', opt.title);
+      }
+      row.addEventListener('click',()=> chooseExistingByIndex(index));
+      row.addEventListener('mouseenter',()=> setExistingActive(index,{ focus:false, fromPointer:true }));
+      row.addEventListener('focus',()=> setExistingActive(index,{ focus:false }));
+      existingList.appendChild(row);
+      existingRows.push(row);
+    });
+
+    if(existingRows.length){
+      setExistingActive(existingActiveIndex,{ focus:false, fromPointer:true });
+    }
+
+    const refreshSaveState=()=>{
+      const titleValue = resolveTitle();
+      const titleValid = titleValue.length>0;
+      const startValid = !!startValue;
+      const guestsValid = modalGuestIds.length>0;
+      if(titleMode==='free'){
+        if(titleValid){
+          freeInput.removeAttribute('aria-invalid');
+        }else{
+          freeInput.setAttribute('aria-invalid','true');
+        }
+      }else{
+        freeInput.removeAttribute('aria-invalid');
+      }
+      saveBtn.disabled = !(titleValid && startValid && guestsValid && !currentTimeError);
+    };
+
+    freeInput.addEventListener('input',()=>{
+      freeTitleValue = freeInput.value;
+      syncSelectedActivityFromTitle(freeTitleValue);
+      refreshSaveState();
+    });
+
+    const setTitleMode=mode=>{
+      const nextMode = (mode==='existing' && !existingToggle.disabled) ? 'existing' : 'free';
+      titleMode = nextMode;
+      const listActive = titleMode==='existing';
+      freePane.hidden = listActive;
+      existingPane.hidden = !listActive;
+      freeToggle.classList.toggle('selected', !listActive);
+      existingToggle.classList.toggle('selected', listActive);
+      freeToggle.setAttribute('aria-pressed', !listActive ? 'true' : 'false');
+      existingToggle.setAttribute('aria-pressed', listActive ? 'true' : 'false');
+      existingToggle.setAttribute('aria-expanded', listActive ? 'true' : 'false');
+      refreshSaveState();
+      if(listActive){
+        requestAnimationFrame(()=>{
+          if(existingRows.length){
+            const candidate = existingActiveIndex>=0 ? existingActiveIndex : 0;
+            setExistingActive(candidate,{ focus:true });
+          }else{
+            focusWithoutScroll(typeInsteadBtn);
+          }
+        });
+      }else{
+        requestAnimationFrame(()=> focusWithoutScroll(freeInput));
+      }
+    };
+
+    freeToggle.addEventListener('click',()=> setTitleMode('free'));
+    existingToggle.addEventListener('click',()=>{
+      if(titleMode==='existing'){
+        setTitleMode('free');
+      }else{
+        setTitleMode('existing');
+      }
+    });
+
+    existingPane.addEventListener('keydown',event=>{
+      if(titleMode!=='existing') return;
+      const key=event.key;
+      if(key==='ArrowDown' || key==='Down'){
+        event.preventDefault();
+        setExistingActive(existingActiveIndex+1);
+        return;
+      }
+      if(key==='ArrowUp' || key==='Up'){
+        event.preventDefault();
+        setExistingActive(existingActiveIndex-1);
+        return;
+      }
+      if(key==='Home'){
+        event.preventDefault();
+        setExistingActive(0);
+        return;
+      }
+      if(key==='End'){
+        event.preventDefault();
+        setExistingActive(existingRows.length-1);
+        return;
+      }
+      if(key==='Escape'){
+        event.preventDefault();
+        setTitleMode('free');
+        event.stopPropagation();
+        return;
+      }
+      if((key==='Enter' || key===' ' || key==='Space' || key==='Spacebar') && document.activeElement && document.activeElement.classList.contains('custom-existing-row')){
+        // Space/Enter should commit the highlighted row even if the browser skips the implicit click.
+        event.preventDefault();
+        const idx = Number(document.activeElement.dataset.index || existingActiveIndex);
+        chooseExistingByIndex(Number.isFinite(idx) ? idx : existingActiveIndex);
+      }
+    });
+
+    const applyStartValue=()=>{
+      const snapshot = currentPickerValue || (typeof timePicker?.getValue==='function' ? timePicker.getValue() : null);
+      if(!snapshot) return;
+      startValue = to24Time(snapshot);
+      updateStartDisplay();
+      if(endValue && minutesFromTime(endValue) <= minutesFromTime(startValue)){
+        setTimeError('End time must be after the start time.');
+      }else{
+        setTimeError('');
+      }
+      refreshSaveState();
+    };
+
+    const applyEndValue=()=>{
+      if(!startValue){
+        setTimeError('Set a start time before choosing an end time.');
+        refreshSaveState();
+        return;
+      }
+      const snapshot = currentPickerValue || (typeof timePicker?.getValue==='function' ? timePicker.getValue() : null);
+      if(!snapshot) return;
+      const candidate = to24Time(snapshot);
+      if(minutesFromTime(candidate) <= minutesFromTime(startValue)){
+        setTimeError('End time must be after the start time.');
+        endValue = candidate;
+      }else{
+        endValue = candidate;
+        setTimeError('');
+      }
+      updateEndDisplay();
+      refreshSaveState();
+    };
+
+    let timePicker=null;
+    if(typeof createTimePicker === 'function'){
+      // Reuse the shared time picker so visuals + physics remain identical to
+      // dinner/spa flows.
+      timePicker = createTimePicker({
+        hourRange:[1,12],
+        minuteStep:5,
+        showAmPm:true,
+        defaultValue: initialPickerValue,
+        ariaLabels:{ hours:'Hour', minutes:'Minutes', meridiem:'AM or PM' },
+        onChange:value=>{ currentPickerValue = value; },
+        startEnd:{
+          startLabel:'Set start time',
+          endLabel:'Set end time',
+          onSetStart: applyStartValue,
+          onSetEnd: applyEndValue
+        }
+      });
+    }
+
+    if(timePicker){
+      pickerContainer.appendChild(timePicker.element);
+    }else{
+      const fallback=document.createElement('div');
+      fallback.className='custom-picker-fallback';
+      fallback.textContent='Time picker unavailable.';
+      pickerContainer.appendChild(fallback);
+    }
+
+    const handleSave=()=>{
+      const titleValue = resolveTitle();
+      if(!titleValue || !startValue || modalGuestIds.length===0 || currentTimeError){
+        refreshSaveState();
+        return;
+      }
+      const payload = {
+        id: existing?.id,
+        title: titleValue,
+        start: startValue,
+        end: endValue || '',
+        location: locationValue,
+        guestIds: modalGuestIds.slice()
+      };
+      upsertCustomEntry(targetDateKey, payload);
+      markPreviewDirty();
+      renderActivities();
+      renderPreview();
+      closeCustomBuilder({returnFocus:true});
+    };
+
+    saveBtn.addEventListener('click', handleSave);
+
+    if(deleteBtn && existing){
+      deleteBtn.addEventListener('click',()=>{
+        removeCustomEntry(targetDateKey, existing.id);
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+        closeCustomBuilder({returnFocus:true});
+      });
+    }
+
+    overlay.addEventListener('click',event=>{
+      if(event.target===overlay){
+        closeCustomBuilder({returnFocus:true});
+      }
+    });
+
+    const handleKeyDown=event=>{
+      if(event.key==='Escape'){
+        if(titleMode==='existing' && existingPane.contains(document.activeElement)){
+          event.preventDefault();
+          setTitleMode('free');
+          return;
+        }
+        event.preventDefault();
+        closeCustomBuilder({returnFocus:true});
+        return;
+      }
+      if((event.key==='Enter' || event.key==='Return') && event.target && event.target.tagName!=='BUTTON'){
+        event.preventDefault();
+        handleSave();
+        return;
+      }
+      if(event.key==='Tab'){
+        const focusable = Array.from(dialog.querySelectorAll('button,select,input,[tabindex]:not([tabindex="-1"])')).filter(el=> !el.disabled && el.offsetParent!==null);
+        if(focusable.length===0) return;
+        const first=focusable[0];
+        const last=focusable[focusable.length-1];
+        if(event.shiftKey){
+          if(document.activeElement===first){
+            event.preventDefault();
+            last.focus();
+          }
+        }else{
+          if(document.activeElement===last){
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleKeyDown);
+
+    updateGuestSummary();
+    updateStartDisplay();
+    updateEndDisplay();
+    setTimeError('');
+    setTitleMode(titleMode);
+    refreshSaveState();
+
+    const focusInitial=()=>{
+      if(titleMode==='existing' && existingRows.length){
+        setExistingActive(existingActiveIndex>=0 ? existingActiveIndex : 0, { focus:true });
+        return;
+      }
+      if(freeInput){
+        focusWithoutScroll(freeInput);
+        return;
+      }
+      if(timePicker?.focus){
+        timePicker.focus({ preventScroll:true });
+      }
+    };
+
+    setTimeout(focusInitial,0);
+
+    customDialog = {
+      overlay,
+      dialog,
+      previousFocus,
+      cleanup(){
+        timePicker?.dispose?.();
+        dialog.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+  }
+
+  function getOrCreateDay(dateK){ if(!state.schedule[dateK]) state.schedule[dateK]=[]; return state.schedule[dateK]; }
+  function sortDayEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    day.sort((a,b)=>{
+      const sa = a.start || '';
+      const sb = b.start || '';
+      return sa.localeCompare(sb);
+    });
+  }
+
+  const generateCustomEntryId = () => (crypto.randomUUID ? crypto.randomUUID() : `custom_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+  function getCustomEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return [];
+    return day.filter(entry => entry.type==='custom');
+  }
+
+  function getCustomEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry => entry.type==='custom' && entry.id===entryId) || null;
+  }
+
+  // Custom entries sit inside the same day array as preset activities, so we
+  // reuse the shared sorter after every save to keep chronological insertion in
+  // lockstep with the existing row renderer.
+  function upsertCustomEntry(dateK, config){
+    if(!dateK || !config) return null;
+    const title = (config.title || '').trim();
+    const start = (config.start || '').trim();
+    const end = (config.end || '').trim();
+    const location = (config.location || '').trim();
+    const guestIds = Array.isArray(config.guestIds) ? config.guestIds.filter(Boolean) : [];
+    const day = getOrCreateDay(dateK);
+    const existingId = config.id || null;
+    let entry = existingId ? day.find(item => item.type==='custom' && item.id===existingId) : null;
+    if(!entry){
+      entry = { type:'custom', id: existingId || generateCustomEntryId(), title:'', start:'', end:null, location:null, guestIds:new Set() };
+      day.push(entry);
+    }
+    entry.title = title;
+    entry.start = start;
+    entry.end = end ? end : null;
+    entry.location = location ? location : null;
+    entry.guestIds = new Set(guestIds);
+    sortDayEntries(dateK);
+    return entry;
+  }
+
+  function removeCustomEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry => entry.type==='custom' && entry.id===entryId);
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
+  }
+
+  function getDinnerEntry(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry=>entry.type==='dinner') || null;
+  }
+
+  function syncDinnerGuests(){
+    const allIds = state.guests.map(g=>g.id);
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      day.forEach(entry=>{
+        if(entry.type==='dinner'){
+          entry.guestIds = new Set(allIds);
+        }
+      });
+    }
+  }
+
+  function syncSpaGuests(){
+    const activeIds = new Set(state.guests.map(g=>g.id));
+    const purgeKeys = [];
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      for(let i = day.length - 1; i >= 0; i--){
+        const entry = day[i];
+        if(entry.type!=='spa') continue;
+        entry.appointments = entry.appointments.filter(app => activeIds.has(app.guestId));
+        recomputeSpaEntrySummary(entry);
+        if(entry.appointments.length===0){
+          day.splice(i,1);
+        }
+      }
+      mergeSpaEntriesForDay(key);
+      if(day.length===0){
+        purgeKeys.push(key);
+      }
+    }
+    purgeKeys.forEach(key => delete state.schedule[key]);
+  }
+
+  function syncCustomGuests(){
+    const activeIds = new Set(state.guests.map(g=>g.id));
+    const purgeKeys = [];
+    for(const key of Object.keys(state.schedule)){
+      const day = state.schedule[key];
+      if(!day) continue;
+      for(let i = day.length - 1; i >= 0; i--){
+        const entry = day[i];
+        if(!entry || entry.type!=='custom') continue;
+        const ids = entry.guestIds instanceof Set
+          ? Array.from(entry.guestIds)
+          : Array.isArray(entry.guestIds) ? entry.guestIds.slice() : [];
+        const filtered = ids.filter(id => activeIds.has(id));
+        entry.guestIds = new Set(filtered);
+        if(entry.guestIds.size===0){
+          day.splice(i,1);
+        }
+      }
+      if(day.length===0){
+        purgeKeys.push(key);
+      }
+    }
+    purgeKeys.forEach(key => delete state.schedule[key]);
+  }
+
+  function upsertDinner(dateK, time){
+    const day = getOrCreateDay(dateK);
+    let entry = getDinnerEntry(dateK);
+    if(!entry){
+      entry = { type:'dinner', title: dinnerTitle, start: time, guestIds: new Set(state.guests.map(g=>g.id)) };
+      day.push(entry);
+    }else{
+      entry.start = time;
+      entry.guestIds = new Set(state.guests.map(g=>g.id));
+    }
+    sortDayEntries(dateK);
+  }
+
+  function removeDinner(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry=>entry.type==='dinner');
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
+  }
+
+  function recomputeSpaEntrySummary(entry){
+    if(!entry || entry.type!=='spa') return;
+    let minStart = null;
+    let maxEnd = null;
+    const ids = new Set();
+    entry.appointments = Array.isArray(entry.appointments) ? entry.appointments.filter(app => app && app.guestId) : [];
+    entry.appointments.forEach(app => {
+      ids.add(app.guestId);
+      if(app.start){
+        if(!minStart || app.start < minStart) minStart = app.start;
+      }
+      if(app.end){
+        if(!maxEnd || app.end > maxEnd) maxEnd = app.end;
+      }
+    });
+    entry.guestIds = ids;
+    entry.start = minStart;
+    entry.end = maxEnd;
+  }
+
+  const spaAppointmentKey = app => {
+    if(!app) return null;
+    const safe = value => value ?? '';
+    return [
+      safe(app.serviceName),
+      safe(app.serviceCategory),
+      safe(app.durationMinutes),
+      safe(app.start),
+      safe(app.end),
+      safe(app.explicitEnd ? 'explicit' : ''),
+      safe(app.therapist),
+      safe(app.location)
+    ].join('|');
+  };
+
+  function mergeSpaEntriesForDay(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const spaEntries = day.filter(entry => entry.type==='spa');
+    if(spaEntries.length < 2) return;
+
+    const primaryByKey = new Map();
+    const removals = new Set();
+
+    spaEntries.forEach(entry => {
+      if(!entry.appointments) entry.appointments = [];
+      entry.appointments = entry.appointments.filter(app => app && app.guestId);
+    });
+
+    spaEntries.forEach(entry => {
+      if(removals.has(entry)) return;
+      if(entry.appointments.length===0) return;
+      const keys = entry.appointments.map(spaAppointmentKey).filter(Boolean);
+      if(keys.length===0) return;
+      const canonical = keys[0];
+      const uniform = keys.every(key => key===canonical);
+      if(!uniform){
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      if(!primaryByKey.has(canonical)){
+        primaryByKey.set(canonical, entry);
+        recomputeSpaEntrySummary(entry);
+        return;
+      }
+      const primary = primaryByKey.get(canonical);
+      const existingIds = new Set(Array.from(primary.guestIds || []));
+      entry.appointments.forEach(app => {
+        if(!app || !app.guestId) return;
+        if(existingIds.has(app.guestId)) return;
+        primary.appointments.push({ ...app });
+        existingIds.add(app.guestId);
+      });
+      recomputeSpaEntrySummary(primary);
+      removals.add(entry);
+    });
+
+    if(removals.size>0){
+      state.schedule[dateK] = day.filter(entry => !removals.has(entry));
+      sortDayEntries(dateK);
+    }
+  }
+
+  function getSpaEntries(dateK){
+    const day = state.schedule[dateK];
+    if(!day) return [];
+    return day.filter(entry=>entry.type==='spa');
+  }
+
+  function getSpaEntry(dateK, id){
+    if(!id) return null;
+    const day = state.schedule[dateK];
+    if(!day) return null;
+    return day.find(entry=> entry.type==='spa' && entry.id===id) || null;
+  }
+
+  function upsertSpaEntry(dateK, entry){
+    const day = getOrCreateDay(dateK);
+    let target = entry.id ? day.find(item => item.type==='spa' && item.id===entry.id) : null;
+    if(!target){
+      target = { type:'spa', id: entry.id || generateSpaEntryId(), appointments: [], guestIds: new Set(), start: null, end: null };
+      day.push(target);
+    }
+    target.appointments = entry.appointments.map(app => ({ ...app }));
+    recomputeSpaEntrySummary(target);
+    sortDayEntries(dateK);
+    mergeSpaEntriesForDay(dateK);
+    return target;
+  }
+
+  function removeSpaEntry(dateK, entryId){
+    const day = state.schedule[dateK];
+    if(!day) return;
+    const idx = day.findIndex(entry => entry.type==='spa' && entry.id===entryId);
+    if(idx>-1){
+      day.splice(idx,1);
+      if(day.length===0) delete state.schedule[dateK];
+    }
+  }
+
+  function removeSpaGuestFromEntry(dateK, entryId, guestId){
+    if(!dateK || !entryId || !guestId) return false;
+    const entry = getSpaEntry(dateK, entryId);
+    if(!entry) return false;
+    const before = Array.isArray(entry.appointments) ? entry.appointments.length : 0;
+    entry.appointments = (Array.isArray(entry.appointments) ? entry.appointments : []).filter(app => app && app.guestId !== guestId);
+    if(entry.appointments.length === before){
+      return false;
+    }
+    if(entry.appointments.length === 0){
+      removeSpaEntry(dateK, entryId);
+    }else{
+      recomputeSpaEntrySummary(entry);
+    }
+    mergeSpaEntriesForDay(dateK);
+    sortDayEntries(dateK);
+    return true;
+  }
+
+  const spaTherapistLabel = id => (SPA_THERAPIST_OPTIONS.find(opt => opt.id===id)?.label) || 'No Preference';
+  const spaLocationLabel = id => (SPA_LOCATION_OPTIONS.find(opt => opt.id===id)?.label) || 'Same Cabana';
+  const pluralizeServiceTitle = name => {
+    if(!name) return '';
+    const trimmed = name.trim();
+    return /s$/i.test(trimmed) ? trimmed : `${trimmed}s`;
+  };
+
+  function computeSpaOverlapMap(entries){
+    // Detect overlapping appointments per instructions so the activities list can
+    // surface cabana choices whenever two different guests share the same spa
+    // window on a given day.
+    const overlapMap = new Map();
+    const windows = [];
+    (entries || []).forEach(entry => {
+      if(!entry || entry.type!=='spa' || !entry.id) return;
+      overlapMap.set(entry.id, false);
+      const apps = Array.isArray(entry.appointments) ? entry.appointments : [];
+      apps.forEach(app => {
+        if(!app) return;
+        const start = minutesFromTime(app.start);
+        const end = minutesFromTime(app.end);
+        if(start==null || end==null) return;
+        windows.push({
+          entryId: entry.id,
+          guestId: app.guestId || null,
+          start,
+          end
+        });
+      });
+    });
+    for(let i=0;i<windows.length;i+=1){
+      const a = windows[i];
+      for(let j=i+1;j<windows.length;j+=1){
+        const b = windows[j];
+        if(a.guestId && b.guestId && a.guestId===b.guestId) continue;
+        if(rangesOverlap(a.start, a.end, b.start, b.end)){
+          if(overlapMap.has(a.entryId)) overlapMap.set(a.entryId, true);
+          if(overlapMap.has(b.entryId)) overlapMap.set(b.entryId, true);
+        }
+      }
+    }
+    return overlapMap;
+  }
+
+  function normalizeGuestIdCollection(value){
+    if(Array.isArray(value)){
+      return value.slice();
+    }
+    if(value instanceof Set){
+      return Array.from(value);
+    }
+    return [];
+  }
+
+  // Shared guest-label helper consumed by the activities rail and the email
+  // preview. It centralises the "all guests" detection so both surfaces drop
+  // redundant pipe-delimited name tags while keeping edit chips intact.
+  function buildAssignedGuestNames(inputIds, options){
+    const ids = normalizeGuestIdCollection(inputIds);
+    if(ids.length===0) return [];
+    const totalGuestsInStay = Number.isFinite(options?.totalGuestsInStay)
+      ? options.totalGuestsInStay
+      : state.guests.length;
+    const uniqueIds = [];
+    const seenIds = new Set();
+    ids.forEach(id => {
+      if(!id) return;
+      if(seenIds.has(id)) return;
+      seenIds.add(id);
+      uniqueIds.push(id);
+    });
+    // Shared rule: when every guest on the stay is assigned, downstream callers
+    // skip rendering pipe-delimited labels so the activities list and preview
+    // both drop the redundant "everyone" name tags.
+    if(totalGuestsInStay > 0 && uniqueIds.length === totalGuestsInStay){
+      return [];
+    }
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const names = [];
+    const seenNames = new Set();
+    uniqueIds.forEach(id => {
+      const guest = lookup.get(id);
+      const raw = (guest?.name || '').trim();
+      if(!raw) return;
+      const key = raw.toLowerCase();
+      if(seenNames.has(key)) return;
+      seenNames.add(key);
+      names.push(raw);
+    });
+    names.sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+    return names;
+  }
+
+  function collectSpaGuestNames(entry, options){
+    if(!entry) return [];
+    const lookup = options?.guestLookup instanceof Map
+      ? options.guestLookup
+      : new Map(state.guests.map(g=>[g.id,g]));
+    const assignedIds = normalizeGuestIdCollection(entry?.guestIds);
+    const fallbackIds = [];
+    if(assignedIds.length===0){
+      const appointments = Array.isArray(entry.appointments) ? entry.appointments : [];
+      appointments.forEach(app => {
+        if(!app || !app.guestId) return;
+        fallbackIds.push(app.guestId);
+      });
+    }
+    return buildAssignedGuestNames(assignedIds.length ? assignedIds : fallbackIds, {
+      guestLookup: lookup,
+      totalGuestsInStay: options?.totalGuestsInStay
+    });
+  }
+
+  function buildGuestNameListFromIds(ids, options){
+    return buildAssignedGuestNames(ids, options);
+  }
+
+  const spaCabanaKey = (entryId, guestId) => `${entryId || 'unknown'}::${guestId || 'unknown'}`;
+
+  // Preview-only helper that flags which appointment rows should surface a cabana
+  // label. Activities rendering keeps its existing overlap rules so the column
+  // stays untouched.
+  function computeSpaCabanaVisibility(entries){
+    const visibility = new Map();
+    const windows = [];
+    (entries || []).forEach(entry => {
+      if(!entry || entry.type!=='spa') return;
+      const entryId = entry.id || '';
+      const apps = Array.isArray(entry.appointments) ? entry.appointments : [];
+      apps.forEach(app => {
+        if(!app) return;
+        const guestId = app.guestId || '';
+        const key = spaCabanaKey(entryId, guestId);
+        const locationId = app.location || 'same-cabana';
+        const isInRoom = locationId === 'in-room';
+        if(isInRoom){
+          visibility.set(key, true);
+        }else if(!visibility.has(key)){
+          visibility.set(key, false);
+        }
+        const start = minutesFromTime(app.start);
+        const end = minutesFromTime(app.end);
+        if(!Number.isFinite(start) || !Number.isFinite(end)) return;
+        windows.push({
+          key,
+          guestId,
+          start,
+          end,
+          isInRoom
+        });
+      });
+    });
+    for(let i=0;i<windows.length;i+=1){
+      const a = windows[i];
+      if(!a) continue;
+      for(let j=i+1;j<windows.length;j+=1){
+        const b = windows[j];
+        if(!b) continue;
+        if(!a.guestId || !b.guestId) continue;
+        if(a.guestId === b.guestId) continue;
+        if(rangesOverlap(a.start, a.end, b.start, b.end)){
+          if(!a.isInRoom){
+            visibility.set(a.key, true);
+          }
+          if(!b.isInRoom){
+            visibility.set(b.key, true);
+          }
+        }
+      }
+    }
+    return visibility;
+  }
+
+  function buildSpaPreviewLines(entry, options){
+    if(!entry || !Array.isArray(entry.appointments)) return [];
+    const appointments = entry.appointments.slice();
+    if(appointments.length===0) return [];
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
+    const base = appointments[0];
+    const everyoneMatches = appointments.every(app => app.serviceName===base.serviceName && app.durationMinutes===base.durationMinutes && app.start===base.start && app.end===base.end && app.therapist===base.therapist && app.location===base.location);
+    const lines = [];
+    const cabanaVisibility = options?.cabanaVisibility;
+    if(everyoneMatches){
+      // When every guest shares the same configuration, pluralise the service label
+      // and append the same guest label string the activities row surfaces so the
+      // preview mirrors the shared experience copy.
+      const serviceTitle = `${formatDurationLabel(base.durationMinutes)} ${pluralizeServiceTitle(base.serviceName)}`;
+      const therapist = spaTherapistLabel(base.therapist);
+      const location = spaLocationLabel(base.location);
+      const guestNames = collectSpaGuestNames(entry, {
+        guestLookup,
+        totalGuestsInStay: state.guests.length
+      });
+      const guestLabel = guestNames.length ? ` | ${guestNames.map(name => escapeHtml(name)).join(' | ')}` : '';
+      const timeRangeStart = escapeHtml(formatTimeDisplay(base.start));
+      const timeRangeEnd = escapeHtml(formatTimeDisplay(base.end));
+      const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
+      const showCabana = base.location === 'in-room' || appointments.length >= 2;
+      const segments = [timeRange, escapeHtml(serviceTitle), escapeHtml(therapist)];
+      if(showCabana){
+        segments.push(escapeHtml(location));
+      }
+      // Wrap the spa time range so we can normalize its weight in the preview email.
+      lines.push(`${segments.join(' | ')}${guestLabel}`);
+      return lines;
+    }
+    const orderedIds = state.guests.map(g=>g.id).filter(id => appointments.some(app=>app.guestId===id));
+    orderedIds.forEach(id => {
+      const app = appointments.find(a=>a.guestId===id);
+      if(!app) return;
+      const guest = guestLookup.get(id);
+      const serviceTitle = `${formatDurationLabel(app.durationMinutes)} ${app.serviceName}`;
+      const therapist = spaTherapistLabel(app.therapist);
+      const location = spaLocationLabel(app.location);
+      const guestLabel = guest ? ` | ${escapeHtml(guest.name)}` : '';
+      const timeRangeStart = escapeHtml(formatTimeDisplay(app.start));
+      const timeRangeEnd = escapeHtml(formatTimeDisplay(app.end));
+      const timeRange = `<span class="email-activity-time">${timeRangeStart} – ${timeRangeEnd}</span>`;
+      const key = spaCabanaKey(entry.id, id);
+      const showCabana = app.location === 'in-room' || (cabanaVisibility && cabanaVisibility.get(key));
+      const segments = [timeRange, escapeHtml(serviceTitle), escapeHtml(therapist)];
+      if(showCabana){
+        segments.push(escapeHtml(location));
+      }
+      // Wrap the per-guest spa time so its font weight matches the rest of the itinerary line.
+      lines.push(`${segments.join(' | ')}${guestLabel}`);
+    });
+    return lines;
+  }
+
+  // ---------- Preview ----------
+  const PREVIEW_OVERRIDE_STORAGE_PREFIX = 'chs.previewOverrides:v1:';
+
+  function stableHash(input){
+    const str = String(input || '');
+    let hash = 0;
+    for(let i=0;i<str.length;i+=1){
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function sanitizePreviewHtml(html){
+    const template = document.createElement('template');
+    template.innerHTML = html || '';
+    const blocked = new Set(['SCRIPT','STYLE','LINK','META','IFRAME','OBJECT','EMBED']);
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null);
+    const removals = [];
+    while(walker.nextNode()){
+      const el = walker.currentNode;
+      if(!el) continue;
+      if(blocked.has(el.tagName)){
+        removals.push(el);
+        continue;
+      }
+      Array.from(el.attributes).forEach(attr => {
+        const name = attr.name ? attr.name.toLowerCase() : '';
+        if(name.startsWith('on')){
+          el.removeAttribute(attr.name);
+        }else if(name==='style'){
+          el.removeAttribute(attr.name);
+        }
+      });
+    }
+    removals.forEach(node => node.remove());
+    return template.innerHTML;
+  }
+
+  function getItineraryId(){
+    const arrivalKey = state.arrival ? keyDate(state.arrival) : 'na';
+    const departureKey = state.departure ? keyDate(state.departure) : 'na';
+    const guestNames = state.guests.map(g => (g.name || '').trim().toLowerCase()).sort();
+    const raw = [arrivalKey, departureKey, ...guestNames].join('|');
+    return stableHash(raw);
+  }
+
+  function previewStorageKey(itineraryId){
+    return `${PREVIEW_OVERRIDE_STORAGE_PREFIX}${itineraryId}`;
+  }
+
+  function emptyOverrides(){
+    return { days: {} };
+  }
+
+  function cloneOverrides(source){
+    const overrides = source && typeof source === 'object' ? source : emptyOverrides();
+    const result = { days: {} };
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    Object.keys(days).forEach(dayKey => {
+      const entry = days[dayKey];
+      if(!entry || typeof entry !== 'object') return;
+      const nextEntry = {};
+      if('headerHtml' in entry && typeof entry.headerHtml === 'string'){
+        nextEntry.headerHtml = entry.headerHtml;
+      }
+      if(entry.items && typeof entry.items === 'object'){
+        const itemIds = Object.keys(entry.items);
+        if(itemIds.length>0){
+          nextEntry.items = {};
+          itemIds.forEach(itemId => {
+            if(typeof entry.items[itemId] === 'string'){
+              nextEntry.items[itemId] = entry.items[itemId];
+            }
+          });
+          if(Object.keys(nextEntry.items).length===0){
+            delete nextEntry.items;
+          }
+        }
+      }
+      if(nextEntry.headerHtml!==undefined || nextEntry.items){
+        result.days[dayKey] = nextEntry;
+      }
+    });
+    return result;
+  }
+
+  function isEmptyOverrides(overrides){
+    if(!overrides || typeof overrides !== 'object') return true;
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    return Object.keys(days).length===0;
+  }
+
+  function normalizeOverrides(overrides){
+    if(!overrides || typeof overrides !== 'object'){
+      return emptyOverrides();
+    }
+    const next = { days: {} };
+    const days = overrides.days && typeof overrides.days === 'object' ? overrides.days : {};
+    Object.keys(days).forEach(dayKey => {
+      const entry = days[dayKey];
+      if(!entry || typeof entry !== 'object') return;
+      const normalized = {};
+      if(typeof entry.headerHtml === 'string'){
+        normalized.headerHtml = sanitizePreviewHtml(entry.headerHtml);
+      }
+      if(entry.items && typeof entry.items === 'object'){
+        const normalizedItems = {};
+        Object.keys(entry.items).forEach(itemId => {
+          const value = entry.items[itemId];
+          if(typeof value === 'string'){
+            normalizedItems[itemId] = sanitizePreviewHtml(value);
+          }
+        });
+        if(Object.keys(normalizedItems).length>0){
+          normalized.items = normalizedItems;
+        }
+      }
+      if(normalized.headerHtml!==undefined || normalized.items){
+        next.days[dayKey] = normalized;
+      }
+    });
+    return next;
+  }
+
+  function loadPreviewOverrides(itineraryId){
+    if(!itineraryId || typeof localStorage==='undefined') return emptyOverrides();
+    try{
+      const raw = localStorage.getItem(previewStorageKey(itineraryId));
+      if(!raw) return emptyOverrides();
+      const parsed = JSON.parse(raw);
+      return normalizeOverrides(parsed);
+    }catch(e){
+      return emptyOverrides();
+    }
+  }
+
+  // Persist per-itinerary so overrides travel with the stay regardless of reloads.
+  function persistPreviewOverrides(itineraryId, overrides){
+    if(!itineraryId || typeof localStorage==='undefined') return;
+    try{
+      if(isEmptyOverrides(overrides)){
+        localStorage.removeItem(previewStorageKey(itineraryId));
+      }else{
+        localStorage.setItem(previewStorageKey(itineraryId), JSON.stringify(overrides));
+      }
+    }catch(e){
+      // Ignore persistence errors so the preview keeps rendering without blocking UX.
+    }
+  }
+
+  function collectPreviewAnchors(root){
+    if(!root) return [];
+    return Array.from(root.querySelectorAll('.pv-day, .pv-line'));
+  }
+
+  function anchorKeyFromElement(el){
+    if(!el) return null;
+    if(el.classList.contains('pv-day')){
+      const day = el.dataset.day || '';
+      return day ? `day:${day}` : null;
+    }
+    if(el.dataset.itemId){
+      return `item:${el.dataset.itemId}`;
+    }
+    if(el.dataset.system){
+      return `system:${el.dataset.system}`;
+    }
+    return null;
+  }
+
+  // Preview anchors derive from immutable schedule traits so an item keeps the
+  // same data-item-id even if the day re-renders or moves in the DOM. This keeps
+  // user edits attached to the logical item rather than its position.
+  function computePreviewItemAnchor(entry, dateKey){
+    if(!entry) return null;
+    if(entry.id) return entry.id;
+    const type = entry.type || 'activity';
+    const raw = [type, dateKey || '', entry.title || '', entry.start || '', entry.end || '', entry.location || ''].join('|');
+    return `${type}-${stableHash(raw)}`;
+  }
+
+  function ensurePreviewOverridesLoaded(){
+    const itineraryId = getItineraryId();
+    if(state.previewItineraryKey === itineraryId){
+      return;
+    }
+    const previous = cloneOverrides(state.previewState?.overrides);
+    state.previewItineraryKey = itineraryId;
+    let overrides = loadPreviewOverrides(itineraryId);
+    if(isEmptyOverrides(overrides) && !isEmptyOverrides(previous)){
+      overrides = cloneOverrides(previous);
+      persistPreviewOverrides(itineraryId, normalizeOverrides(overrides));
+    }
+    state.previewState.overrides = normalizeOverrides(overrides);
+    if(state.previewMode!=='edit' && !state.previewState?.isLocked){
+      state.previewMode = isEmptyOverrides(overrides) ? 'view' : 'locked';
+      state.isEditingPreview = false;
+    }
+  }
+
+  function commitOverrides(nextOverrides, { persist = true } = {}){
+    const normalized = normalizeOverrides(nextOverrides);
+    state.previewState.overrides = normalized;
+    if(persist){
+      const itineraryId = state.previewItineraryKey || getItineraryId();
+      persistPreviewOverrides(itineraryId, normalized);
+    }
+    updatePreviewButtons();
+    return normalized;
+  }
+
+  function pruneOverrides(activeDays, activeItemKeys){
+    // Drop overrides for days/items that fall out of the rendered window so
+    // stay changes or deletions cannot resurrect stale coordinator edits.
+    const overrides = cloneOverrides(state.previewState?.overrides);
+    const daySet = new Set(activeDays || []);
+    const itemSet = new Set(activeItemKeys || []);
+    let changed = false;
+    Object.keys(overrides.days).forEach(dayKey => {
+      if(!daySet.has(dayKey)){
+        delete overrides.days[dayKey];
+        changed = true;
+        return;
+      }
+      const entry = overrides.days[dayKey];
+      if(entry.items){
+        Object.keys(entry.items).forEach(itemId => {
+          const composite = `${dayKey}::${itemId}`;
+          if(!itemSet.has(composite)){
+            delete entry.items[itemId];
+            changed = true;
+          }
+        });
+        if(entry.items && Object.keys(entry.items).length===0){
+          delete entry.items;
+        }
+      }
+      if(entry.headerHtml===undefined && !entry.items){
+        delete overrides.days[dayKey];
+        changed = true;
+      }
+    });
+    if(changed){
+      commitOverrides(overrides);
+    }
+  }
+
+  function updatePreviewButtons(){
+    const overrides = state.previewState?.overrides;
+    const hasOverrides = !isEmptyOverrides(overrides);
+    const isLocked = !!state.previewState?.isLocked;
+    if(previewToggleBtn){
+      // One button swaps glyph + label instead of juggling separate edit/lock controls.
+      const isEditing = !!state.isEditingPreview;
+      previewToggleBtn.disabled = false;
+      previewToggleBtn.setAttribute('aria-pressed', String(isEditing));
+      let label;
+      let iconMarkup;
+      if(isEditing){
+        label = 'Lock preview';
+        iconMarkup = lockIconSvg;
+      }else if(isLocked){
+        label = 'Unlock preview';
+        iconMarkup = lockIconSvg;
+      }else{
+        label = 'Edit preview';
+        iconMarkup = editIconSvg;
+      }
+      previewToggleBtn.setAttribute('aria-label', label);
+      previewToggleBtn.title = label;
+      previewToggleBtn.innerHTML = iconMarkup;
+    }
+    if(resetPreviewBtn){
+      resetPreviewBtn.disabled = !hasOverrides && !isLocked;
+    }
+  }
+
+  function setPreviewAriaLabel(){
+    if(!email) return;
+    if(state.isEditingPreview){
+      email.setAttribute('aria-label','Editing email preview');
+    }else if(state.previewState?.isLocked){
+      email.setAttribute('aria-label','Email preview (locked)');
+    }else{
+      email.setAttribute('aria-label','Email preview');
+    }
+  }
+
+  function registerPreviewBase(key, payload, baseMap){
+    if(!key) return;
+    baseMap.set(key, {
+      type: 'replaceInner',
+      payload: sanitizePreviewHtml(payload ?? '')
+    });
+  }
+
+  function getStayKeys(){
+    const keys=[];
+    const { arrival, departure } = state;
+    if(!arrival && !departure) return keys;
+    let start = arrival ? zero(arrival) : (departure ? zero(departure) : null);
+    let end = departure ? zero(departure) : (arrival ? zero(arrival) : null);
+    if(!start || !end) return keys;
+    if(start.getTime()>end.getTime()){
+      const tmp=start; start=end; end=tmp;
+    }
+    for(const d=new Date(start); d.getTime()<=end.getTime(); d.setDate(d.getDate()+1)){
+      keys.push(keyDate(d));
+    }
+    return keys;
+  }
+
+  function renderPreview(){
+    const isLocked = !!state.previewState?.isLocked;
+    if(email){
+      email.classList.toggle('preview-locked', isLocked);
+      if(isLocked){
+        email.contentEditable = 'false';
+        email.style.outline = 'none';
+      }
+    }
+    if(state.isEditingPreview){
+      state.previewDirty = true;
+      return;
+    }
+    ensurePreviewOverridesLoaded();
+    const overrides = state.previewState?.overrides || emptyOverrides();
+
+    if(!state.isEditingPreview){
+      state.previewMode = isLocked
+        ? 'locked'
+        : (isEmptyOverrides(overrides) ? 'view' : 'locked');
+    }
+
+    const primary = state.guests.find(g=>g.primary)?.name || 'Guest';
+    const guestLookup = new Map(state.guests.map(g=>[g.id,g]));
+
+    const makeEl = (tag, className, text, options)=>{
+      const el=document.createElement(tag);
+      if(className) el.className=className;
+      if(options?.html){
+        el.innerHTML = text ?? '';
+      }else if(text!==undefined){
+        el.textContent=text;
+      }
+      return el;
+    };
+
+    email.innerHTML='';
+
+    email.appendChild(makeEl('p','email-body',`Hello ${primary},`));
+    email.appendChild(makeEl('p','email-body','Thank you for choosing Castle Hot Springs.'));
+    email.appendChild(makeEl('h3','email-section-title','Current Itinerary:'));
+
+    const stayKeys = getStayKeys();
+
+    if(stayKeys.length===0){
+      email.appendChild(makeEl('p','email-empty','Set Arrival and Departure to build your preview.'));
+      state.previewBaseSnapshot = new Map();
+      pruneOverrides([], []);
+      state.previewDirty = false;
+      setPreviewAriaLabel();
+      updatePreviewButtons();
+      return;
+    }
+
+    const baseMap = new Map();
+    const activeDays = [];
+    const activeItemKeys = [];
+
+    stayKeys.forEach((k)=>{
+      activeDays.push(k);
+      const [y,m,d] = k.split('-').map(Number);
+      const date = new Date(y, m-1, d);
+      const w = weekdayName(date);
+      const daySection = makeEl('section','email-day');
+      const monthLabel = date.toLocaleString(undefined,{month:'long'});
+      const dayWrapper = makeEl('div','pv-day');
+      dayWrapper.dataset.day = k;
+      const dayOverrides = overrides.days && overrides.days[k] ? overrides.days[k] : {};
+      const defaultHeaderHtml = `${escapeHtml(w)}, ${escapeHtml(monthLabel)} ${ordinalHtml(date.getDate())}`;
+      // Compose the generator output with any stored override so edits survive
+      // locks while untouched days continue to stream live updates.
+      const headerHtml = (typeof dayOverrides.headerHtml === 'string')
+        ? dayOverrides.headerHtml
+        : defaultHeaderHtml;
+      dayWrapper.appendChild(
+        makeEl(
+          'h4',
+          'email-day-title',
+          headerHtml,
+          {html:true}
+        )
+      );
+      registerPreviewBase(`day:${k}`, defaultHeaderHtml, baseMap);
+      daySection.appendChild(dayWrapper);
+
+      const checkoutLine = () => {
+        const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.system = 'departure';
+        const row = makeEl('div', 'email-activity');
+        row.appendChild(document.createTextNode(`${formatTimeDisplay('11:00')} Check-Out | Welcome to stay on property until `));
+        const stayWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('13:00'));
+        row.appendChild(stayWindow);
+        wrapper.appendChild(row);
+        registerPreviewBase('system:departure', wrapper.innerHTML, baseMap);
+        return wrapper;
+      };
+      const checkinLine = () => {
+        const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.system = 'arrival';
+        const row = makeEl('div', 'email-activity');
+        row.appendChild(document.createTextNode(`${formatTimeDisplay('16:00')} Guaranteed Check-In | Welcome to arrive as early as `));
+        const arrivalWindow = makeEl('span', 'email-activity-parenthetical-time', formatTimeDisplay('12:00'));
+        row.appendChild(arrivalWindow);
+        wrapper.appendChild(row);
+        registerPreviewBase('system:arrival', wrapper.innerHTML, baseMap);
+        return wrapper;
+      };
+
+      if(state.departure && keyDate(state.departure)===k)
+        daySection.appendChild(checkoutLine());
+
+      if(state.arrival && keyDate(state.arrival)===k)
+        daySection.appendChild(checkinLine());
+
+      const items = (state.schedule[k]||[]).slice().sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      const cabanaVisibility = computeSpaCabanaVisibility(items.filter(item => item?.type==='spa'));
+      items.forEach(it=>{
+        const isDinner = it.type==='dinner';
+        if(it.type==='spa'){
+          const spaLines = buildSpaPreviewLines(it, { cabanaVisibility });
+          const baseAnchor = computePreviewItemAnchor(it, k);
+          spaLines.forEach((line, idx) => {
+            const wrapper = makeEl('div','pv-line');
+            wrapper.dataset.day = k;
+            const anchorValue = baseAnchor ? `${baseAnchor}::${idx}` : null;
+            if(anchorValue){
+              wrapper.dataset.itemId = anchorValue;
+              activeItemKeys.push(`${k}::${anchorValue}`);
+            }
+            const itemOverrides = dayOverrides.items && anchorValue ? dayOverrides.items[anchorValue] : undefined;
+            // Each spa fragment composes in-place so multi-line entries can mix
+            // coordinator tweaks with live system mutations safely.
+            const lineHtml = (typeof itemOverrides === 'string') ? itemOverrides : line;
+            wrapper.appendChild(
+              makeEl('div','email-activity', lineHtml, {html:true})
+            );
+            const key = anchorValue ? `item:${anchorValue}` : null;
+            if(key) registerPreviewBase(key, line, baseMap);
+            daySection.appendChild(wrapper);
+          });
+          return;
+        }
+        const ids = isDinner ? state.guests.map(g=>g.id) : Array.from(it.guestIds||[]);
+        if(!isDinner && ids.length===0) return;
+        const totalGuestsInStay = state.guests.length;
+        const guestNames = isDinner ? [] : buildGuestNameListFromIds(ids, {
+          guestLookup,
+          totalGuestsInStay
+        });
+        const assignmentCoversAll = !isDinner
+          && totalGuestsInStay > 0
+          && ids.length === totalGuestsInStay;
+        if(!isDinner && guestNames.length===0 && !assignmentCoversAll) return;
+        const startTime = it.start ? escapeHtml(formatTimeDisplay(it.start)) : '';
+        const endTime = it.end ? escapeHtml(formatTimeDisplay(it.end)) : '';
+        let timeSegment = '';
+        if(startTime && endTime){
+          timeSegment = `${startTime} - ${endTime}`;
+        }else if(startTime){
+          timeSegment = startTime;
+        }else if(endTime){
+          timeSegment = endTime;
+        }
+        const timeMarkup = timeSegment ? `<span class="email-activity-time">${timeSegment}</span>` : '';
+        const title = escapeHtml(it.title||'');
+        const segments = [];
+        if(timeMarkup) segments.push(timeMarkup);
+        if(title) segments.push(title);
+        // Location stays internal to the builder so preview copy mirrors the email contract.
+        let lineMarkup = segments.join(' | ');
+        if(!isDinner && guestNames.length){
+          const guestSegment = guestNames.map(name => escapeHtml(name)).join(' | ');
+          lineMarkup = lineMarkup ? `${lineMarkup} | ${guestSegment}` : guestSegment;
+        }
+        if(!lineMarkup){
+          return;
+        }
+        const wrapper = makeEl('div','pv-line');
+        wrapper.dataset.day = k;
+        const anchorValue = computePreviewItemAnchor(it, k);
+        if(anchorValue){
+          wrapper.dataset.itemId = anchorValue;
+          activeItemKeys.push(`${k}::${anchorValue}`);
+        }
+        const itemOverrides = dayOverrides.items && anchorValue ? dayOverrides.items[anchorValue] : undefined;
+        // Item rows swap to coordinator overrides when present; otherwise they
+        // keep the generated markup so new guests or time tweaks appear live.
+        const finalMarkup = (typeof itemOverrides === 'string') ? itemOverrides : lineMarkup;
+        wrapper.appendChild(
+          makeEl(
+            'div',
+            'email-activity',
+            finalMarkup,
+            {html:true}
+          )
+        );
+        const key = anchorValue ? `item:${anchorValue}` : null;
+        if(key) registerPreviewBase(key, lineMarkup, baseMap);
+        daySection.appendChild(wrapper);
+      });
+
       email.appendChild(daySection);
     });
+    state.previewBaseSnapshot = baseMap;
+    pruneOverrides(activeDays, activeItemKeys);
+    state.previewDirty = false;
+    setPreviewAriaLabel();
+    updatePreviewButtons();
   }
 
   // ---------- Nav + Stay ----------
@@ -337,53 +5872,278 @@
   $('#nextDay').onclick=()=>{ const d=new Date(state.focus); d.setDate(d.getDate()+1); state.focus=zero(d); renderAll(); };
 
   function setArrival(){
-    if(state.departure && state.focus.getTime()>state.departure.getTime()){ alert('Arrival cannot be after Departure.'); return; }
-    state.arrival = new Date(state.focus); renderAll();
+    const nextArrival = zero(state.focus);
+    if(state.departure && nextArrival.getTime()>state.departure.getTime()){
+      state.departure = null;
+    }
+    state.arrival = nextArrival;
+    markPreviewDirty();
+    renderAll();
   }
   function setDeparture(){
-    if(state.arrival && state.focus.getTime()<state.arrival.getTime()){ alert('Departure cannot be before Arrival.'); return; }
-    state.departure = new Date(state.focus); renderAll();
+    const nextDeparture = zero(state.focus);
+    if(state.arrival && nextDeparture.getTime()<state.arrival.getTime()){
+      state.arrival = null;
+    }
+    state.departure = nextDeparture;
+    markPreviewDirty();
+    renderAll();
   }
   $('#btnArrival').onclick=setArrival; $('#btnDeparture').onclick=setDeparture;
 
+  if(arrivalEtaInput){
+    const openArrivalNote=()=> openStayNotePicker({ anchor: arrivalEtaInput, stateKey:'arrivalNote', label:'Set arrival time note' });
+    arrivalEtaInput.addEventListener('click', openArrivalNote);
+    arrivalEtaInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        openArrivalNote();
+      }
+    });
+  }
+  if(departureEtdInput){
+    const openDepartureNote=()=> openStayNotePicker({ anchor: departureEtdInput, stateKey:'departureNote', label:'Set departure time note' });
+    departureEtdInput.addEventListener('click', openDepartureNote);
+    departureEtdInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){
+        e.preventDefault();
+        openDepartureNote();
+      }
+    });
+  }
+
+  updateStayNoteInputs();
+
   // ---------- Edit / Copy / Clear ----------
-  $('#toggleEdit').onclick=()=>{
-    state.editing = !state.editing;
-    email.contentEditable = state.editing ? 'true' : 'false';
-    email.style.outline = state.editing ? '2px dashed #bbb' : 'none';
-  };
+  // Diff the live DOM against the canonical render so we only persist the day or
+  // row the coordinator touched. Granular overrides keep the generator alive for
+  // untouched rows while edits stay anchored to their logical ids.
+  function capturePreviewOverridesFromDom(){
+    const baseMap = state.previewBaseSnapshot instanceof Map ? state.previewBaseSnapshot : new Map();
+    const anchors = collectPreviewAnchors(email);
+    const overrides = cloneOverrides(state.previewState?.overrides);
+    anchors.forEach(anchor => {
+      const key = anchorKeyFromElement(anchor);
+      if(!key) return;
+      const baseEntry = baseMap.get(key);
+      if(!baseEntry) return;
+      if(anchor.classList.contains('pv-day')){
+        const dayKey = anchor.dataset.day || '';
+        if(!dayKey) return;
+        const header = anchor.querySelector('.email-day-title');
+        if(!header) return;
+        const sanitized = sanitizePreviewHtml(header.innerHTML);
+        if(header.innerHTML !== sanitized){
+          header.innerHTML = sanitized;
+        }
+        const defaultHtml = baseEntry.payload ?? '';
+        if(sanitized === defaultHtml){
+          if(overrides.days[dayKey]){
+            delete overrides.days[dayKey].headerHtml;
+            if(!overrides.days[dayKey].items || Object.keys(overrides.days[dayKey].items).length===0){
+              delete overrides.days[dayKey];
+            }
+          }
+        }else{
+          if(!overrides.days[dayKey]) overrides.days[dayKey] = {};
+          overrides.days[dayKey].headerHtml = sanitized;
+        }
+        return;
+      }
+      if(!anchor.dataset.itemId) return;
+      const dayKey = anchor.dataset.day || '';
+      const itemId = anchor.dataset.itemId || '';
+      if(!dayKey || !itemId) return;
+      const row = anchor.querySelector('.email-activity');
+      if(!row) return;
+      const sanitized = sanitizePreviewHtml(row.innerHTML);
+      if(row.innerHTML !== sanitized){
+        row.innerHTML = sanitized;
+      }
+      const defaultHtml = baseEntry.payload ?? '';
+      if(sanitized === defaultHtml){
+        if(overrides.days[dayKey] && overrides.days[dayKey].items){
+          delete overrides.days[dayKey].items[itemId];
+          if(Object.keys(overrides.days[dayKey].items).length===0){
+            delete overrides.days[dayKey].items;
+          }
+          if(overrides.days[dayKey].headerHtml===undefined && !overrides.days[dayKey].items){
+            delete overrides.days[dayKey];
+          }
+        }
+      }else{
+        if(!overrides.days[dayKey]) overrides.days[dayKey] = {};
+        if(!overrides.days[dayKey].items) overrides.days[dayKey].items = {};
+        overrides.days[dayKey].items[itemId] = sanitized;
+      }
+    });
+    commitOverrides(overrides);
+  }
+
+  function enterPreviewEditMode(){
+    if(state.previewState?.isLocked){
+      return;
+    }
+    state.previewMode = 'edit';
+    state.isEditingPreview = true;
+    state.editing = true;
+    email.contentEditable = 'true';
+    email.style.outline = '2px dashed #bbb';
+    setPreviewAriaLabel();
+    updatePreviewButtons();
+    email.focus({preventScroll:true});
+  }
+
+  function lockPreviewEdits(){
+    if(state.previewMode!=='edit') return;
+    capturePreviewOverridesFromDom();
+    const sanitizedSnapshot = sanitizePreviewHtml(email.innerHTML);
+    if(email.innerHTML !== sanitizedSnapshot){
+      email.innerHTML = sanitizedSnapshot;
+    }
+    // Lock flips the edit affordances off while the composed overrides keep
+    // flowing through renderPreview so live itinerary updates continue.
+    state.previewState.isLocked = true;
+    state.previewMode = 'locked';
+    state.isEditingPreview = false;
+    state.editing = false;
+    email.contentEditable = 'false';
+    email.style.outline = 'none';
+    setPreviewAriaLabel();
+    updatePreviewButtons();
+    renderPreview();
+  }
+
+  function resetPreviewEdits(){
+    if(state.previewState?.isLocked){
+      if(!confirm('Unlock and discard all preview edits?')) return;
+      state.previewState.isLocked = false;
+      commitOverrides(emptyOverrides());
+      state.previewMode = 'view';
+      state.isEditingPreview = false;
+      state.editing = false;
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      setPreviewAriaLabel();
+      renderPreview();
+      return;
+    }
+    if(state.isEditingPreview){
+      const wasEditing = true;
+      state.isEditingPreview = false;
+      email.contentEditable = 'false';
+      email.style.outline = 'none';
+      renderPreview();
+      if(wasEditing){
+        enterPreviewEditMode();
+      }
+      return;
+    }
+    if(isEmptyOverrides(state.previewState?.overrides)) return;
+    if(!confirm('Reset all email preview edits?')) return;
+    commitOverrides(emptyOverrides());
+    state.previewMode = 'view';
+    state.isEditingPreview = false;
+    state.editing = false;
+    email.contentEditable = 'false';
+    email.style.outline = 'none';
+    setPreviewAriaLabel();
+    renderPreview();
+  }
+
+  if(previewToggleBtn){
+    previewToggleBtn.onclick=()=>{
+      if(state.isEditingPreview){
+        lockPreviewEdits();
+      }else if(state.previewState?.isLocked){
+        state.previewState.isLocked = false;
+        state.previewMode = isEmptyOverrides(state.previewState?.overrides) ? 'view' : 'locked';
+        state.isEditingPreview = false;
+        state.editing = false;
+        email.contentEditable = 'false';
+        email.style.outline = 'none';
+        setPreviewAriaLabel();
+        updatePreviewButtons();
+        renderPreview();
+        enterPreviewEditMode();
+      }else{
+        enterPreviewEditMode();
+      }
+    };
+  }
+  if(resetPreviewBtn){
+    resetPreviewBtn.onclick=()=>{
+      resetPreviewEdits();
+    };
+  }
   email.addEventListener('dblclick', (e)=>{
-    if(e.metaKey || e.ctrlKey) $('#toggleEdit').click();
+    if(e.metaKey || e.ctrlKey){
+      if(state.previewState?.isLocked){
+        return;
+      }
+      if(state.isEditingPreview){
+        lockPreviewEdits();
+      }else{
+        enterPreviewEditMode();
+      }
+    }
   });
 
-  $('#copy').onclick=async ()=>{
-    const html=email.innerHTML;
-    const text=email.textContent;
+  let copyTitleTimer = null;
+  function previewHtmlToPlainText(html){
+    const scratch = document.createElement('div');
+    scratch.innerHTML = html || '';
+    return (scratch.textContent || '').split('\n').map(line=>line.trimEnd()).join('\n').replace(/\n{2,}/g,'\n').trim();
+  }
+
+  copyBtn.onclick=async ()=>{
+    // Copy always reflects the composed preview (generator output plus overrides)
+    // so the clipboard mirrors whatever the coordinator currently sees.
+    const html = sanitizePreviewHtml(email.innerHTML);
+    const clipboardText = previewHtmlToPlainText(html);
     try{
-      if(navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined'){
-        const item = new ClipboardItem({
+      if(window.ClipboardItem && navigator.clipboard?.write){
+        const item=new ClipboardItem({
           'text/html': new Blob([html], {type:'text/html'}),
-          'text/plain': new Blob([text], {type:'text/plain'})
+          'text/plain': new Blob([clipboardText], {type:'text/plain'})
         });
         await navigator.clipboard.write([item]);
-      }else if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
-        await navigator.clipboard.writeText(text);
+      }else if(navigator.clipboard?.writeText){
+        await navigator.clipboard.writeText(clipboardText);
       }else{
         throw new Error('Clipboard API unavailable');
       }
     }
     catch(e){
-      const range=document.createRange(); range.selectNodeContents(email);
-      const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      document.execCommand('copy'); sel.removeAllRanges();
+      // Legacy execCommand fallback still copies the sanitized text so older browsers get the gap-free output too.
+      const fallback=document.createElement('textarea');
+      fallback.value=clipboardText;
+      fallback.setAttribute('readonly','');
+      fallback.style.position='absolute';
+      fallback.style.left='-9999px';
+      document.body.appendChild(fallback);
+      fallback.select();
+      document.execCommand('copy');
+      document.body.removeChild(fallback);
     }
+    copyBtn.title='Copied';
+    if(copyTitleTimer) clearTimeout(copyTitleTimer);
+    copyTitleTimer = setTimeout(()=>{ copyBtn.title='Copy preview'; },1200);
   };
 
-  $('#clearAll').onclick=()=>{
-    if(!confirm('Clear all itinerary data?')) return;
-    state.arrival=null; state.departure=null; state.guests.length=0; state.schedule={};
-    renderAll();
-  };
+  if(clearAllBtn){
+    clearAllBtn.onclick=()=>{
+      if(!confirm('Clear all itinerary data?')) return;
+      state.arrival=null;
+      state.departure=null;
+      state.arrivalNote=stayNoteDefaults.arrival;
+      state.departureNote=stayNoteDefaults.departure;
+      state.guests.length=0;
+      state.schedule={};
+      markPreviewDirty();
+      renderAll();
+    };
+  }
 
   // ---------- Shortcuts (guard against browser defaults) ----------
   window.addEventListener('keydown', (e)=>{
@@ -400,5 +6160,106 @@
   });
 
   // ---------- Render root ----------
-  function renderAll(){ renderCalendar(); renderGuests(); renderActivities(); renderPreview(); }
+  function renderAll(){
+    renderCalendar();
+    renderGuests();
+    renderActivities();
+    renderPreview();
+  }
+
+  function markPreviewDirty(){ state.previewDirty = true; }
+
+  function ensureFocusInSeason(){
+    if(state.dataStatus!=='ready') return;
+    const seasons = state.data?.activities?.seasons || [];
+    if(seasons.length===0) return;
+    const focusKey = keyDate(state.focus);
+    const inSeason = seasons.some(season=> focusKey>=season.start && focusKey<=season.end);
+    if(inSeason) return;
+
+    const todayKey = keyDate(state.today);
+    let target = seasons.find(season=> todayKey>=season.start && todayKey<=season.end);
+    if(!target){
+      target = seasons.find(season=> todayKey < season.start) || seasons[seasons.length-1];
+    }
+    if(target?.start){
+      const [y,m,d] = target.start.split('-').map(Number);
+      state.focus = zero(new Date(y, m-1, d));
+    }
+  }
+
+  function buildOutOfSeasonMessage(){
+    const seasons = state.data?.activities?.seasons || [];
+    if(seasons.length===0) return 'No activities scheduled for the selected date.';
+
+    const focusDate = state.focus;
+    const focusKey = keyDate(focusDate);
+    const focusLabel = formatStayDate(focusDate, true);
+
+    const next = seasons.find(season=> focusKey < season.start);
+    if(next){
+      const [ny,nm,nd] = next.start.split('-').map(Number);
+      const startDate = new Date(ny, nm-1, nd);
+      const startLabel = formatStayDate(startDate);
+      return `No activities are scheduled for ${focusLabel}. Upcoming activities begin ${startLabel}.`;
+    }
+
+    const prev = [...seasons].reverse().find(season=> focusKey > season.end);
+    if(prev){
+      const [py,pm,pd] = prev.end.split('-').map(Number);
+      const endDate = new Date(py, pm-1, pd);
+      const endLabel = formatStayDate(endDate);
+      return `No activities are scheduled for ${focusLabel}. The most recent season ended on ${endLabel}.`;
+    }
+
+    return 'No activities scheduled for the selected date.';
+  }
+
+  function formatStayDate(date, includeWeekday=false){
+    const base = `${date.toLocaleString(undefined,{month:'long'})} ${ordinal(date.getDate())}, ${date.getFullYear()}`;
+    return includeWeekday ? `${weekdayName(date)}, ${base}` : base;
+  }
+
+  if(typeof window !== 'undefined'){
+    window.CHSBuilderDebug = {
+      addGuest,
+      setArrival,
+      setDeparture,
+      openSpaEditor,
+      openDinnerPicker,
+      openCustomBuilder,
+      createCustomEntry(config = {}){
+        const key = config.dateKey || (config.date instanceof Date ? keyDate(zero(config.date)) : keyDate(state.focus));
+        const guestIds = Array.isArray(config.guestIds)
+          ? config.guestIds.filter(Boolean)
+          : state.guests.map(g=>g.id);
+        upsertCustomEntry(key, {
+          id: config.id,
+          title: config.title || '',
+          start: config.start || '09:00',
+          end: config.end || '',
+          location: config.location || '',
+          guestIds
+        });
+        markPreviewDirty();
+        renderActivities();
+        renderPreview();
+      },
+      deleteCustomEntry(config = {}){
+        const key = config.dateKey || (config.date instanceof Date ? keyDate(zero(config.date)) : keyDate(state.focus));
+        if(config.entryId){
+          removeCustomEntry(key, config.entryId);
+          markPreviewDirty();
+          renderActivities();
+          renderPreview();
+        }
+      },
+      focusDate(date){
+        if(!(date instanceof Date)) return;
+        state.focus = zero(date);
+        renderAll();
+      },
+      getState(){ return state; }
+    };
+  }
 })();

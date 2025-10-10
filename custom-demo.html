@@ -3,10 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CHS Itinerary Builder</title>
+  <title>Custom Activities Demo</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="demo-container" style="padding:24px 24px 0;margin:0 auto 16px;">
+    <section class="demo-section">
+      <div class="demo-section-header">
+        <h2>QA scenarios for Custom Activities</h2>
+      </div>
+      <p class="demo-section-copy">
+        The itinerary below is preloaded with three Custom examples. Verify the free-text flow, catalog title + location, and the edit/delete path.
+      </p>
+      <ol class="demo-list">
+        <li class="demo-row">
+          <span class="demo-row-title">Sunrise Journaling</span>
+          <span class="demo-row-preview">Free-text title with start time only. Assigned to Alex.</span>
+        </li>
+        <li class="demo-row">
+          <span class="demo-row-title">Sound Bath Session</span>
+          <span class="demo-row-preview">Catalog title, start/end, and Stone House location. Assigned to Alex &amp; Bailey (toggle down to two guests to see the Both pill).</span>
+        </li>
+        <li class="demo-row">
+          <span class="demo-row-title">Evening Stargazing</span>
+          <span class="demo-row-preview">Everyone assigned. Use the custom chip to edit, then delete.</span>
+        </li>
+      </ol>
+    </section>
+  </div>
   <div class="app">
     <!-- Calendar -->
     <section class="left card">
@@ -29,47 +53,32 @@
             <button id="yNext" class="nav-btn" title="Next Year" aria-label="Next Year">»</button>
           </div>
         </div>
-        <!-- Clip overflow at the column edge and allow the interactive stack to scroll without disturbing the toolbar. -->
-        <div class="calendar-scroll" role="presentation">
-          <div class="calendar-scroll__content">
-            <div id="dow" class="grid dow" aria-hidden="true"></div>
-            <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
-          </div>
-          <!-- Overlay thumb renders inside the scroll container so the custom scrollbar can fade in without shifting layout. -->
-          <div class="calendar-scroll__thumb" aria-hidden="true"></div>
-        </div>
+
+        <div id="dow" class="grid dow" aria-hidden="true"></div>
+        <div id="calGrid" class="grid days" role="grid" aria-label="Calendar grid"></div>
         <div class="calendar-actions">
-          <!-- Full-width Today button anchors the control stack so it reads as the primary action without shifting nearby content. -->
-          <button id="btnToday" class="calendar-today-button" title="Today" aria-label="Today">Today</button>
+          <button id="btnToday" title="Today" aria-label="Today">Today</button>
+          <button id="btnArrival" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
+          <button id="btnDeparture" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
         </div>
-        <div class="stay-note-row" aria-label="Stay arrival and departure tools">
-          <!-- Buttons + notes share a grid so they stay aligned while respecting keyboard order. -->
-          <button id="btnArrival" class="stay-note-button calendar-control" title="Set Arrival (Cmd/Ctrl+A)" aria-label="Set Arrival">Arrival</button>
-          <input id="arrivalEta" class="stay-time-input calendar-control" type="text" placeholder="ETA" aria-label="Arrival time note" aria-haspopup="dialog" readonly>
-          <button id="btnDeparture" class="stay-note-button calendar-control" title="Set Departure (Cmd/Ctrl+D)" aria-label="Set Departure">Departure</button>
-          <input id="departureEtd" class="stay-time-input calendar-control" type="text" placeholder="ETD" aria-label="Departure time note" aria-haspopup="dialog" readonly>
-        </div>
-        <!-- Guest tools sit in the calendar flow so iPad can stack header → nav → grid → controls → guests without JS shuffles. -->
+        <!-- Guest tools -->
         <div class="section guest-section">
-          <div class="card-section-header guests-header">
+          <div class="card-section-header">
             <h2>Guests</h2>
-            <!-- Keep guest entry inline with the header so the divider still separates chips from controls. -->
-            <div class="guest-tools">
-              <input id="guestName" class="guest-input" type="text" placeholder="Who..?" aria-label="Guest name">
-              <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
-                <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                  <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
-                  <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
-                </svg>
-              </button>
-            </div>
           </div>
-          <div class="guest-pill-viewport">
-            <div id="guests" class="chips guest-list" aria-label="Guests"></div>
+          <div class="row">
+            <input id="guestName" class="guest-input" type="text" placeholder="Add guest" aria-label="Guest name">
+            <button id="toggleAll" class="icon-btn" aria-label="Toggle all guests" title="Toggle all guests">
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="7" y="3.5" width="10" height="17" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity="0.6"/>
+                <rect x="8.2" y="5" width="7.6" height="6" rx="1.4" fill="currentColor" opacity="0.18"/>
+              </svg>
+            </button>
           </div>
+          <div id="guests" class="chips" aria-label="Guests"></div>
         </div>
-        </div>
+      </div>
     </section>
 
     <!-- Activities -->
@@ -101,24 +110,16 @@
         </button>
       </div>
 
-      <div class="list activities__scroller">
-        <div id="activities" class="activities__list" aria-label="Available activities"></div>
-      </div>
+      <div id="activities" class="list" aria-label="Available activities"></div>
     </section>
 
     <!-- Preview -->
-    <section class="right card preview-card" data-area="preview" aria-label="Email preview">
-      <div class="preview-card__scroll">
-        <header class="card-section-header preview-card__header">
-          <h2>Preview</h2>
-        </header>
-        <div class="preview-card__body">
-          <div class="preview-card__content">
-            <div id="email" class="email" spellcheck="false"></div>
-          </div>
-        </div>
+    <section class="right card preview-card">
+      <div class="card-section-header">
+        <h2>Preview</h2>
       </div>
-      <div class="row stick-right preview-card__actions">
+      <div id="email" class="email" spellcheck="false"></div>
+      <div class="row stick-right">
         <button id="previewToggle" class="preview-action-btn" type="button" aria-pressed="false" aria-label="Edit preview" title="Edit preview">
           <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-edit">
             <path d="M27.267,8.963c0,0-4.533-4.503-4.698-4.612c-0.497-0.327-1.072-0.491-1.647-0.491c-0.767,0-1.534,0.291-2.115,0.873L4,19.539V28h8.461l14.806-14.806C28.431,12.03,28.431,10.127,27.267,8.963z M15.283,11.084l3.109,3.109l-8.455,8.455l-3.109-3.109L15.283,11.084z M6,26v-4.461L10.461,26H6z M11.352,24.062l8.455-8.455l1.109,1.109l-8.455,8.455L11.352,24.062z M25.853,11.779l-3.523,3.523L16.697,9.67l3.523-3.523c0.383-0.383,1.019-0.383,1.402,0l4.23,4.23C26.233,10.757,26.233,11.399,25.853,11.779z" fill="currentColor"/>
@@ -144,5 +145,51 @@
   <script src="time-picker.js"></script>
   <script src="utils/format.js"></script>
   <script src="script.js"></script>
+  <script>
+    (function initCustomDemo(){
+      const attemptSetup = () => {
+        const debug = window.CHSBuilderDebug;
+        if(!debug || typeof debug.createCustomEntry !== 'function'){
+          requestAnimationFrame(attemptSetup);
+          return;
+        }
+        debug.addGuest('Alex');
+        debug.addGuest('Bailey');
+        debug.addGuest('Casey');
+        debug.focusDate(new Date(2025, 9, 20));
+        debug.setArrival();
+        debug.focusDate(new Date(2025, 9, 21));
+        debug.setDeparture();
+        debug.focusDate(new Date(2025, 9, 20));
+        const state = debug.getState();
+        const guestIds = state.guests.map(g => g.id);
+        const [alexId, baileyId, caseyId] = guestIds;
+        debug.createCustomEntry({
+          dateKey: '2025-10-20',
+          title: 'Sunrise Journaling',
+          start: '08:00',
+          guestIds: alexId ? [alexId] : []
+        });
+        debug.createCustomEntry({
+          dateKey: '2025-10-20',
+          title: 'Sound Bath Session',
+          start: '15:00',
+          end: '16:00',
+          location: 'Stone House',
+          guestIds: [alexId, baileyId].filter(Boolean)
+        });
+        debug.createCustomEntry({
+          dateKey: '2025-10-20',
+          title: 'Evening Stargazing',
+          start: '21:00',
+          end: '22:00',
+          location: 'Lodge',
+          guestIds: guestIds
+        });
+        debug.focusDate(new Date(2025, 9, 20));
+      };
+      attemptSetup();
+    })();
+  </script>
 </body>
 </html>

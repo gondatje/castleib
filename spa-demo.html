@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPA Booking Flow Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .spa-demo-container{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px;padding:24px;}
+    .spa-demo-header h1{margin:0;font-size:28px;letter-spacing:.01em;}
+    .spa-demo-header p{margin:4px 0 0;font-size:15px;color:var(--muted);max-width:760px;}
+    .spa-demo-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+    .spa-demo-actions button{border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:10px 18px;font-weight:600;font-size:14px;cursor:pointer;transition:box-shadow .16s ease,transform .16s ease;}
+    .spa-demo-actions button:focus{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 8px 18px rgba(42,107,255,.18);}
+    .spa-demo-actions button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+    .spa-demo-status{margin:0;font-size:14px;color:var(--muted);}
+    .spa-demo-frame{width:100%;height:720px;border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 38px rgba(12,18,32,.18);overflow:hidden;background:#fff;}
+    @media (max-width:900px){
+      .spa-demo-frame{height:640px;}
+    }
+  </style>
+</head>
+<body class="demo-page">
+  <div class="spa-demo-container">
+    <header class="spa-demo-header">
+      <h1>SPA Booking Flow Demo</h1>
+      <p>Use the quick actions below to populate the builder with guests, create a shared SPA appointment, and then tweak individual preferences to see the preview logic in action. The embedded builder is the same experience used in production.</p>
+    </header>
+    <section class="spa-demo-actions">
+      <button id="demoSetup" type="button">1. Create base SPA appointment</button>
+      <button id="demoVariation" type="button">2. Switch Megan to a Male therapist</button>
+      <button id="demoGating" type="button">3. Preview “In-Room” gating</button>
+      <p id="demoStatus" class="spa-demo-status" aria-live="polite">Load the demo and then run each step.</p>
+    </section>
+    <iframe id="demoFrame" class="spa-demo-frame" src="index.html" title="SPA Builder Demo"></iframe>
+  </div>
+  <script src="spa-demo.js"></script>
+</body>
+</html>
