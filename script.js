@@ -342,7 +342,9 @@
   }
 
   const TimePickerKit = window.TimePickerKit || {};
-  const { createTimePicker } = TimePickerKit;
+  const { createTimePicker, createWheel } = TimePickerKit;
+
+  let spaPickerSerial = 0;
 
   // Default ETA/ETD when unset: 12:00pm / 1:00pm.
   const stayNoteDefaults = Object.freeze({
@@ -2507,6 +2509,18 @@
 
     const getCanonicalSelection = () => ensureTemplateSelection();
 
+    // SPA modal: single-value picker rows for Therapist/Location/Duration
+    const pickerNamespace = `spa-picker-${++spaPickerSerial}`;
+    const therapistLabelById = new Map(SPA_THERAPIST_OPTIONS.map(opt => [opt.id, opt.label]));
+    const locationLabelById = new Map(SPA_LOCATION_OPTIONS.map(opt => [opt.id, opt.label]));
+    let therapistWheel = null;
+    let locationWheel = null;
+    let durationWheel = null;
+    let durationWheelValues = [];
+    let therapistValueLabel = null;
+    let locationValueLabel = null;
+    let durationValueLabel = null;
+
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
     const dialog = document.createElement('div');
@@ -3086,12 +3100,17 @@
     durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
+    durationHeading.id = `${pickerNamespace}-duration-heading`;
     durationGroup.appendChild(durationHeading);
-    const durationList=document.createElement('div');
-    durationList.className='spa-option-list spa-option-list-duration list-hairline';
-    durationList.setAttribute('role','listbox');
-    durationList.setAttribute('aria-label','Duration');
-    durationGroup.appendChild(durationList);
+    const durationPickerContainer=document.createElement('div');
+    durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
+    durationGroup.appendChild(durationPickerContainer);
+    durationValueLabel=document.createElement('span');
+    durationValueLabel.className='sr-only spa-picker-value';
+    durationValueLabel.id = `${pickerNamespace}-duration-value`;
+    durationValueLabel.setAttribute('aria-live','polite');
+    durationGroup.appendChild(durationValueLabel);
+    durationPickerContainer.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
 
     const timeGroup=document.createElement('div');
     timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
@@ -3131,67 +3150,121 @@
     therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
+    therapistHeading.id = `${pickerNamespace}-therapist-heading`;
     therapistGroup.appendChild(therapistHeading);
-    const therapistList=document.createElement('div');
-    therapistList.className='spa-option-list spa-option-list-therapist list-hairline';
-    therapistList.setAttribute('role','listbox');
-    therapistList.setAttribute('aria-label','Therapist preference');
-    SPA_THERAPIST_OPTIONS.forEach(option => {
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='spa-option-row';
-      btn.dataset.value=option.id;
-      btn.setAttribute('role','option');
-      const labelSpan=document.createElement('span');
-      labelSpan.className='spa-option-label';
-      labelSpan.textContent=option.label;
-      const checkSpan=document.createElement('span');
-      checkSpan.className='spa-option-check';
-      checkSpan.innerHTML=checkmarkSvg;
-      checkSpan.setAttribute('aria-hidden','true');
-      btn.appendChild(labelSpan);
-      btn.appendChild(checkSpan);
-      btn.addEventListener('click',()=> selectTherapist(option.id));
-      therapistList.appendChild(btn);
-    });
-    therapistGroup.appendChild(therapistList);
+    const therapistPickerContainer=document.createElement('div');
+    therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
+    therapistGroup.appendChild(therapistPickerContainer);
+    therapistValueLabel=document.createElement('span');
+    therapistValueLabel.className='sr-only spa-picker-value';
+    therapistValueLabel.id = `${pickerNamespace}-therapist-value`;
+    therapistValueLabel.setAttribute('aria-live','polite');
+    therapistGroup.appendChild(therapistValueLabel);
+    therapistPickerContainer.setAttribute('aria-labelledby', `${therapistHeading.id} ${therapistValueLabel.id}`);
+    if(typeof createWheel === 'function'){
+      therapistPickerContainer.removeAttribute('role');
+      therapistPickerContainer.removeAttribute('aria-label');
+      const therapistValues = SPA_THERAPIST_OPTIONS.map(opt => opt.id);
+      therapistWheel = createWheel(therapistValues, {
+        loop: false,
+        idPrefix: `${pickerNamespace}-therapist`,
+        formatValue: value => therapistLabelById.get(value) || '',
+        getOptionLabel: value => therapistLabelById.get(value) || '',
+        ariaLabel: 'Therapist preference',
+        onChange(value){
+          selectTherapist(value);
+        }
+      });
+      therapistWheel.element.classList.add('spa-single-wheel');
+      therapistWheel.element.setAttribute('aria-labelledby', `${therapistHeading.id} ${therapistValueLabel.id}`);
+      therapistPickerContainer.appendChild(therapistWheel.element);
+    }else{
+      therapistPickerContainer.setAttribute('role','listbox');
+      therapistPickerContainer.setAttribute('aria-label','Therapist preference');
+      SPA_THERAPIST_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-option-row';
+        btn.dataset.value=option.id;
+        btn.setAttribute('role','option');
+        const labelSpan=document.createElement('span');
+        labelSpan.className='spa-option-label';
+        labelSpan.textContent=option.label;
+        const checkSpan=document.createElement('span');
+        checkSpan.className='spa-option-check';
+        checkSpan.innerHTML=checkmarkSvg;
+        checkSpan.setAttribute('aria-hidden','true');
+        btn.appendChild(labelSpan);
+        btn.appendChild(checkSpan);
+        btn.addEventListener('click',()=> selectTherapist(option.id));
+        therapistPickerContainer.appendChild(btn);
+      });
+    }
 
     const locationGroup=document.createElement('div');
     locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
+    locationHeading.id = `${pickerNamespace}-location-heading`;
     locationGroup.appendChild(locationHeading);
-    const locationList=document.createElement('div');
-    locationList.className='spa-option-list spa-option-list-location list-hairline';
-    locationList.setAttribute('role','listbox');
-    locationList.setAttribute('aria-label','Location');
-    SPA_LOCATION_OPTIONS.forEach(option => {
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='spa-option-row';
-      btn.dataset.value=option.id;
-      btn.setAttribute('role','option');
-      const labelSpan=document.createElement('span');
-      labelSpan.className='spa-option-label';
-      labelSpan.textContent=option.label;
-      const checkSpan=document.createElement('span');
-      checkSpan.className='spa-option-check';
-      checkSpan.innerHTML=checkmarkSvg;
-      checkSpan.setAttribute('aria-hidden','true');
-      btn.appendChild(labelSpan);
-      btn.appendChild(checkSpan);
-      btn.addEventListener('click',()=> selectLocation(option.id));
-      locationList.appendChild(btn);
-    });
+    const locationPickerContainer=document.createElement('div');
+    locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
+    locationGroup.appendChild(locationPickerContainer);
+    locationValueLabel=document.createElement('span');
+    locationValueLabel.className='sr-only spa-picker-value';
+    locationValueLabel.id = `${pickerNamespace}-location-value`;
+    locationValueLabel.setAttribute('aria-live','polite');
+    locationGroup.appendChild(locationValueLabel);
+    locationPickerContainer.setAttribute('aria-labelledby', `${locationHeading.id} ${locationValueLabel.id}`);
     const locationHelper=document.createElement('p');
     locationHelper.className='spa-helper-text sr-only';
     locationHelper.id='spa-location-inroom-helper';
     locationHelper.setAttribute('aria-live','polite');
+    if(typeof createWheel === 'function'){
+      locationPickerContainer.removeAttribute('role');
+      locationPickerContainer.removeAttribute('aria-label');
+      locationPickerContainer.removeAttribute('aria-describedby');
+      const locationValues = SPA_LOCATION_OPTIONS.map(opt => opt.id);
+      locationWheel = createWheel(locationValues, {
+        loop: false,
+        idPrefix: `${pickerNamespace}-location`,
+        formatValue: value => locationLabelById.get(value) || '',
+        getOptionLabel: value => locationLabelById.get(value) || '',
+        ariaLabel: 'Location',
+        onChange(value){
+          selectLocation(value);
+        }
+      });
+      locationWheel.element.classList.add('spa-single-wheel');
+      locationWheel.element.setAttribute('aria-labelledby', `${locationHeading.id} ${locationValueLabel.id}`);
+      locationWheel.element.setAttribute('aria-describedby', locationHelper.id);
+      locationPickerContainer.appendChild(locationWheel.element);
+    }else{
+      locationPickerContainer.setAttribute('role','listbox');
+      locationPickerContainer.setAttribute('aria-label','Location');
+      locationPickerContainer.setAttribute('aria-describedby', locationHelper.id);
+      SPA_LOCATION_OPTIONS.forEach(option => {
+        const btn=document.createElement('button');
+        btn.type='button';
+        btn.className='spa-option-row';
+        btn.dataset.value=option.id;
+        btn.setAttribute('role','option');
+        const labelSpan=document.createElement('span');
+        labelSpan.className='spa-option-label';
+        labelSpan.textContent=option.label;
+        const checkSpan=document.createElement('span');
+        checkSpan.className='spa-option-check';
+        checkSpan.innerHTML=checkmarkSvg;
+        checkSpan.setAttribute('aria-hidden','true');
+        btn.appendChild(labelSpan);
+        btn.appendChild(checkSpan);
+        btn.addEventListener('click',()=> selectLocation(option.id));
+        locationPickerContainer.appendChild(btn);
+      });
+    }
     // Keep the helper text sr-only so the gating reason is announced for assistive
     // tech without reserving vertical space, preventing layout shifts when
     // availability toggles.
-    locationList.setAttribute('aria-describedby', locationHelper.id);
-    locationGroup.appendChild(locationList);
     locationGroup.appendChild(locationHelper);
     detailsGrid.appendChild(therapistGroup);
     detailsGrid.appendChild(locationGroup);
@@ -3425,60 +3498,148 @@
     }
 
     function refreshDurationOptions(){
-      durationList.innerHTML='';
       const selection = getCanonicalSelection();
       const service = findService(selection?.serviceName) || defaultService;
       const durations = service?.durations?.slice() || [];
-      durations.forEach(minutes => {
-        const btn=document.createElement('button');
-        btn.type='button';
-        btn.className='spa-option-row';
-        btn.dataset.value=String(minutes);
-        btn.setAttribute('role','option');
-        // Buttons surface numerals only while the aria-label keeps the
-        // descriptive "-Minute" phrasing for assistive tech parity.
-        const labelSpan=document.createElement('span');
-        labelSpan.className='spa-option-label';
-        labelSpan.textContent=formatDurationButtonLabel(minutes);
-        btn.setAttribute('aria-label', formatDurationLabel(minutes));
-        const checkSpan=document.createElement('span');
-        checkSpan.className='spa-option-check';
-        checkSpan.innerHTML=checkmarkSvg;
-        checkSpan.setAttribute('aria-hidden','true');
-        btn.appendChild(labelSpan);
-        btn.appendChild(checkSpan);
-        const selected = selection?.durationMinutes===minutes;
-        btn.classList.toggle('is-selected', selected);
-        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
-        btn.addEventListener('click',()=> selectDuration(minutes));
-        durationList.appendChild(btn);
-      });
+      if(typeof createWheel === 'function'){
+        const changed = durations.length !== durationWheelValues.length || durations.some((value, index) => value !== durationWheelValues[index]);
+        if(changed){
+          durationWheelValues = durations.slice();
+          if(durationWheel && typeof durationWheel.dispose === 'function'){
+            durationWheel.dispose();
+          }
+          durationPickerContainer.innerHTML='';
+          durationPickerContainer.removeAttribute('role');
+          durationPickerContainer.removeAttribute('aria-label');
+          durationWheel = null;
+          if(durations.length){
+            durationWheel = createWheel(durations, {
+              loop: false,
+              idPrefix: `${pickerNamespace}-duration`,
+              formatValue: value => formatDurationButtonLabel(value),
+              getOptionLabel: value => formatDurationLabel(value),
+              ariaLabel: 'Duration',
+              onChange(value){
+                selectDuration(value);
+              }
+            });
+            durationWheel.element.classList.add('spa-single-wheel');
+            durationWheel.element.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
+            durationPickerContainer.appendChild(durationWheel.element);
+          }
+        }
+        if(durationWheel){
+          const canonical = selection?.durationMinutes;
+          const fallback = durations.includes(canonical) ? canonical : durations[0];
+          if(fallback !== undefined){
+            durationWheel.setValue(fallback);
+            const label = formatDurationLabel(fallback);
+            durationValueLabel.textContent = label;
+            durationWheel.element.setAttribute('aria-label', `Duration, ${label}`);
+          }else{
+            durationValueLabel.textContent = '';
+            durationWheel.element.setAttribute('aria-label', 'Duration');
+          }
+        }else{
+          durationValueLabel.textContent = '';
+        }
+      }else{
+        durationWheel = null;
+        durationWheelValues = durations.slice();
+        durationPickerContainer.innerHTML='';
+        durationPickerContainer.setAttribute('role','listbox');
+        durationPickerContainer.setAttribute('aria-label','Duration');
+        const canonical = selection?.durationMinutes;
+        durations.forEach(minutes => {
+          const btn=document.createElement('button');
+          btn.type='button';
+          btn.className='spa-option-row';
+          btn.dataset.value=String(minutes);
+          btn.setAttribute('role','option');
+          const labelSpan=document.createElement('span');
+          labelSpan.className='spa-option-label';
+          labelSpan.textContent=formatDurationButtonLabel(minutes);
+          btn.setAttribute('aria-label', formatDurationLabel(minutes));
+          const checkSpan=document.createElement('span');
+          checkSpan.className='spa-option-check';
+          checkSpan.innerHTML=checkmarkSvg;
+          checkSpan.setAttribute('aria-hidden','true');
+          btn.appendChild(labelSpan);
+          btn.appendChild(checkSpan);
+          const selected = canonical===minutes;
+          btn.classList.toggle('is-selected', selected);
+          btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+          btn.addEventListener('click',()=> selectDuration(minutes));
+          durationPickerContainer.appendChild(btn);
+        });
+        let fallbackLabel='';
+        if(canonical !== undefined){
+          fallbackLabel = formatDurationLabel(canonical);
+        }else if(durations.length){
+          fallbackLabel = formatDurationLabel(durations[0]);
+        }
+        durationValueLabel.textContent = fallbackLabel;
+        durationPickerContainer.setAttribute('aria-label', fallbackLabel ? `Duration, ${fallbackLabel}` : 'Duration');
+      }
     }
 
     function refreshTherapistOptions(){
       const selection = getCanonicalSelection();
-      therapistList.querySelectorAll('.spa-option-row').forEach(btn => {
-        const selected = btn.dataset.value===selection?.therapist;
-        btn.classList.toggle('is-selected', selected);
-        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
-      });
+      const current = selection?.therapist || 'no-preference';
+      const label = therapistLabelById.get(current) || therapistLabelById.get('no-preference') || 'No Preference';
+      if(therapistWheel){
+        therapistWheel.setValue(current);
+        therapistValueLabel.textContent = label;
+        therapistWheel.element.setAttribute('aria-label', `Therapist Preference, ${label}`);
+      }else{
+        const rows = therapistPickerContainer.querySelectorAll('.spa-option-row');
+        rows.forEach(btn => {
+          const selected = btn.dataset.value===current;
+          btn.classList.toggle('is-selected', selected);
+          btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        therapistValueLabel.textContent = label;
+        therapistPickerContainer.setAttribute('aria-label', `Therapist preference, ${label}`);
+      }
     }
 
     function refreshLocationOptions(){
       const selection = getCanonicalSelection();
       const service = findService(selection?.serviceName) || defaultService;
       const supportsInRoom = service?.supportsInRoom !== false;
-      locationList.querySelectorAll('.spa-option-row').forEach(btn => {
-        const value = btn.dataset.value;
+      const disabledFn = value => {
         const singleGuestLocked = singleGuestStay && value !== 'in-room';
-        const disabled = (value==='in-room' && !supportsInRoom) || singleGuestLocked;
-        const isSelected = selection?.location===value && !disabled;
-        btn.classList.toggle('is-selected', isSelected);
-        btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-        btn.classList.toggle('is-disabled', disabled);
-        btn.disabled = disabled;
-        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-      });
+        return (value==='in-room' && !supportsInRoom) || singleGuestLocked;
+      };
+      if(locationWheel){
+        locationWheel.setDisabledChecker(disabledFn);
+        const activeSelection = getCanonicalSelection();
+        const activeLocation = activeSelection?.location;
+        const validLocation = activeLocation && !disabledFn(activeLocation)
+          ? activeLocation
+          : (SPA_LOCATION_OPTIONS.find(opt => !disabledFn(opt.id))?.id || activeLocation || '');
+        if(validLocation){
+          locationWheel.setValue(validLocation);
+        }
+        const label = locationLabelById.get(validLocation) || locationLabelById.get(activeLocation) || '';
+        locationValueLabel.textContent = label;
+        locationWheel.element.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+      }else{
+        const buttons = locationPickerContainer.querySelectorAll('.spa-option-row');
+        buttons.forEach(btn => {
+          const value = btn.dataset.value;
+          const disabled = disabledFn(value);
+          const isSelected = selection?.location===value && !disabled;
+          btn.classList.toggle('is-selected', isSelected);
+          btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+          btn.classList.toggle('is-disabled', disabled);
+          btn.disabled = disabled;
+          btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        });
+        const label = locationLabelById.get(selection?.location) || '';
+        locationValueLabel.textContent = label;
+        locationPickerContainer.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+      }
       // The helper content remains present for screen readers only; visually the
       // layout stays fixed because the element never takes up space.
       const helperMessages = [];

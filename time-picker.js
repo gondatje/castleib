@@ -8,13 +8,14 @@
     // Shared physics core: each column clamps momentum, respects reduced motion,
     // and integrates deltas so gestures feel loose while active before snapping.
     const ITEM_HEIGHT = 44;
-    const REPEAT = 9;
+    const loop = options.loop !== false;
+    const REPEAT = loop ? 9 : 1;
     const block = values.length;
-    const totalItems = block * REPEAT;
-    const baseBlock = Math.floor(REPEAT / 2);
-    const minIndex = block;
-    const maxIndex = block * (REPEAT - 1) - 1;
-    const wrapSpan = block * (REPEAT - 2);
+    const totalItems = loop ? block * REPEAT : block;
+    const baseBlock = loop ? Math.floor(REPEAT / 2) : 0;
+    const minIndex = loop ? block : 0;
+    const maxIndex = loop ? block * (REPEAT - 1) - 1 : Math.max(0, block - 1);
+    const wrapSpan = loop ? block * (REPEAT - 2) : 0;
     const SNAP_IDLE_MS = 160;
     const SNAP_DURATION_MS = 160;
     const NUDGE_DURATION_MS = 90;
@@ -58,7 +59,10 @@
     list.style.willChange = 'transform';
     viewport.appendChild(list);
 
-    const modIndex = idx => ((idx % block) + block) % block;
+    const modIndex = idx => {
+      if(block === 0) return 0;
+      return ((idx % block) + block) % block;
+    };
     const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
     const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     const motionDuration = ms => prefersReducedMotion ? 0 : ms;
@@ -111,6 +115,13 @@
     };
 
     const normalizeIndex = idx => {
+      if(block === 0){
+        return { index: 0, shift: 0 };
+      }
+      if(!loop){
+        const clamped = Math.max(minIndex, Math.min(maxIndex, idx));
+        return { index: clamped, shift: 0 };
+      }
       let next = idx;
       let shift = 0;
       if(next < minIndex){
@@ -215,7 +226,12 @@
 
     const tryStep = direction => {
       if(!direction) return false;
-      const info = normalizeIndex(optionIndex + direction);
+      const nextIndex = optionIndex + direction;
+      if(!loop && (nextIndex < minIndex || nextIndex > maxIndex)){
+        bounce(direction);
+        return false;
+      }
+      const info = normalizeIndex(nextIndex);
       const value = values[modIndex(info.index)];
       if(disabledChecker(value)){
         bounce(direction);
@@ -297,6 +313,11 @@
     };
 
     const wrapPosition = () => {
+      if(!loop || block === 0){
+        if(position < minIndex){ position = minIndex; }
+        if(position > maxIndex){ position = maxIndex; }
+        return;
+      }
       if(position < minIndex){
         const wraps = Math.ceil((minIndex - position) / wrapSpan);
         position += wrapSpan * wraps;
@@ -307,7 +328,13 @@
     };
 
     const wheelStep = direction => {
-      const info = normalizeIndex(optionIndex + direction);
+      const nextIndex = optionIndex + direction;
+      if(!loop && (nextIndex < minIndex || nextIndex > maxIndex)){
+        rowAccumulator = 0;
+        bounce(direction);
+        return false;
+      }
+      const info = normalizeIndex(nextIndex);
       const value = values[modIndex(info.index)];
       if(disabledChecker(value)){
         // Resist path: dump the accumulator so we ease back to the current row
@@ -452,10 +479,15 @@
     };
 
     const findNearestValid = (startIndex, preferredDirection) => {
+      if(block === 0) return null;
       const directions = preferredDirection ? [preferredDirection, -preferredDirection] : [1, -1];
       for(const dir of directions){
         for(let stepCount = 1; stepCount <= block; stepCount++){
-          const candidate = normalizeIndex(startIndex + dir * stepCount);
+          const rawIndex = startIndex + dir * stepCount;
+          if(!loop && (rawIndex < minIndex || rawIndex > maxIndex)){
+            break;
+          }
+          const candidate = normalizeIndex(rawIndex);
           const value = values[modIndex(candidate.index)];
           if(!disabledChecker(value)){
             return { info: candidate, direction: dir };
@@ -491,6 +523,7 @@
     // `findNearestValid`/`nudgeAndSettle` so the bounce happens at snap time and
     // never interrupts the live gesture.
     const scheduleSnap = () => {
+      if(block === 0) return;
       const settleId = ++pendingSettleId;
       if(snapTimer){
         clearTimeout(snapTimer);
@@ -536,6 +569,21 @@
       pushWheelDelta(normalizeDelta(e, mode), mode);
       scheduleSnap();
     }, { passive: false });
+
+    viewport.addEventListener('click', e => {
+      if(block === 0) return;
+      const option = e.target.closest('.wheel-option');
+      if(!option || !list.contains(option)) return;
+      const index = Array.prototype.indexOf.call(list.children, option);
+      if(index < 0) return;
+      const info = normalizeIndex(index);
+      const value = values[modIndex(info.index)];
+      if(disabledChecker(value)) return;
+      cancelAnimation();
+      stopFreeScroll();
+      commitIndex(info.index, info);
+      scheduleSnap();
+    });
 
     viewport.addEventListener('keydown', e => {
       if(e.key === 'ArrowUp'){
@@ -626,7 +674,12 @@
         applySelection();
         const activeValue = values[modIndex(optionIndex)];
         if(disabledChecker(activeValue)){
-          if(!tryStep(1)) tryStep(-1);
+          if(!tryStep(1) && !tryStep(-1)){
+            const fallback = findNearestValid(optionIndex, 1) || findNearestValid(optionIndex, -1);
+            if(fallback){
+              commitIndex(fallback.info.index, fallback.info, { duration: 0 });
+            }
+          }
         }
       },
       refresh,
