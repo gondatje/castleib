@@ -698,6 +698,7 @@
     };
   }
 
+  // Shared time picker component for all modals.
   function createTimePicker(config = {}){
     const {
       hourRange = [1, 12],

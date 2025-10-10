@@ -124,8 +124,6 @@
   const dinnerIconSvg = `<svg viewBox="-96 0 512 512" aria-hidden="true" focusable="false" class="dinner-icon"><path fill="currentColor" d="M16,0c-8.837,0 -16,7.163 -16,16l0,187.643c0,7.328 0.667,13.595 2,18.802c1.333,5.207 2.917,9.305 4.75,12.294c1.833,2.989 4.5,5.641 8,7.955c3.5,2.314 6.583,3.953 9.25,4.917c2.667,0.965 6.542,2.266 11.625,3.905c2.399,0.774 5.771,1.515 8.997,2.224c1.163,0.256 2.306,0.507 3.378,0.754l0,225.506c0,17.673 14.327,32 32,32c17.673,0 32,-14.327 32,-32l0,-225.506c1.072,-0.247 2.215,-0.499 3.377,-0.754c3.227,-0.709 6.599,-1.45 8.998,-2.224c5.083,-1.639 8.958,-2.94 11.625,-3.905c2.667,-0.964 5.75,-2.603 9.25,-4.917c3.5,-2.314 6.167,-4.966 8,-7.955c1.833,-2.989 3.417,-7.087 4.75,-12.294c1.333,-5.207 2,-11.474 2,-18.802l0,-187.643c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16c-8.837,0 -16,7.163 -16,16l0,128c0,8.837 -7.163,16 -16,16c-8.837,0 -16,-7.163 -16,-16l0,-128c0,-8.837 -7.163,-16 -16,-16Zm304,18.286l0,267.143c0,0.458 -0.007,0.913 -0.022,1.364c0.015,0.4 0.022,0.803 0.022,1.207l0,192c0,17.673 -14.327,32 -32,32c-17.673,0 -32,-14.327 -32,-32l0,-160l-69.266,0c-2.41,0 -4.449,-0.952 -6.118,-2.857c-3.523,-3.619 -3.377,-8.286 0.887,-32.286c0.741,-4.762 2.178,-14.428 4.31,-29c2.133,-14.571 4.126,-28.19 5.98,-40.857c1.854,-12.667 4.449,-28.048 7.787,-46.143c3.337,-18.095 6.767,-34.428 10.29,-49c3.522,-14.571 7.926,-29.619 13.21,-45.143c5.284,-15.523 10.8,-28.476 16.547,-38.857c5.748,-10.381 12.515,-18.952 20.302,-25.714c7.787,-6.762 15.945,-10.143 24.473,-10.143l17.799,0c4.821,0 8.992,1.81 12.515,5.429c3.523,3.619 5.284,7.904 5.284,12.857Z"></path></svg>`;
   const spaIconSvg = '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" focusable="false"><path clip-rule="evenodd" d="M5.99999 2C5.99999 0.895431 6.89542 0 7.99999 0C9.10456 0 9.99999 0.895431 9.99999 2V2.0359L10.0311 2.01795C10.9877 1.46566 12.2108 1.79341 12.7631 2.75C13.3154 3.70659 12.9877 4.92977 12.0311 5.48205L12 5.5L12.0311 5.51795C12.9877 6.07023 13.3154 7.29342 12.7631 8.25C12.2108 9.20658 10.9877 9.53434 10.0311 8.98205L9.99999 8.9641V9C9.99999 10.1046 9.10456 11 7.99999 11C6.89542 11 5.99999 10.1046 5.99999 9V8.9641L5.9689 8.98205C5.01232 9.53434 3.78914 9.20658 3.23685 8.25C2.68457 7.29342 3.01232 6.07023 3.9689 5.51795L3.99999 5.5L3.9689 5.48205C3.01232 4.92977 2.68457 3.70659 3.23685 2.75C3.78913 1.79341 5.01232 1.46566 5.9689 2.01795L5.99999 2.0359V2ZM9.99999 5.5C9.99999 6.60457 9.10456 7.5 7.99999 7.5C6.89542 7.5 5.99999 6.60457 5.99999 5.5C5.99999 4.39543 6.89542 3.5 7.99999 3.5C9.10456 3.5 9.99999 4.39543 9.99999 5.5Z" fill="currentColor" fill-rule="evenodd"/><path d="M7 16H6C3.23858 16 1 13.7614 1 11V10H2C4.76142 10 7 12.2386 7 15V16Z" fill="currentColor"/><path d="M10 16H9V15C9 12.2386 11.2386 10 14 10H15V11C15 13.7614 12.7614 16 10 16Z" fill="currentColor"/></svg>';
   const checkmarkSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.173 12.414 2.586 8.828l1.414-1.414 2.173 2.172 5.657-5.657 1.414 1.415-7.071 7.07Z"/></svg>';
-  const customSetStartSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.16 4.6c1.114.734 1.84 1.979 1.84 3.394 0 0 0 0 0 .006 0-1.415.726-2.66 1.825-3.384.573-.385.984-.939 1.17-1.589l-5.995-.02c.191.67.603 1.225 1.15 1.594Zm5.02 1.46c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-8v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813C9.64 5.794 9.062 6.761 8.999 7.865Z"/></svg>';
-  const customSetEndSvg = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.18 6.06c1.107-.808 1.819-2.101 1.82-3.56v-.5h1v-2h-12v2h1v.5c.001 1.459.713 2.752 1.808 3.551.672.43 1.121 1.13 1.192 1.939-.093.848-.551 1.564-1.209 2.003-1.081.814-1.772 2.078-1.79 3.503l-.003.503h-1v2h12v-2h-1v-.5c-.018-1.429-.709-2.692-1.769-3.492-.68-.454-1.138-1.169-1.23-1.996.071-.831.52-1.532 1.169-1.946ZM9 8c.072 1.142.655 2.136 1.519 2.763.877.623 1.445 1.61 1.481 2.732l.003.505h-1s-1.62-3.5-3-3.5-3 3.5-3 3.5h-1v-.5c.036-1.127.604-2.114 1.459-2.723.886-.642 1.468-1.635 1.54-2.766-.063-1.124-.641-2.091-1.498-2.683-.914-.633-1.499-1.662-1.502-2.827v-.5h8v.5c-.003 1.166-.587 2.195-1.479 2.813-.88.607-1.458 1.574-1.521 2.678Z"/></svg>';
   // Spec-supplied custom chip icon swaps in a unique glyph until hover/keyboard
   // focus reveals the standard pencil affordance for editing.
   const customChipIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 22V16L12 14M12 14L13 8M12 14H10M13 8C14 9.16667 15.6 11 18 11M13 8L12.8212 7.82124C12.2565 7.25648 11.2902 7.54905 11.1336 8.33223L10 14M10 14L8 22M18 9.5V22M8 7H7.72076C7.29033 7 6.90819 7.27543 6.77208 7.68377L5.5 11.5L7 12L8 7ZM14.5 3.5C14.5 4.05228 14.0523 4.5 13.5 4.5C12.9477 4.5 12.5 4.05228 12.5 3.5C12.5 2.94772 12.9477 2.5 13.5 2.5C14.0523 2.5 14.5 2.94772 14.5 3.5Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -3244,20 +3242,6 @@
     });
 
     const initialTimeValue = from24Time(getCanonicalSelection()?.start || defaultSpaStartTime);
-    // Replace the AM/PM wheel with a segmented toggle so SPA flows keep the
-    // shared hour/minute physics while presenting a two-state, radiogroup-driven
-    // control for keyboard and screen reader users.
-    const MERIDIEM_VALUES = ['AM','PM'];
-    const meridiemButtons = new Map();
-    const syncMeridiemToggle = meridiem => {
-      const normalized = meridiem === 'PM' ? 'PM' : 'AM';
-      meridiemButtons.forEach((btn, value) => {
-        const selected = value === normalized;
-        btn.classList.toggle('selected', selected);
-        btn.setAttribute('aria-checked', selected ? 'true' : 'false');
-        btn.tabIndex = selected ? 0 : -1;
-      });
-    };
 
     const handleTimeChange = value => {
       const targets = resolveEditableTargets();
@@ -3294,37 +3278,7 @@
         startTimeInput.removeAttribute('aria-invalid');
       }
       refreshEndPreview();
-      syncMeridiemToggle(value.meridiem);
     };
-
-    // Left/right arrows hop between the hour, minute, and AM/PM columns while
-    // keeping each wheel's existing up/down physics untouched.
-    const columnFocusOrder = [];
-    const registerTimeColumn = (element, focus) => {
-      if(!element) return -1;
-      columnFocusOrder.push({
-        element,
-        focus: () => {
-          if(typeof focus === 'function'){
-            focus();
-          }else{
-            focusWithoutScroll(element);
-          }
-        }
-      });
-      return columnFocusOrder.length - 1;
-    };
-    const focusTimeColumn = index => {
-      if(!columnFocusOrder.length) return;
-      const normalized = (index + columnFocusOrder.length) % columnFocusOrder.length;
-      const entry = columnFocusOrder[normalized];
-      if(entry){
-        entry.focus();
-      }
-    };
-    let hourColumnIndex = -1;
-    let minuteColumnIndex = -1;
-    let meridiemColumnIndex = -1;
 
     const timePicker = createTimePicker ? createTimePicker({
       hourRange:[1,12],
@@ -3335,131 +3289,11 @@
       onChange: handleTimeChange
     }) : null;
 
-    if(timePicker?.hourWheel?.element){
-      hourColumnIndex = registerTimeColumn(timePicker.hourWheel.element, () => {
-        if(typeof timePicker.hourWheel.focus === 'function'){
-          timePicker.hourWheel.focus({ preventScroll:true });
-        }else{
-          focusWithoutScroll(timePicker.hourWheel.element);
-        }
-      });
-    }
-    if(timePicker?.minuteWheel?.element){
-      minuteColumnIndex = registerTimeColumn(timePicker.minuteWheel.element, () => {
-        if(typeof timePicker.minuteWheel.focus === 'function'){
-          timePicker.minuteWheel.focus({ preventScroll:true });
-        }else{
-          focusWithoutScroll(timePicker.minuteWheel.element);
-        }
-      });
-    }
-
-    // Route segmented toggle changes through the picker change handler so the
-    // AM/PM state, wheel physics, and selection model stay perfectly aligned.
-    const handleMeridiemInput = (value, { focus, externalValue } = {}) => {
-      if(!timePicker) return;
-      const normalized = value === 'PM' ? 'PM' : 'AM';
-      if(typeof timePicker.setMeridiem === 'function'){
-        timePicker.setMeridiem(normalized);
-      }else{
-        timePicker.meridiemWheel?.setValue?.(normalized);
-      }
-      const snapshot = timePicker.getValue?.();
-      const nextValue = externalValue ? { ...externalValue, meridiem: normalized } : snapshot ? { ...snapshot, meridiem: normalized } : {
-        hour: timePicker.hourWheel?.value ?? initialTimeValue.hour,
-        minute: timePicker.minuteWheel?.value ?? initialTimeValue.minute,
-        meridiem: normalized
-      };
-      handleTimeChange(nextValue);
-      if(focus){
-        const btn = meridiemButtons.get(nextValue.meridiem);
-        if(btn){
-          focusWithoutScroll(btn);
-        }
-      }
-    };
-
     startTimeDisplay.textContent='—';
     timeSeparator.hidden=true;
 
     if(timePicker){
       timeContainer.appendChild(timePicker.element);
-      if(hourColumnIndex>-1){
-        timePicker.hourWheel.element.addEventListener('keydown', e => {
-          if(e.key==='ArrowLeft'){
-            e.preventDefault();
-            focusTimeColumn(hourColumnIndex - 1);
-          }
-          if(e.key==='ArrowRight'){
-            e.preventDefault();
-            focusTimeColumn(hourColumnIndex + 1);
-          }
-        });
-      }
-      if(minuteColumnIndex>-1){
-        timePicker.minuteWheel.element.addEventListener('keydown', e => {
-          if(e.key==='ArrowLeft'){
-            e.preventDefault();
-            focusTimeColumn(minuteColumnIndex - 1);
-          }
-          if(e.key==='ArrowRight'){
-            e.preventDefault();
-            focusTimeColumn(minuteColumnIndex + 1);
-          }
-        });
-      }
-      if(timePicker.meridiemWheel?.element){
-        timePicker.meridiemWheel.element.setAttribute('tabindex','-1');
-        const parent = timePicker.meridiemWheel.element.parentElement;
-        if(parent){
-          parent.setAttribute('aria-hidden','true');
-        }
-      }
-      const toggle=document.createElement('div');
-      toggle.className='spa-meridiem-toggle';
-      toggle.setAttribute('role','radiogroup');
-      toggle.setAttribute('aria-label','Select AM or PM');
-      meridiemColumnIndex = registerTimeColumn(toggle, () => {
-        const selected = Array.from(meridiemButtons.values()).find(btn => btn.getAttribute('aria-checked')==='true');
-        const target = selected || toggle.querySelector('button');
-        focusWithoutScroll(target);
-      });
-      MERIDIEM_VALUES.forEach(value => {
-        const radio=document.createElement('button');
-        radio.type='button';
-        radio.className='spa-meridiem-option';
-        radio.dataset.value = value;
-        radio.setAttribute('role','radio');
-        radio.setAttribute('aria-checked','false');
-        radio.tabIndex = -1;
-        radio.textContent = value;
-        radio.addEventListener('click',()=>{
-          handleMeridiemInput(value);
-        });
-        radio.addEventListener('keydown',e=>{
-          if(e.key==='ArrowUp' || e.key==='ArrowDown'){
-            e.preventDefault();
-            const direction = e.key==='ArrowUp' ? -1 : 1;
-            const index = MERIDIEM_VALUES.indexOf(value);
-            const nextIndex = (index + direction + MERIDIEM_VALUES.length) % MERIDIEM_VALUES.length;
-            handleMeridiemInput(MERIDIEM_VALUES[nextIndex], { focus:true });
-            return;
-          }
-          if(e.key==='ArrowLeft'){
-            e.preventDefault();
-            focusTimeColumn(meridiemColumnIndex - 1);
-            return;
-          }
-          if(e.key==='ArrowRight'){
-            e.preventDefault();
-            focusTimeColumn(meridiemColumnIndex + 1);
-          }
-        });
-        toggle.appendChild(radio);
-        meridiemButtons.set(value, radio);
-      });
-      timeContainer.appendChild(toggle);
-      syncMeridiemToggle(initialTimeValue.meridiem);
     }else{
       const fallback=document.createElement('div');
       fallback.className='time-picker-fallback';
@@ -3509,10 +3343,18 @@
         const canonical = formatTimeDisplay(to24Time(parsed));
         startTimeDisplay.textContent = canonical;
         if(timePicker){
+          const normalizedMeridiem = parsed.meridiem === 'PM' ? 'PM' : 'AM';
           timePicker.hourWheel?.setValue?.(parsed.hour);
           timePicker.minuteWheel?.setValue?.(parsed.minute);
+          if(typeof timePicker.setMeridiem === 'function'){
+            timePicker.setMeridiem(normalizedMeridiem);
+          }else{
+            timePicker.meridiemWheel?.setValue?.(normalizedMeridiem);
+          }
+          handleTimeChange({ ...parsed, meridiem: normalizedMeridiem });
+        }else{
+          handleTimeChange(parsed);
         }
-        handleMeridiemInput(parsed.meridiem, { externalValue: parsed });
       }else{
         timeHint.hidden = true;
         timeHint.textContent='';
@@ -3660,7 +3502,6 @@
       }else{
         timePicker.meridiemWheel?.setValue?.(meridiem);
       }
-      syncMeridiemToggle(meridiem);
     }
 
     function refreshEndPreview(){
@@ -4222,32 +4063,6 @@
     pickerContainer.className='custom-picker';
     timeContent.appendChild(pickerContainer);
 
-    const pickerActions=document.createElement('div');
-    pickerActions.className='custom-picker-actions';
-
-    const setStartBtn=document.createElement('button');
-    setStartBtn.type='button';
-    setStartBtn.className='custom-time-action';
-    setStartBtn.setAttribute('aria-label','Set start time');
-    setStartBtn.title='Set start time';
-    // Icon-only affordance keeps the control compact while the aria-label
-    // surfaces the accessible name after dropping the text caption.
-    setStartBtn.innerHTML = `<span class="custom-time-icon">${customSetStartSvg}</span>`;
-    pickerActions.appendChild(setStartBtn);
-
-    const setEndBtn=document.createElement('button');
-    setEndBtn.type='button';
-    setEndBtn.className='custom-time-action';
-    setEndBtn.setAttribute('aria-label','Set end time');
-    setEndBtn.title='Set end time';
-    setEndBtn.innerHTML = `<span class="custom-time-icon">${customSetEndSvg}</span>`;
-    pickerActions.appendChild(setEndBtn);
-
-    const timeActionsColumn=document.createElement('div');
-    timeActionsColumn.className='custom-time-actions-column';
-    timeActionsColumn.appendChild(pickerActions);
-    timeShell.appendChild(timeActionsColumn);
-
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
     timeError.hidden=true;
@@ -4679,9 +4494,6 @@
       refreshSaveState();
     };
 
-    setStartBtn.addEventListener('click', applyStartValue);
-    setEndBtn.addEventListener('click', applyEndValue);
-
     let timePicker=null;
     if(typeof createTimePicker === 'function'){
       // Reuse the shared time picker so visuals + physics remain identical to
@@ -4692,7 +4504,13 @@
         showAmPm:true,
         defaultValue: initialPickerValue,
         ariaLabels:{ hours:'Hour', minutes:'Minutes', meridiem:'AM or PM' },
-        onChange:value=>{ currentPickerValue = value; }
+        onChange:value=>{ currentPickerValue = value; },
+        startEnd:{
+          startLabel:'Set start time',
+          endLabel:'Set end time',
+          onSetStart: applyStartValue,
+          onSetEnd: applyEndValue
+        }
       });
     }
 
