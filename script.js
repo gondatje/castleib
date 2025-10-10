@@ -774,7 +774,9 @@
     overlay.appendChild(scrim);
 
     const surface=document.createElement('div');
-    surface.className='stay-time-surface';
+    // stay-time-dialog borrows the shared modal-shell styling while keeping a
+    // compact footprint for the anchored ETA/ETD picker.
+    surface.className='modal-shell stay-time-surface stay-time-dialog';
     surface.setAttribute('role','dialog');
     surface.setAttribute('aria-modal','true');
     const labelId=`${stateKey}-stay-time-label`;
@@ -2177,10 +2179,14 @@
     closeDinnerPicker();
 
     const overlay=document.createElement('div');
-    overlay.className='dinner-overlay';
+    // Overlay now opt-in to the shared modal spacing tokens so every sheet keeps
+    // the same viewport gutter + safe-area padding.
+    overlay.className='modal-overlay dinner-overlay';
 
     const dialog=document.createElement('div');
-    dialog.className='dinner-dialog';
+    // modal-shell establishes the unified width/height + column system across
+    // the Dinner, Spa, Custom, ETA, and ETD flows.
+    dialog.className='modal-shell dinner-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
 
@@ -2522,9 +2528,9 @@
     let durationValueLabel = null;
 
     const overlay = document.createElement('div');
-    overlay.className='spa-overlay';
+    overlay.className='modal-overlay spa-overlay';
     const dialog = document.createElement('div');
-    dialog.className='spa-dialog';
+    dialog.className='modal-shell spa-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
 
@@ -4046,10 +4052,10 @@
 
     const overlay=document.createElement('div');
     // Reuse the spa shell classes so the custom flow inherits the shared safe-area gutters + clamp sizing.
-    overlay.className='spa-overlay custom-overlay';
+    overlay.className='modal-overlay spa-overlay custom-overlay';
 
     const dialog=document.createElement('div');
-    dialog.className='spa-dialog custom-dialog';
+    dialog.className='modal-shell spa-dialog custom-dialog';
     dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');

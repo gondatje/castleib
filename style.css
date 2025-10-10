@@ -1068,21 +1068,23 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .stay-time-layer{position:fixed;inset:0;z-index:1200}
 .stay-time-scrim{position:absolute;inset:0;background:transparent}
-/* Anchor the floating picker near its trigger without breaking layout flow. */
-.stay-time-surface{
-  position:absolute;
-  min-width:15rem;
-  padding:1rem;
-  border-radius:16px;
-  border:1px solid var(--border-hairline);
+/* Anchor the floating picker near its trigger while inheriting modal-shell tokens. */
+.stay-time-surface{position:absolute;inset:auto;}
+.stay-time-dialog{
+  --modal-inline:clamp(280px,40vw,420px);
+  --modal-block:auto;
+  --modal-chrome-padding:var(--space-4);
+  min-block-size:auto;
+  max-block-size:min(420px, calc(100vh - 2*var(--modal-gutter)));
+  block-size:auto;
+  padding:var(--space-4);
+  gap:var(--space-4);
   background:var(--surface-elevated);
-  box-shadow:0 20px 44px color-mix(in srgb,var(--text-primary) 20%, transparent);
-  display:flex;
-  flex-direction:column;
-  gap:0.75rem;
+  border:1px solid var(--border-hairline);
+  box-shadow:0 20px 44px color-mix(in srgb,var(--text-primary) 18%, transparent);
 }
-.stay-time-actions{display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap}
-.stay-time-actions button{min-height:36px;border-radius:12px;padding:0 14px}
+.stay-time-actions{display:flex;justify-content:flex-end;gap:var(--space-3);flex-wrap:wrap}
+.stay-time-actions button{min-height:36px;border-radius:12px;padding:0 16px}
 .stay-time-clear{background:var(--surface);color:var(--text-muted);border:1px solid var(--border)}
 .stay-time-primary{background:var(--surface);color:var(--brand);border:1px solid var(--border)}
 @supports(color-mix(in srgb, red 50%, white 50%)){
@@ -1321,12 +1323,60 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   .btn-icon{transition:none;}
 }
 
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:2000;
+  background:rgba(12,18,32,.46);
+  --modal-overlay-gutter:clamp(24px,5vh,72px);
+  display:grid;
+  place-items:center;
+  padding-block:var(--modal-overlay-gutter);
+  padding-inline:var(--modal-overlay-gutter);
+  padding-block-start:calc(var(--modal-overlay-gutter) + env(safe-area-inset-top));
+  padding-block-end:calc(var(--modal-overlay-gutter) + env(safe-area-inset-bottom));
+  padding-inline-start:calc(var(--modal-overlay-gutter) + env(safe-area-inset-left));
+  padding-inline-end:calc(var(--modal-overlay-gutter) + env(safe-area-inset-right));
+}
+.modal-shell{
+  --modal-gutter:var(--modal-overlay-gutter,clamp(24px,5vh,72px));
+  --modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(360px,56vw,1080px));
+  --modal-block:min(calc(100vh - 2*var(--modal-gutter)), clamp(520px,72vh,920px));
+  --modal-chrome-padding:clamp(var(--space-5),4vw,var(--space-6));
+  background:var(--surface,#fff);
+  border-radius:28px;
+  border:1px solid rgba(226,232,240,.85);
+  box-shadow:0 28px 60px rgba(12,18,32,.22);
+  inline-size:var(--modal-inline);
+  max-inline-size:calc(100vw - 2*var(--modal-gutter));
+  min-inline-size:min(320px, calc(100vw - 2*var(--modal-gutter)));
+  block-size:var(--modal-block);
+  max-block-size:calc(100vh - 2*var(--modal-gutter));
+  min-block-size:min(480px, calc(100vh - 2*var(--modal-gutter)));
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+  color:var(--ink);
+  transform:translateZ(0);
+}
+@supports(height:100svh){
+  .modal-shell{
+    --modal-block:min(calc(100svh - 2*var(--modal-gutter)), clamp(520px,72svh,920px));
+  }
+}
+@supports(height:100dvh){
+  .modal-shell{
+    --modal-block:min(calc(100dvh - 2*var(--modal-gutter)), clamp(520px,72dvh,920px));
+  }
+}
 .modal-header{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:var(--space-3);
-  padding:var(--space-4) var(--space-5);
+  gap:var(--space-4);
+  padding-inline:var(--modal-chrome-padding);
+  padding-block:clamp(var(--space-4),2.5vw,var(--space-5));
   background:var(--surface);
   border-bottom:1px solid var(--hairline);
   flex-shrink:0;
@@ -1334,27 +1384,46 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .modal-title{margin:0;font-size:20px;font-weight:600;letter-spacing:.01em;}
 .modal-body{
   flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  padding:var(--modal-body-padding, clamp(var(--space-5),4vw,var(--space-6)));
+  padding-block-end:calc(var(--modal-body-padding, clamp(var(--space-5),4vw,var(--space-6))) + env(safe-area-inset-bottom));
   display:flex;
   flex-direction:column;
-  gap:var(--space-4);
-  padding:clamp(var(--space-5),4vw,var(--space-6));
+  gap:var(--modal-body-gap,var(--space-5));
+  scroll-padding-block:var(--space-5);
+  scrollbar-gutter:stable both-edges;
+  overscroll-behavior:contain;
   background:var(--surface);
-  min-height:0;
+}
+.modal-body::after{
+  content:"";
+  flex:0 0 var(--space-1);
 }
 /* Unified modal layout structure keeps spacing + hierarchy consistent across flows. */
 .modal-sections{
-  --modal-section-gap:clamp(var(--space-4),5vw,var(--space-5));
+  --modal-grid-columns:12;
+  --modal-column-gap:clamp(var(--space-4),3.5vw,var(--space-6));
+  --modal-row-gap:clamp(var(--space-4),3vw,var(--space-5));
   display:grid;
-  gap:var(--modal-section-gap);
-  align-content:flex-start;
-  grid-auto-flow:row;
-  grid-auto-rows:minmax(0,auto);
+  grid-template-columns:repeat(var(--modal-grid-columns),minmax(0,1fr));
+  column-gap:var(--modal-column-gap);
+  row-gap:var(--modal-row-gap);
+  align-content:start;
   min-height:0;
+}
+@media (max-width:1080px){
+  .modal-sections{--modal-grid-columns:8;}
+}
+@media (max-width:720px){
+  .modal-sections{--modal-grid-columns:4;}
 }
 .modal-section{
   display:flex;
   flex-direction:column;
   gap:var(--space-4);
+  grid-column:1 / -1;
+  min-width:0;
   min-height:0;
 }
 .modal-footer{
@@ -1362,17 +1431,28 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   align-items:center;
   justify-content:space-between;
   gap:var(--space-4);
-  padding:var(--space-4) var(--space-5);
+  padding-inline:var(--modal-chrome-padding);
+  padding-block:clamp(var(--space-4),2.5vw,var(--space-5));
   background:var(--surface);
   border-top:1px solid var(--hairline);
   flex-shrink:0;
 }
 .modal-footer-start,.modal-footer-end{display:flex;align-items:center;gap:var(--space-3);}
 .modal-footer-end{justify-content:flex-end;}
-.dinner-overlay{position:fixed;inset:0;background:rgba(12,18,32,.46);display:flex;align-items:center;justify-content:center;padding:24px;z-index:2000;}
-.dinner-dialog{background:#fff;border-radius:20px;min-width:280px;max-width:384px;width:100%;box-shadow:0 22px 44px rgba(12,18,32,.18);border:1px solid rgba(226,232,240,.8);display:flex;flex-direction:column;overflow:hidden;}
-.dinner-body{display:flex;flex-direction:column;gap:var(--space-4);padding:clamp(var(--space-5),6vw,var(--space-6));}
-.dinner-layout{grid-template-columns:minmax(0,1fr);}
+.dinner-overlay{z-index:2050;}
+.dinner-dialog{
+  --modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(320px,48vw,640px));
+  --modal-block:min(calc(100vh - 2*var(--modal-gutter)), clamp(460px,68vh,720px));
+  --modal-chrome-padding:clamp(var(--space-4),4.5vw,var(--space-5));
+}
+.dinner-body{
+  --modal-body-padding:clamp(var(--space-5),5vw,var(--space-6));
+  --modal-body-gap:var(--space-5);
+}
+.dinner-layout{
+  --modal-column-gap:clamp(var(--space-4),4vw,var(--space-5));
+  --modal-row-gap:var(--space-5);
+}
 .dinner-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;color:var(--ink);}
 .dinner-picker-shell{display:flex;justify-content:center;}
 .time-picker{display:flex;flex-direction:column;align-items:center;gap:16px;}
@@ -1408,103 +1488,41 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .wheel-viewport::after{bottom:0;background:linear-gradient(0deg,rgba(255,255,255,.85),rgba(255,255,255,0));}
 .dinner-lock{overflow:hidden;}
 .spa-icon{display:block;}
-/*
- * Modal overlay spacing uses a responsive gutter + safe-area insets so the
- * dialog always breathes away from the viewport edges (including iOS chrome).
- */
 .spa-overlay{
-  position:fixed;
-  inset:0;
-  background:rgba(12,18,32,.46);
-  display:flex;
-  align-items:center;
-  justify-content:center;
   z-index:2100;
-  --spa-viewport-gutter:clamp(24px,5vh,64px);
-  padding-inline:var(--space-edge);
-  padding-inline-start:calc(var(--space-edge) + env(safe-area-inset-left));
-  padding-inline-end:calc(var(--space-edge) + env(safe-area-inset-right));
-  padding-block:var(--spa-viewport-gutter);
-  padding-block-start:calc(var(--spa-viewport-gutter) + env(safe-area-inset-top));
-  padding-block-end:calc(var(--spa-viewport-gutter) + env(safe-area-inset-bottom));
+  --modal-overlay-gutter:clamp(28px,6vh,80px);
 }
-/*
- * Desktop browsers switch to a grid centering context so Safari/Chrome honor the
- * viewport clamping while touch/iPad builds retain the flex alignment that was
- * already tuned for tablet safe areas.
- */
-@media (pointer:fine){
-  .spa-overlay{
-    display:grid;
-    place-items:center;
-    align-content:center;
-  }
-}
-/*
- * Clamp the dialog to a viewport-aware block size so every open uses the same
- * frame. The min/max pairing keeps the sheet feeling anchored while the
- * overlay gutter + viewport units ensure it still respects safe areas.
- */
 .spa-dialog{
-  background:#fff;
-  border-radius:24px;
-  max-width:1160px;
-  width:100%;
-  box-shadow:0 26px 54px rgba(12,18,32,.2);
-  border:1px solid rgba(226,232,240,.85);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  height:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
-  block-size:min(clamp(560px, 88vh, 920px), calc(100vh - 2*var(--spa-viewport-gutter)));
-  max-height:calc(100vh - 2*var(--spa-viewport-gutter));
-  max-block-size:min(90vh, calc(100vh - 2*var(--spa-viewport-gutter)));
-}
-@supports (height:100svh){
-  .spa-dialog{
-    height:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
-    block-size:min(clamp(560px, 88svh, 920px), calc(100svh - 2*var(--spa-viewport-gutter)));
-    max-height:calc(100svh - 2*var(--spa-viewport-gutter));
-    max-block-size:min(90svh, calc(100svh - 2*var(--spa-viewport-gutter)));
-  }
-}
-@supports (height:100dvh){
-  .spa-dialog{
-    height:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
-    block-size:min(clamp(560px, 88dvh, 920px), calc(100dvh - 2*var(--spa-viewport-gutter)));
-    max-height:calc(100dvh - 2*var(--spa-viewport-gutter));
-    max-block-size:min(90dvh, calc(100dvh - 2*var(--spa-viewport-gutter)));
-  }
+  --modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(520px,64vw,1120px));
+  --modal-block:min(calc(100vh - 2*var(--modal-gutter)), clamp(560px,78vh,920px));
+  --modal-chrome-padding:clamp(var(--space-5),3.5vw,var(--space-6));
 }
 /*
  * The body now leans on the internal grid to keep every control visible while
  * the services list handles any overflow; the shell itself no longer scrolls.
  */
 .spa-body{
-  position:relative;
-  display:flex;
-  flex-direction:column;
-  gap:24px;
-  flex:1 1 auto;
-  overflow:hidden;
-  min-height:0;
-  --spa-body-padding:clamp(var(--space-5),4vw,var(--space-6));
-  padding:var(--spa-body-padding);
-  padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));
+  --modal-body-padding:clamp(var(--space-5),3.5vw,var(--space-6));
+  --modal-body-gap:clamp(var(--space-4),3vw,var(--space-5));
 }
-/*
- * The layout grid flexes to fill the fixed dialog height so the service column
- * can own all vertical overflow without forcing the shell to resize.
- */
+/* Spa modal splits guests/services across the shared 12 → 8 → 4 column grid so the
+ * picker keeps a balanced two-column rhythm before stacking on tablet/mobile. */
 .spa-layout{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  align-items:stretch;
-  flex:1 1 auto;
-  grid-auto-rows:1fr;
+  --modal-column-gap:clamp(var(--space-4),3vw,var(--space-6));
+  --modal-row-gap:clamp(var(--space-4),3vw,var(--space-5));
+  align-content:start;
 }
 .spa-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .spa-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;}
-.spa-section-services{min-block-size:0;}
+.spa-section-guests{grid-column:1 / span 4;}
+.spa-section-services{grid-column:5 / span 8;min-block-size:0;}
+.spa-section-details{grid-column:1 / -1;}
+@media (max-width:1080px){
+  .spa-section-guests,
+  .spa-section-services{
+    grid-column:1 / -1;
+  }
+}
 .spa-guest-card{grid-area:guests;gap:14px;}
 .spa-guest-header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);}
 .spa-toggle-all{flex:0 0 auto;}
@@ -1547,25 +1565,40 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   .spa-cascade-panel{transition:none;}
   .spa-cascade-chevron{transition:none;}
 }
-.spa-block{display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:18px;background:var(--panel);border:1px solid var(--border-hairline);}
+.spa-block{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:18px;
+  border-radius:18px;
+  background:var(--panel);
+  border:1px solid var(--border-hairline);
+}
 .spa-details-grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-template-rows:repeat(3,minmax(0,1fr)) auto;
-  grid-template-areas:
-    "therapist time"
-    "location time"
-    "duration time"
-    "guests guests";
-  gap:16px;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  column-gap:var(--modal-column-gap);
+  row-gap:var(--modal-row-gap);
   min-height:0;
 }
 .spa-detail-card{display:flex;flex-direction:column;gap:12px;min-height:0;height:100%;}
-.spa-detail-card-therapist{grid-area:therapist;}
-.spa-detail-card-location{grid-area:location;}
-.spa-detail-card-duration{grid-area:duration;}
-.spa-detail-card-time{grid-area:time;justify-content:center;}
-.spa-detail-card-guests{grid-area:guests;}
+.spa-detail-card-therapist{grid-column:1 / span 4;}
+.spa-detail-card-location{grid-column:5 / span 4;}
+.spa-detail-card-duration{grid-column:9 / span 4;}
+.spa-detail-card-time{grid-column:1 / span 6;justify-content:center;}
+.spa-detail-card-guests{grid-column:7 / span 6;}
+@media (max-width:1080px){
+  .spa-details-grid{grid-template-columns:repeat(8,minmax(0,1fr));}
+  .spa-detail-card-therapist{grid-column:1 / span 4;}
+  .spa-detail-card-location{grid-column:5 / span 4;}
+  .spa-detail-card-duration{grid-column:1 / span 4;}
+  .spa-detail-card-time{grid-column:5 / span 4;}
+  .spa-detail-card-guests{grid-column:1 / -1;}
+}
+@media (max-width:720px){
+  .spa-details-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .spa-details-grid .spa-detail-card{grid-column:1 / -1;}
+}
 .spa-option-list{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;border-radius:16px;border:1px solid var(--border-hairline);background:var(--surface);box-shadow:0 1px 0 rgba(15,23,42,.04);padding:0;overflow:hidden;}
 /* Guests: non-scrollable; note removed; Start Time vertically centered. */
 .spa-option-list-guests{flex:0 0 auto;overflow:visible;max-block-size:none;}
@@ -1618,48 +1651,50 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 body.spa-lock{overflow:hidden;}
 body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
 .custom-overlay{z-index:2200;}
-.custom-body{
-  overflow:auto;
-  padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));
-  overscroll-behavior:contain;
-  scrollbar-gutter:stable both-edges;
+.custom-dialog{
+  --modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(520px,64vw,1080px));
+  --modal-block:min(calc(100vh - 2*var(--modal-gutter)), clamp(560px,78vh,920px));
+  --modal-chrome-padding:clamp(var(--space-5),3.5vw,var(--space-6));
 }
-/* Custom modal → 4×4 grid; Title/Location/Time scroll; Guests non-scrollable. */
+.custom-body{
+  --modal-body-padding:clamp(var(--space-5),3.5vw,var(--space-6));
+  --modal-body-gap:clamp(var(--space-4),3vw,var(--space-5));
+  padding-block-end:calc(var(--modal-body-padding) + env(safe-area-inset-bottom));
+}
+/* Custom modal shares the 12 → 8 → 4 column system so title spans full width while
+ * time/location pair on desktop and collapse cleanly on smaller breakpoints. */
 .custom-layout{
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  grid-template-rows:repeat(4,minmax(0,1fr));
-  flex:1 1 auto;
-  min-height:0;
+  --modal-column-gap:clamp(var(--space-4),3vw,var(--space-6));
+  --modal-row-gap:clamp(var(--space-4),3vw,var(--space-5));
   align-content:start;
 }
 .custom-section-title{
-  grid-column:1/span 2;
-  grid-row:1/span 3;
-  max-block-size:100%;
+  grid-column:1 / -1;
+  max-block-size:none;
   overflow:auto;
   overscroll-behavior:contain;
   scrollbar-gutter:stable both-edges;
+}
+.custom-section-time{
+  grid-column:1 / span 6;
+  max-block-size:none;
+  overflow:visible;
 }
 .custom-section-location{
-  grid-column:3/span 2;
-  grid-row:4/span 1;
-  max-block-size:100%;
+  grid-column:7 / span 6;
+  max-block-size:none;
   overflow:auto;
   overscroll-behavior:contain;
   scrollbar-gutter:stable both-edges;
 }
-/* Custom modal grid: Time section stays in the top-right block (rows 1–3); Location shifts to row 4. */
-.custom-section-time{
-  grid-column:3/span 2;
-  grid-row:1/span 3;
-  max-block-size:100%;
+.custom-section-guests{
+  grid-column:1 / -1;
+  max-block-size:none;
   overflow:visible;
 }
-.custom-section-guests{
-  grid-column:1/span 2;
-  grid-row:4/span 1;
-  max-block-size:100%;
-  overflow:visible;
+@media (max-width:1080px){
+  .custom-section-time,
+  .custom-section-location{grid-column:1 / -1;}
 }
 .custom-section{display:flex;flex-direction:column;gap:16px;min-height:0;}
 .custom-header{flex-direction:column;align-items:stretch;gap:var(--space-4);}
@@ -1740,40 +1775,24 @@ body[data-theme='dark'] .custom-location-row.selected{background:color-mix(in sr
 .custom-guest-summary[data-empty='true']{color:var(--brand);font-weight:600;}
 body.custom-lock{overflow:hidden;}
 @media (max-width:1100px){
-  .spa-dialog{max-width:980px;}
+  .spa-dialog,
+  .custom-dialog{--modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(480px,70vw,1000px));}
 }
 @media (max-width:920px){
-  .spa-dialog{max-width:760px;}
-  .spa-layout{grid-template-columns:1fr;grid-template-rows:auto;grid-auto-rows:auto;gap:20px;}
-  .custom-layout{grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:auto;gap:20px;}
-  .custom-section-title,
-  .custom-section-location,
-  .custom-section-time,
-  .custom-section-guests{grid-column:auto;grid-row:auto;max-block-size:none;}
+  .spa-dialog,
+  .custom-dialog{--modal-inline:min(calc(100vw - 2*var(--modal-gutter)), clamp(400px,86vw,880px));}
   .custom-time-shell{align-items:stretch;gap:var(--space-4);}
   .custom-time-summary{margin-inline-start:0;}
-  .spa-details-grid{
-    grid-template-columns:1fr;
-    grid-template-rows:auto;
-  }
-  .spa-detail-column{
-    grid-column:1;
-    grid-row:auto;
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-  }
-  .spa-detail-card-guests{grid-column:1;grid-row:auto;}
-  .spa-body{--spa-body-padding:clamp(var(--space-5),6vw,var(--space-6));padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));}
+  .spa-body{--modal-body-padding:clamp(var(--space-5),6vw,var(--space-6));}
+  .custom-body{--modal-body-padding:clamp(var(--space-5),6vw,var(--space-6));}
 }
 @media (max-width:720px){
-  .spa-body{--spa-body-padding:clamp(var(--space-4),6vw,var(--space-5));}
+  .spa-dialog,
+  .custom-dialog{--modal-chrome-padding:clamp(var(--space-4),5vw,var(--space-5));}
+  .spa-body{--modal-body-padding:clamp(var(--space-4),6vw,var(--space-5));}
+  .custom-body{--modal-body-padding:clamp(var(--space-4),6vw,var(--space-5));}
   .spa-service-button{padding:10px 16px 10px 44px;}
   .spa-block{padding:16px;}
-  .spa-dialog .modal-header,
-  .spa-dialog .modal-footer,
-  .custom-dialog .modal-header,
-  .custom-dialog .modal-footer{padding-inline:clamp(var(--space-4),6vw,var(--space-5));}
 }
 .demo-page{background:var(--bg);padding:24px;}
 .demo-container{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:24px;}
