@@ -2,6 +2,67 @@
   'use strict';
 
   const pad = n => String(n).padStart(2, '0');
+  const FormatUtils = global.CHSFormatUtils || {};
+  const fallbackParseMeridiem = value => {
+    if(value == null) return null;
+    const compact = String(value).trim();
+    if(!compact) return null;
+    const normalized = compact.replace(/\s+/g, '').toLowerCase();
+    if(normalized.length < 3) return null;
+    const meridiem = normalized.slice(-2);
+    if(meridiem !== 'am' && meridiem !== 'pm') return null;
+    const body = normalized.slice(0, -2);
+    if(!body) return null;
+    let hour = null;
+    let minute = 0;
+    if(body.includes(':')){
+      const parts = body.split(':');
+      if(parts.length !== 2) return null;
+      const [rawHour, rawMinute] = parts;
+      if(!/^\d{1,2}$/.test(rawHour) || !/^\d{2}$/.test(rawMinute)) return null;
+      hour = Number(rawHour);
+      minute = Number(rawMinute);
+    }else{
+      if(!/^\d{1,4}$/.test(body)) return null;
+      if(body.length <= 2){
+        hour = Number(body);
+      }else{
+        const rawHour = body.slice(0, body.length - 2);
+        const rawMinute = body.slice(-2);
+        if(!/^\d{1,2}$/.test(rawHour) || !/^\d{2}$/.test(rawMinute)) return null;
+        hour = Number(rawHour);
+        minute = Number(rawMinute);
+      }
+    }
+    if(!Number.isInteger(hour) || hour < 1 || hour > 12) return null;
+    if(!Number.isInteger(minute) || minute < 0 || minute > 59) return null;
+    return { hour, minute, meridiem: meridiem.toUpperCase() };
+  };
+  const fallbackFormatMeridiem = value => {
+    if(!value) return '';
+    const rawHour = Number(value.hour);
+    const rawMinute = Number(value.minute);
+    if(!Number.isFinite(rawHour) || !Number.isFinite(rawMinute)) return '';
+    const minute = Math.max(0, Math.min(59, Math.trunc(rawMinute)));
+    const meridiem = typeof value.meridiem === 'string' && value.meridiem.trim().toUpperCase() === 'AM' ? 'AM' : (value.meridiem && value.meridiem.trim().toUpperCase() === 'PM' ? 'PM' : (rawHour >= 12 ? 'PM' : 'AM'));
+    let hour = Math.trunc(rawHour);
+    if(meridiem === 'AM'){
+      hour = ((hour % 12) + 12) % 12;
+    }else{
+      const normalized = ((hour % 12) + 12) % 12;
+      hour = normalized === 0 ? 12 : normalized;
+    }
+    if(hour <= 0){
+      hour = 12;
+    }
+    return `${hour}:${pad(minute)} ${meridiem}`;
+  };
+  const parseMeridiemInput = typeof FormatUtils.parseFlexibleMeridiemTime === 'function'
+    ? value => FormatUtils.parseFlexibleMeridiemTime(value)
+    : fallbackParseMeridiem;
+  const formatMeridiemDisplay = typeof FormatUtils.formatMeridiemTime === 'function'
+    ? value => FormatUtils.formatMeridiemTime(value)
+    : fallbackFormatMeridiem;
   let wheelInstanceCounter = 0;
 
   function createWheel(values, options = {}){
@@ -156,9 +217,11 @@
     };
 
     let lastValueIndex = modIndex(optionIndex);
+    let suppressOnChange = false;
     const emitChangeIfNeeded = valueIndex => {
       if(valueIndex === lastValueIndex) return;
       lastValueIndex = valueIndex;
+      if(suppressOnChange) return;
       onChange(values[valueIndex]);
     };
 
@@ -614,19 +677,29 @@
       }
     }, { passive: true });
 
-    const setValue = val => {
+    const setValue = (val, options = {}) => {
       const valueIndex = values.indexOf(val);
       if(valueIndex === -1) return;
       const idx = baseBlock * block + valueIndex;
       const info = normalizeIndex(idx);
-      optionIndex = info.index;
-      if(info.shift){
-        position += info.shift;
+      const shouldAnimate = !!options.animate;
+      const shouldEmit = !!options.emitChange;
+      if(shouldAnimate || shouldEmit){
+        const previousSuppress = suppressOnChange;
+        suppressOnChange = !shouldEmit;
+        const animationOptions = shouldAnimate ? {} : { duration: 0, ease: easeOutCubic };
+        commitIndex(info.index, info, animationOptions);
+        suppressOnChange = previousSuppress;
+      }else{
+        optionIndex = info.index;
+        if(info.shift){
+          position += info.shift;
+        }
+        position = optionIndex;
+        applySelection();
+        lastValueIndex = modIndex(optionIndex);
+        startAnimation(optionIndex, { duration: 0 });
       }
-      position = optionIndex;
-      applySelection();
-      lastValueIndex = modIndex(optionIndex);
-      startAnimation(optionIndex, { duration: 0 });
     };
 
     const refresh = () => {
@@ -954,6 +1027,7 @@
           }
         }
         onChange(getValue());
+        scheduleInlineSync({ fromWheel: !inlineInputApplying });
       }
     });
 
@@ -967,8 +1041,38 @@
       onChange(value){
         currentMinute = value;
         onChange(getValue());
+        scheduleInlineSync({ fromWheel: !inlineInputApplying });
       }
     });
+
+    const originalHourSetValue = hourWheel.setValue;
+    hourWheel.setValue = (value, options) => {
+      originalHourSetValue(value, options);
+      const emit = options && options.emitChange;
+      if(!emit){
+        currentHour = value;
+        disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
+        minuteWheel.setDisabledChecker(minuteDisabledChecker);
+        if(disabledMinutes.has(currentMinute)){
+          const fallback = deriveSafeMinute(currentHour, currentMeridiem, currentMinute);
+          if(minutes.includes(fallback)){
+            minuteWheel.setValue(fallback);
+            currentMinute = fallback;
+          }
+        }
+        scheduleInlineSync({ fromWheel: !inlineInputApplying });
+      }
+    };
+
+    const originalMinuteSetValue = minuteWheel.setValue;
+    minuteWheel.setValue = (value, options) => {
+      originalMinuteSetValue(value, options);
+      const emit = options && options.emitChange;
+      if(!emit){
+        currentMinute = value;
+        scheduleInlineSync({ fromWheel: !inlineInputApplying });
+      }
+    };
 
     hourColumn.appendChild(hourWheel.element);
     registerColumn(hourWheel.element, () => hourWheel.focus({ preventScroll:true }));
@@ -977,6 +1081,125 @@
 
     let meridiemWheel = null;
     let staticMeridiem = null;
+
+    // Inline text entry stays wired to the wheels so manual edits snap using the same
+    // physics (inline time input ↔ picker sync + flexible AM/PM parsing).
+    let inlineInput = null;
+    let inlineInputDirty = false;
+    let inlineInputHasFocus = false;
+    let inlineInputApplying = false;
+    let inlineLastFormatted = '';
+    let inlineSyncFrame = null;
+
+    const computeInlineFormatted = () => formatMeridiemDisplay({
+      hour: currentHour,
+      minute: currentMinute,
+      meridiem: currentMeridiem
+    });
+
+    const updateInlineSnapshot = () => {
+      inlineLastFormatted = computeInlineFormatted();
+    };
+
+    const syncInlineFromSnapshot = ({ force = false } = {}) => {
+      if(!inlineInput) return;
+      if(!force){
+        const isInvalid = inlineInput.getAttribute('aria-invalid') === 'true';
+        if((inlineInputHasFocus && inlineInputDirty) || (isInvalid && inlineInputDirty) || (isInvalid && !inlineInputHasFocus)){
+          return;
+        }
+      }
+      if(inlineInput.value !== inlineLastFormatted){
+        inlineInput.value = inlineLastFormatted;
+      }
+      inlineInput.removeAttribute('aria-invalid');
+    };
+
+    const scheduleInlineSync = ({ fromWheel = false } = {}) => {
+      if(inlineSyncFrame){
+        cancelAnimationFrame(inlineSyncFrame);
+      }
+      inlineSyncFrame = requestAnimationFrame(() => {
+        inlineSyncFrame = null;
+        updateInlineSnapshot();
+        if(fromWheel){
+          inlineInputDirty = false;
+          syncInlineFromSnapshot({ force: true });
+          return;
+        }
+        if(inlineInputApplying){
+          // Manual typing keeps the raw string visible until commit; snapshot still updates.
+          return;
+        }
+        syncInlineFromSnapshot();
+      });
+    };
+
+    const revertInlineValue = () => {
+      updateInlineSnapshot();
+      inlineInputDirty = false;
+      syncInlineFromSnapshot({ force: true });
+      inlineInput?.removeAttribute('aria-invalid');
+    };
+
+    const applyInlineText = (text, { animate = true } = {}) => {
+      const parsed = parseMeridiemInput(text);
+      if(!parsed) return false;
+      const normalizedMeridiem = normalizeMeridiem(parsed.meridiem);
+      if(!normalizedMeridiem) return false;
+      if(showAmPm){
+        if(!meridiems.includes(normalizedMeridiem)){
+          return false;
+        }
+      }else{
+        if(normalizedMeridiem !== currentMeridiem){
+          return false;
+        }
+      }
+      const targetHour = parsed.hour;
+      const targetMinute = parsed.minute;
+      if(!hours.includes(targetHour) || !minutes.includes(targetMinute)){
+        return false;
+      }
+      const disabledSet = computeDisabledMinutes(targetHour, normalizedMeridiem);
+      if(disabledSet.has(targetMinute)){
+        return false;
+      }
+      inlineInputApplying = true;
+      try{
+        syncMeridiem(normalizedMeridiem, { emitChange: false });
+        if(hourWheel){
+          hourWheel.setValue(targetHour, { animate, emitChange: true });
+        }
+        if(minuteWheel){
+          minuteWheel.setValue(targetMinute, { animate, emitChange: true });
+        }
+        disabledMinutes = computeDisabledMinutes(currentHour, currentMeridiem);
+        minuteWheel.setDisabledChecker(minuteDisabledChecker);
+        updateInlineSnapshot();
+        return true;
+      }finally{
+        inlineInputApplying = false;
+      }
+    };
+
+    const commitInlineValue = ({ animate = false } = {}) => {
+      if(!inlineInput) return;
+      const text = inlineInput.value;
+      if(!text || !text.trim()){
+        inlineInputDirty = true;
+        inlineInput.setAttribute('aria-invalid', 'true');
+        return;
+      }
+      if(applyInlineText(text, { animate })){
+        inlineInputDirty = false;
+        syncInlineFromSnapshot({ force: true });
+        inlineInput.removeAttribute('aria-invalid');
+      }else{
+        inlineInputDirty = true;
+        inlineInput.setAttribute('aria-invalid', 'true');
+      }
+    };
 
     const getValue = () => ({
       hour: currentHour,
@@ -992,6 +1215,7 @@
         if(emitChange){
           onChange(getValue());
         }
+        scheduleInlineSync({ fromWheel: !inlineInputApplying });
         return normalized;
       }
       currentMeridiem = normalized;
@@ -1009,6 +1233,7 @@
       }
       meridiemRingSkip = skipRing;
       updateMeridiemButtons();
+      scheduleInlineSync({ fromWheel: !inlineInputApplying });
       return normalized;
     };
 
@@ -1312,6 +1537,73 @@
       wheels.appendChild(staticMeridiem);
     }
 
+    const inlineField = document.createElement('div');
+    inlineField.className = 'time-picker-inline-field';
+    inlineInput = document.createElement('input');
+    inlineInput.type = 'text';
+    inlineInput.className = 'time-picker-inline-input';
+    inlineInput.autocomplete = 'off';
+    inlineInput.autocapitalize = 'none';
+    inlineInput.spellcheck = false;
+    inlineInput.setAttribute('inputmode', 'text');
+    inlineInput.setAttribute('aria-label', 'Type a time (e.g., 8:30 PM)');
+    inlineField.appendChild(inlineInput);
+    root.appendChild(inlineField);
+
+    updateInlineSnapshot();
+    syncInlineFromSnapshot({ force: true });
+
+    inlineInput.addEventListener('focus', () => {
+      inlineInputHasFocus = true;
+      const wasInvalid = inlineInput.getAttribute('aria-invalid') === 'true';
+      inlineInputDirty = !!wasInvalid;
+      updateInlineSnapshot();
+      if(!wasInvalid){
+        syncInlineFromSnapshot({ force: true });
+      }
+      requestAnimationFrame(() => {
+        try{
+          inlineInput.select();
+        }catch(err){/* Safari */}
+      });
+    });
+
+    inlineInput.addEventListener('blur', () => {
+      inlineInputHasFocus = false;
+      commitInlineValue({ animate: false });
+    });
+
+    inlineInput.addEventListener('input', () => {
+      inlineInputDirty = true;
+      const text = inlineInput.value;
+      if(!text || !text.trim()){
+        inlineInput.setAttribute('aria-invalid', 'true');
+        return;
+      }
+      if(applyInlineText(text, { animate: true })){
+        inlineInput.removeAttribute('aria-invalid');
+      }else{
+        inlineInput.setAttribute('aria-invalid', 'true');
+      }
+    });
+
+    inlineInput.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        commitInlineValue({ animate: false });
+        return;
+      }
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        revertInlineValue();
+        requestAnimationFrame(() => {
+          try{
+            inlineInput.select();
+          }catch(err){/* Safari */}
+        });
+      }
+    });
+
     const rangeActions = startEnd ? document.createElement('div') : null;
     if(rangeActions){
       rangeActions.className = 'time-picker-range-actions';
@@ -1350,6 +1642,10 @@
       minuteWheel.dispose();
       if(meridiemWheel){
         meridiemWheel.dispose();
+      }
+      if(inlineSyncFrame){
+        cancelAnimationFrame(inlineSyncFrame);
+        inlineSyncFrame = null;
       }
     };
 
