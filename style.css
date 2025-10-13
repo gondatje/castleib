@@ -2188,15 +2188,16 @@ body.custom-lock{overflow:hidden;}
   flex:0 0 auto;
   flex-wrap:nowrap;
 }
+/* Follow-up aligns the guest toggle with the chip rail by switching to the
+ * square 40px button spec while keeping the existing toggle handlers. */
 .spa-guest-switch{
-  width:48px;
-  height:28px;
-  border-radius:999px;
-  border:1px solid var(--border);
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  border:1px solid var(--border-hairline);
   background:var(--surface);
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:grid;
+  place-items:center;
   padding:0;
   transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
 }
