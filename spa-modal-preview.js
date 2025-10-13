@@ -23,17 +23,19 @@
   ];
 
   const locationOptions = [
-    { id:'any', label:'Any Location' },
+    { id:'not-applicable', label:'N/A' },
     { id:'same-cabana', label:'Same Cabana' },
+    { id:'separate-cabanas', label:'Separate Cabanas' },
+    { id:'couples-massage', label:'Couple’s Massage' },
     { id:'in-room', label:'In-Room' }
   ];
 
   const durationOptions = [60, 90, 120];
 
   const viewports = [
-    { key:'desktop', label:'Desktop', time:{ hour:9, minute:15, meridiem:'AM' }, end:'10:45 AM', therapist:'no-preference', location:'any', duration:90 },
-    { key:'ipad', label:'iPad', time:{ hour:8, minute:0, meridiem:'AM' }, end:'10:00 AM', therapist:'female', location:'same-cabana', duration:120 },
-    { key:'mobile', label:'Mobile', time:{ hour:9, minute:0, meridiem:'AM' }, end:'10:30 AM', therapist:'no-preference', location:'same-cabana', duration:90 }
+    { key:'desktop', label:'Desktop', time:{ hour:9, minute:15, meridiem:'AM' }, end:'10:45 AM', therapist:'no-preference', location:'not-applicable', duration:60 },
+    { key:'ipad', label:'iPad', time:{ hour:8, minute:0, meridiem:'AM' }, end:'10:00 AM', therapist:'female', location:'same-cabana', duration:90 },
+    { key:'mobile', label:'Mobile', time:{ hour:9, minute:0, meridiem:'AM' }, end:'10:30 AM', therapist:'no-preference', location:'not-applicable', duration:60 }
   ];
 
   const guests = [
