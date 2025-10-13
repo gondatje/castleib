@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPA Modal Layout Preview · CHS Itinerary Builder</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .spa-modal-preview-grid{display:grid;gap:24px;justify-items:center;}
+    @media (min-width:1200px){.spa-modal-preview-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+    .spa-preview-frame{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:0 18px 32px rgba(15,23,42,.08);} 
+    .spa-preview-frame header{display:flex;flex-direction:column;gap:4px;}
+    .spa-preview-frame h3{margin:0;font-size:18px;letter-spacing:.02em;}
+    .spa-preview-frame p{margin:0;color:var(--muted);font-size:14px;}
+    .spa-preview-frame[data-viewport="desktop"]{inline-size:920px;}
+    .spa-preview-frame[data-viewport="ipad"]{inline-size:760px;}
+    .spa-preview-frame[data-viewport="mobile"]{inline-size:460px;}
+    .spa-preview-iframe-wrap{border-radius:16px;border:1px solid var(--border-hairline);background:var(--bg);padding:12px;display:flex;justify-content:center;overflow:hidden;}
+    .spa-preview-iframe{border:0;border-radius:20px;box-shadow:0 24px 48px rgba(15,23,42,.18);background:transparent;}
+    .spa-preview-iframe[data-viewport="desktop"]{width:880px;height:660px;}
+    .spa-preview-iframe[data-viewport="ipad"]{width:700px;height:640px;}
+    .spa-preview-iframe[data-viewport="mobile"]{width:420px;height:640px;}
+    .spa-preview-note{margin:0;color:var(--muted);font-size:13px;}
+  </style>
+</head>
+<body class="demo-page">
+  <div class="demo-container">
+    <header class="demo-header">
+      <h1>SPA modal layout preview</h1>
+      <p class="demo-section-copy">Use this gallery to spot-check the responsive shell across desktop, iPad, and mobile widths. Each iframe opens the production builder and loads the new SPA modal in its Add or Edit state.</p>
+    </header>
+
+    <section class="demo-section" aria-labelledby="spa-preview-add-title">
+      <div class="demo-section-header">
+        <h2 id="spa-preview-add-title">Add flow</h2>
+        <p class="spa-preview-note">Guest toggles start OFF so the switch shows the new disabled styling.</p>
+      </div>
+      <div class="spa-modal-preview-grid">
+        <article class="spa-preview-frame" data-viewport="desktop">
+          <header>
+            <h3>Desktop</h3>
+            <p>880 × 660</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — Desktop Add" src="index.html" data-mode="add" data-viewport="desktop"></iframe>
+          </div>
+        </article>
+        <article class="spa-preview-frame" data-viewport="ipad">
+          <header>
+            <h3>iPad</h3>
+            <p>700 × 640</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — iPad Add" src="index.html" data-mode="add" data-viewport="ipad"></iframe>
+          </div>
+        </article>
+        <article class="spa-preview-frame" data-viewport="mobile">
+          <header>
+            <h3>Mobile</h3>
+            <p>420 × 640</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — Mobile Add" src="index.html" data-mode="add" data-viewport="mobile"></iframe>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="demo-section" aria-labelledby="spa-preview-edit-title">
+      <div class="demo-section-header">
+        <h2 id="spa-preview-edit-title">Edit flow</h2>
+        <p class="spa-preview-note">Shows the delete affordance and ON guest switch with the same dimensions.</p>
+      </div>
+      <div class="spa-modal-preview-grid">
+        <article class="spa-preview-frame" data-viewport="desktop">
+          <header>
+            <h3>Desktop</h3>
+            <p>880 × 660</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — Desktop Edit" src="index.html" data-mode="edit" data-viewport="desktop"></iframe>
+          </div>
+        </article>
+        <article class="spa-preview-frame" data-viewport="ipad">
+          <header>
+            <h3>iPad</h3>
+            <p>700 × 640</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — iPad Edit" src="index.html" data-mode="edit" data-viewport="ipad"></iframe>
+          </div>
+        </article>
+        <article class="spa-preview-frame" data-viewport="mobile">
+          <header>
+            <h3>Mobile</h3>
+            <p>420 × 640</p>
+          </header>
+          <div class="spa-preview-iframe-wrap">
+            <iframe class="spa-preview-iframe" title="SPA modal preview — Mobile Edit" src="index.html" data-mode="edit" data-viewport="mobile"></iframe>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <script src="spa-modal-preview.js" defer></script>
+</body>
+</html>
