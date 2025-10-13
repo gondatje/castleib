@@ -417,39 +417,28 @@
       const isSelected = mode.guestsOn;
       const row = document.createElement('button');
       row.type = 'button';
-      row.className = 'spa-option-row spa-guest-row';
+      row.className = 'chip spa-guest-chip spa-guest-row';
+      row.dataset.guestChip = 'true';
       if(isSelected){
         row.classList.add('is-selected');
       }else{
         row.classList.add('is-off');
       }
+      row.style.setProperty('--chip-color', guest.color);
 
-      const swatch = document.createElement('span');
-      swatch.className = 'spa-guest-swatch';
-      swatch.style.setProperty('--spa-guest-color', guest.color);
-      swatch.setAttribute('aria-hidden','true');
+      const initial = document.createElement('span');
+      initial.className = 'initial';
+      initial.textContent = guest.name.charAt(0).toUpperCase();
+      row.appendChild(initial);
 
-      const label = document.createElement('span');
-      label.className = 'spa-option-label';
       if(guest.primary){
         const star = document.createElement('span');
-        star.className = 'spa-guest-star';
+        star.className = 'spa-guest-chip-star';
         star.textContent = '★';
         star.setAttribute('aria-hidden','true');
-        label.appendChild(star);
+        row.appendChild(star);
       }
-      const text = document.createElement('span');
-      text.className = 'spa-option-text';
-      text.textContent = guest.name;
-      label.appendChild(text);
 
-      const check = document.createElement('span');
-      check.className = 'spa-option-check';
-      check.innerHTML = '<span aria-hidden="true">✓</span>';
-
-      row.appendChild(swatch);
-      row.appendChild(label);
-      row.appendChild(check);
       list.appendChild(row);
     });
 

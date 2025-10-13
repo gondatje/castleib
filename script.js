@@ -2653,52 +2653,45 @@
         return;
       }
 
+      // Render each guest with the shared initial chip styling so the inline footer
+      // cluster matches the rest of the app without altering any toggle handlers.
       visibleGuests.forEach(guest => {
         const guestLabel = buildGuestLabel(guest);
         const isOn = assignedSet.has(guest.id);
         const row=document.createElement('button');
         row.type='button';
-        row.className='spa-option-row spa-guest-row';
+        row.className='chip spa-guest-chip spa-guest-row';
         row.dataset.guestId = guest.id;
         row.dataset.spaNoSubmit='true';
+        row.dataset.guestChip='true';
         row.setAttribute('role','option');
         row.setAttribute('aria-selected', isOn ? 'true' : 'false');
         row.classList.toggle('is-selected', isOn);
         row.classList.toggle('is-off', !isOn);
+        row.title = guestLabel;
+        const ariaLabel = guest.primary ? `${guestLabel} (Primary guest)` : guestLabel;
+        row.setAttribute('aria-label', ariaLabel);
+        if(guest.color){
+          row.style.setProperty('--chip-color', guest.color);
+        }
+
+        const initial=document.createElement('span');
+        initial.className='initial';
+        const initialsSource = (guestLabel || '').trim();
+        initial.textContent = initialsSource ? initialsSource.charAt(0).toUpperCase() : '';
+        row.appendChild(initial);
+
+        if(guest.primary){
+          const star=document.createElement('span');
+          star.className='spa-guest-chip-star';
+          star.textContent='★';
+          star.setAttribute('aria-hidden','true');
+          row.appendChild(star);
+        }
+
         row.addEventListener('click',()=>{
           toggleGuest(guest.id);
         });
-
-        const swatch=document.createElement('span');
-        swatch.className='spa-guest-swatch';
-        swatch.setAttribute('aria-hidden','true');
-        if(guest.color){
-          swatch.style.setProperty('--spa-guest-color', guest.color);
-        }
-
-        const labelWrapper=document.createElement('span');
-        labelWrapper.className='spa-option-label';
-        labelWrapper.title = guestLabel;
-        if(guest.primary){
-          const star=document.createElement('span');
-          star.className='spa-guest-star';
-          star.textContent='★';
-          star.setAttribute('aria-hidden','true');
-          labelWrapper.appendChild(star);
-        }
-        const labelText=document.createElement('span');
-        labelText.className='spa-option-text';
-        labelText.textContent=guestLabel;
-        labelWrapper.appendChild(labelText);
-
-        const checkSpan=document.createElement('span');
-        checkSpan.className='spa-option-check';
-        checkSpan.innerHTML=checkmarkSvg;
-        checkSpan.setAttribute('aria-hidden','true');
-
-        row.appendChild(swatch);
-        row.appendChild(labelWrapper);
-        row.appendChild(checkSpan);
 
         guestList.appendChild(row);
       });
