@@ -227,7 +227,7 @@
     }));
     pickerStack.appendChild(buildPickerCard({
       title:'Location',
-      srOnly:false,
+      srOnly:true,
       options:locationOptions,
       selected:viewport.location,
       className:'spa-detail-card spa-detail-card-location',
@@ -283,7 +283,8 @@
     preview.appendChild(start);
     preview.appendChild(separator);
     preview.appendChild(endValue);
-    card.appendChild(preview);
+    // Mirror the production tweak by leaving the preview row unmounted so the
+    // mock reflects the cleaned layout without changing the data wiring.
 
     const hint = document.createElement('p');
     hint.className = 'spa-helper-text spa-time-hint';
@@ -336,6 +337,7 @@
 
     const heading = document.createElement('h3');
     heading.textContent = 'Duration';
+    heading.className = 'sr-only';
     card.appendChild(heading);
 
     const list = document.createElement('div');

@@ -3121,6 +3121,7 @@
     durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
+    durationHeading.classList.add('sr-only');
     durationHeading.id = `${pickerNamespace}-duration-heading`;
     durationGroup.appendChild(durationHeading);
     const durationPickerContainer=document.createElement('div');
@@ -3158,7 +3159,8 @@
     endPreview.appendChild(startTimeDisplay);
     endPreview.appendChild(timeSeparator);
     endPreview.appendChild(endTimeValue);
-    timeGroup.appendChild(endPreview);
+    // Keep the preview nodes wired for assistive updates, but skip mounting the
+    // range row so the redundant "start – end" line stays hidden.
     const timeHint=document.createElement('p');
     timeHint.className='spa-helper-text spa-time-hint';
     timeHint.id='spa-time-hint';
@@ -3229,6 +3231,7 @@
     locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
+    locationHeading.classList.add('sr-only');
     locationHeading.id = `${pickerNamespace}-location-heading`;
     locationGroup.appendChild(locationHeading);
     const locationPickerContainer=document.createElement('div');
