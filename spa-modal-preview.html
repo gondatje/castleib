@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SPA Modal Layout Preview</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root{color-scheme:light;}
+    body{margin:0;padding:32px clamp(24px,5vw,48px);font:15px/1.45 -apple-system,system-ui,"Helvetica Neue",Segoe UI,Roboto,sans-serif;background:var(--color-bg);color:var(--ink);display:flex;flex-direction:column;gap:32px;}
+    h1{margin:0;font-size:28px;font-weight:650;letter-spacing:-0.01em;color:var(--ink);}
+    p{margin:0;color:var(--muted);max-width:720px;}
+    [data-preview-root]{display:flex;flex-direction:column;gap:32px;}
+    .preview-section{display:flex;flex-direction:column;gap:16px;}
+    .preview-section-title{margin:0;font-size:18px;font-weight:600;letter-spacing:0.01em;color:var(--ink);}
+    .preview-grid{display:grid;gap:28px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start;}
+    .preview-card{display:flex;flex-direction:column;gap:12px;align-items:stretch;}
+    .preview-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+    .preview-overlay{position:relative;inset:auto;background:transparent;padding:0;z-index:1;display:flex;justify-content:center;}
+    .preview-overlay .spa-dialog{margin:0 auto;}
+    .preview-overlay--desktop .spa-dialog{--spa-dialog-max-width:880px;--spa-dialog-min-height:600px;--spa-dialog-max-height:680px;}
+    .preview-overlay--ipad .spa-dialog{--spa-dialog-max-width:700px;--spa-dialog-min-height:600px;--spa-dialog-max-height:660px;}
+    .preview-overlay--mobile .spa-dialog{--spa-dialog-max-width:420px;--spa-dialog-min-height:600px;--spa-dialog-max-height:640px;}
+    @media (prefers-color-scheme: dark){body{background:var(--color-bg);color:var(--ink);}}
+  </style>
+  <script src="time-picker.js"></script>
+  <script defer src="spa-modal-preview.js"></script>
+</head>
+<body>
+  <h1>SPA Modal Responsive Preview</h1>
+  <p>Preview the refreshed SPA modal layout across desktop, iPad, and mobile breakpoints in both Add and Edit states.</p>
+  <div data-preview-root></div>
+</body>
+</html>

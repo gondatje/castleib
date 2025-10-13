@@ -2554,6 +2554,21 @@
     const layout=document.createElement('div');
     layout.className='modal-sections spa-layout';
     body.appendChild(layout);
+    // Layout wrapper keeps the original service/detail trees intact while the
+    // two-column grid + hairline divider handle the updated visual spec.
+    const layoutGrid=document.createElement('div');
+    layoutGrid.className='spa-layout-grid';
+    layout.appendChild(layoutGrid);
+    const serviceColumn=document.createElement('div');
+    serviceColumn.className='spa-layout-column spa-layout-column-services';
+    layoutGrid.appendChild(serviceColumn);
+    const layoutDivider=document.createElement('div');
+    layoutDivider.className='spa-layout-divider';
+    layoutDivider.setAttribute('aria-hidden','true');
+    layoutGrid.appendChild(layoutDivider);
+    const detailsColumn=document.createElement('div');
+    detailsColumn.className='spa-layout-column spa-layout-column-details';
+    layoutGrid.appendChild(detailsColumn);
 
     const guestSection=document.createElement('section');
     guestSection.className='modal-section spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
@@ -2565,6 +2580,7 @@
     const guestToggleAllBtn=document.createElement('button');
     guestToggleAllBtn.type='button';
     guestToggleAllBtn.className='icon-btn spa-toggle-all';
+    guestToggleAllBtn.classList.add('spa-guest-switch');
     guestToggleAllBtn.dataset.spaNoSubmit='true';
     guestToggleAllBtn.setAttribute('aria-pressed','false');
     guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
@@ -2574,6 +2590,7 @@
     guestSection.appendChild(guestHeader);
     const guestList=document.createElement('div');
     guestList.className='spa-option-list spa-option-list-guests list-hairline';
+    guestList.classList.add('spa-guest-chip-list');
     guestList.setAttribute('role','listbox');
     guestList.setAttribute('aria-label','Guests');
     guestList.setAttribute('aria-multiselectable','true');
@@ -2781,6 +2798,7 @@
     serviceCard.className='spa-block spa-service-card';
     const serviceHeading=document.createElement('h3');
     serviceHeading.textContent='Service';
+    serviceHeading.classList.add('sr-only');
     serviceCard.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
@@ -3086,15 +3104,18 @@
 
     applyCascadeState();
 
-    layout.appendChild(serviceSection);
+    serviceColumn.appendChild(serviceSection);
 
     const detailsSection=document.createElement('section');
     detailsSection.className='modal-section spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
-    // SPA right pane → 2×4 grid; pills → scrollable hairline lists.
+    // Details column now stacks the time block above the picker stack while
+    // keeping each wheel/list wired to the existing handlers.
     detailsGrid.className='spa-details-grid';
     detailsSection.appendChild(detailsGrid);
-    layout.appendChild(detailsSection);
+    detailsColumn.appendChild(detailsSection);
+    const pickerStack=document.createElement('div');
+    pickerStack.className='spa-picker-stack';
 
     const durationGroup=document.createElement('div');
     durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
@@ -3116,7 +3137,9 @@
     timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Start Time';
+    timeHeading.classList.add('sr-only');
     timeGroup.appendChild(timeHeading);
+    timeGroup.classList.add('spa-time-block');
     const timeContainer=document.createElement('div');
     timeContainer.className='spa-time-picker';
     timeGroup.appendChild(timeContainer);
@@ -3150,6 +3173,7 @@
     therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
+    therapistHeading.classList.add('sr-only');
     therapistHeading.id = `${pickerNamespace}-therapist-heading`;
     therapistGroup.appendChild(therapistHeading);
     const therapistPickerContainer=document.createElement('div');
@@ -3266,18 +3290,18 @@
     // tech without reserving vertical space, preventing layout shifts when
     // availability toggles.
     locationGroup.appendChild(locationHelper);
-    detailsGrid.appendChild(therapistGroup);
-    detailsGrid.appendChild(locationGroup);
-    detailsGrid.appendChild(durationGroup);
     detailsGrid.appendChild(timeGroup);
-    detailsGrid.appendChild(guestSection);
+    pickerStack.appendChild(therapistGroup);
+    pickerStack.appendChild(locationGroup);
+    pickerStack.appendChild(durationGroup);
+    detailsGrid.appendChild(pickerStack);
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
     const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
+    footerStart.className='modal-footer-start spa-footer-start';
     const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
+    footerEnd.className='modal-footer-end spa-footer-end';
     const confirmIsEdit = mode==='edit' && !!existing;
     const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
@@ -3290,8 +3314,13 @@
       // Editing exposes a destructive control that clears the entire merged
       // appointment; inline chips remain responsible for single-guest removals.
       removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete spa appointment', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(removeBtn);
+      footerEnd.insertBefore(removeBtn, confirmBtn);
     }
+    // Footer keeps the original guest toggle logic; only the container shifts so
+    // the chips render beside the light switch while actions stay right-aligned.
+    guestSection.classList.add('spa-footer-guests');
+    guestHeading.classList.add('sr-only');
+    footerStart.appendChild(guestSection);
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
     dialog.appendChild(footer);
