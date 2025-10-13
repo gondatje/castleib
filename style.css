@@ -2145,16 +2145,17 @@ body.custom-lock{overflow:hidden;}
   justify-content:center;
   text-align:center;
 }
-/* Follow-up aligns the footer into a single row; the 10px gap keeps the toggle
- * and first chip tight without letting the group wrap under the switch. */
+/* Follow-up aligns the footer into a single row so the toggle + chips stay
+ * inline. Gap mirrors the spec’s 8px spacing between the switch and chips. */
 .spa-footer-start{
   flex:1 1 auto;
   min-width:0;
   display:flex;
+  flex-direction:row;
   align-items:center;
-  gap:10px;
-  flex-wrap:nowrap;
   justify-content:flex-start;
+  gap:8px;
+  flex-wrap:nowrap;
 }
 .spa-footer-end{
   flex:0 0 auto;
@@ -2169,20 +2170,21 @@ body.custom-lock{overflow:hidden;}
  * actions stay aligned while long guest lists scroll horizontally. */
 .spa-footer-guests{
   display:flex;
+  flex-direction:row;
   align-items:center;
-  gap:10px;
+  justify-content:flex-start;
+  gap:8px;
   min-width:0;
   width:100%;
   flex:1 1 auto;
-  overflow:hidden;
   flex-wrap:nowrap;
-  justify-content:flex-start;
 }
 .spa-footer-guests .spa-guest-header{
   display:flex;
+  flex-direction:row;
   align-items:center;
-  gap:10px;
   justify-content:flex-start;
+  gap:8px;
   flex:0 0 auto;
   flex-wrap:nowrap;
 }
@@ -2198,7 +2200,10 @@ body.custom-lock{overflow:hidden;}
   padding:0;
   transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
 }
-.spa-footer-guests .spa-guest-switch{flex:0 0 auto;}
+.spa-footer-guests .spa-guest-switch{
+  flex:0 0 auto;
+  align-self:center;
+}
 .spa-guest-switch:hover{
   border-color:color-mix(in srgb,var(--brand) 32%,var(--border));
   box-shadow:0 6px 16px rgba(42,107,255,.12);
@@ -2211,19 +2216,21 @@ body.custom-lock{overflow:hidden;}
  * fixed across desktop/iPad/mobile breakpoints. */
 .spa-guest-chip-list{
   display:flex;
+  flex-direction:row;
   align-items:center;
-  flex-wrap:nowrap;
+  justify-content:flex-start;
   gap:6px;
   border:0;
   background:transparent;
   padding:0;
   max-block-size:none;
+  flex:1 1 auto;
+  min-width:0;
+  flex-wrap:nowrap;
+  white-space:nowrap;
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
-  flex:1 1 auto;
-  min-width:0;
-  white-space:nowrap;
 }
 /* Maintain inline chips beside the toggle; horizontal scroll absorbs overflow
  * instead of wrapping so the footer height never changes. */
