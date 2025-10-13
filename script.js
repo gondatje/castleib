@@ -2552,245 +2552,66 @@
     // service → duration → start time → therapist → location. Mutating one
     // step immediately cascades the data updates so the preview stays in sync.
     const layout=document.createElement('div');
-    layout.className='modal-sections spa-layout';
+    layout.className='spa-layout';
     body.appendChild(layout);
 
-    const guestSection=document.createElement('section');
-    guestSection.className='modal-section spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
-    const guestHeader=document.createElement('div');
-    guestHeader.className='spa-guest-header';
+    // Two-column grid keeps the services rail pinned left while the right stack
+    // flows vertically. The middle divider is a 1px hairline that collapses at
+    // mobile breakpoints.
+    const servicesColumn=document.createElement('div');
+    servicesColumn.className='spa-column spa-column-services';
+    layout.appendChild(servicesColumn);
+    const columnDivider=document.createElement('div');
+    columnDivider.className='spa-column-divider';
+    columnDivider.setAttribute('aria-hidden','true');
+    layout.appendChild(columnDivider);
+    const detailColumn=document.createElement('div');
+    detailColumn.className='spa-column spa-column-details';
+    layout.appendChild(detailColumn);
+
     const guestHeading=document.createElement('h3');
+    guestHeading.className='spa-footer-heading';
     guestHeading.textContent='Guests';
-    guestHeader.appendChild(guestHeading);
     const guestToggleAllBtn=document.createElement('button');
     guestToggleAllBtn.type='button';
-    guestToggleAllBtn.className='icon-btn spa-toggle-all';
+    guestToggleAllBtn.className='spa-footer-switch';
     guestToggleAllBtn.dataset.spaNoSubmit='true';
     guestToggleAllBtn.setAttribute('aria-pressed','false');
     guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
     guestToggleAllBtn.title='Turn all guests on';
     guestToggleAllBtn.innerHTML=toggleIcons.someOff;
-    guestHeader.appendChild(guestToggleAllBtn);
-    guestSection.appendChild(guestHeader);
     const guestList=document.createElement('div');
     guestList.className='spa-option-list spa-option-list-guests list-hairline';
     guestList.setAttribute('role','listbox');
     guestList.setAttribute('aria-label','Guests');
     guestList.setAttribute('aria-multiselectable','true');
-    guestSection.appendChild(guestList);
     const guestHint=document.createElement('p');
     guestHint.className='spa-helper-text spa-guest-hint';
     guestHint.id='spa-guest-hint';
     guestHint.setAttribute('aria-live','polite');
     guestHint.hidden=true;
-    guestSection.appendChild(guestHint);
     guestList.setAttribute('aria-describedby', guestHint.id);
 
-    const buildGuestLabel = guest => guest.name;
+    let guestRow = null;
 
-    // The confirm button stays inactive until every visible guest pill is ON.
-    function areGuestsReady(){
-      const visibleIds = orderedGuests();
-      return visibleIds.length>0 && visibleIds.every(id => assignedSet.has(id));
-    }
-
-    const updateToggleAllControl = visibleIds => {
-      const total = visibleIds.length;
-      const allOn = total>0 && visibleIds.every(id => assignedSet.has(id));
-      const shouldEnable = total>0;
-      guestToggleAllBtn.disabled = !shouldEnable;
-      guestToggleAllBtn.setAttribute('aria-pressed', allOn ? 'true' : 'false');
-      if(!shouldEnable){
-        guestToggleAllBtn.innerHTML = toggleIcons.allOn;
-        guestToggleAllBtn.setAttribute('aria-label','Toggle all guests');
-        guestToggleAllBtn.title='Toggle all guests';
-        return;
-      }
-      if(allOn){
-        guestToggleAllBtn.innerHTML = toggleIcons.allOn;
-        guestToggleAllBtn.setAttribute('aria-label','Turn all guests off');
-        guestToggleAllBtn.title='Turn all guests off';
-      }else{
-        guestToggleAllBtn.innerHTML = toggleIcons.someOff;
-        guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
-        guestToggleAllBtn.title='Turn all guests on';
-      }
-    };
-
-    // Modal pills reuse the roster styling while acting as the toggle. Each guest
-    // starts OFF so toggling ON captures the current template snapshot.
-    function updateGuestControls(){
-      guestList.innerHTML='';
-      const visibleIds = orderedGuests();
-      const visibleGuests = visibleIds.map(id => stayGuestLookup.get(id)).filter(Boolean);
-
-      guestHeading.textContent = visibleIds.length===1 ? 'Guest' : 'Guests';
-      guestList.setAttribute('aria-label', guestHeading.textContent);
-      updateToggleAllControl(visibleIds);
-
-      if(visibleGuests.length===0){
-        guestHint.hidden=true;
-        guestHint.textContent='';
-        guestHint.classList.add('spa-helper-error');
-        updateConfirmState();
-        return;
-      }
-
-      visibleGuests.forEach(guest => {
-        const guestLabel = buildGuestLabel(guest);
-        const isOn = assignedSet.has(guest.id);
-        const row=document.createElement('button');
-        row.type='button';
-        row.className='spa-option-row spa-guest-row';
-        row.dataset.guestId = guest.id;
-        row.dataset.spaNoSubmit='true';
-        row.setAttribute('role','option');
-        row.setAttribute('aria-selected', isOn ? 'true' : 'false');
-        row.classList.toggle('is-selected', isOn);
-        row.classList.toggle('is-off', !isOn);
-        row.addEventListener('click',()=>{
-          toggleGuest(guest.id);
-        });
-
-        const swatch=document.createElement('span');
-        swatch.className='spa-guest-swatch';
-        swatch.setAttribute('aria-hidden','true');
-        if(guest.color){
-          swatch.style.setProperty('--spa-guest-color', guest.color);
-        }
-
-        const labelWrapper=document.createElement('span');
-        labelWrapper.className='spa-option-label';
-        labelWrapper.title = guestLabel;
-        if(guest.primary){
-          const star=document.createElement('span');
-          star.className='spa-guest-star';
-          star.textContent='★';
-          star.setAttribute('aria-hidden','true');
-          labelWrapper.appendChild(star);
-        }
-        const labelText=document.createElement('span');
-        labelText.className='spa-option-text';
-        labelText.textContent=guestLabel;
-        labelWrapper.appendChild(labelText);
-
-        const checkSpan=document.createElement('span');
-        checkSpan.className='spa-option-check';
-        checkSpan.innerHTML=checkmarkSvg;
-        checkSpan.setAttribute('aria-hidden','true');
-
-        row.appendChild(swatch);
-        row.appendChild(labelWrapper);
-        row.appendChild(checkSpan);
-
-        guestList.appendChild(row);
-      });
-
-      const allOn = visibleIds.every(id => assignedSet.has(id));
-      if(allOn){
-        guestHint.hidden=true;
-        guestHint.textContent='';
-        guestHint.classList.remove('spa-helper-error');
-      }else{
-        guestHint.hidden=false;
-        guestHint.textContent='Turn all guests on to add these settings.';
-        guestHint.classList.remove('spa-helper-error');
-      }
-
-      updateConfirmState();
-    }
-
-    // Pill presses reuse the include/remove helpers so analytics hooks tied to
-    // the original chip toggles continue to fire without a new event surface.
-    function toggleGuest(id){
-      if(!id || !modalGuestSet.has(id)){
-        return;
-      }
-      if(assignedSet.has(id)){
-        removeGuest(id);
-      }else{
-        includeGuest(id);
-      }
-    }
-
-    // Toggle All mirrors the roster control: ON applies the current template
-    // snapshot to every guest, OFF clears all pending assignments.
-    function setAllGuests(on){
-      const targetIds = orderedGuests();
-      if(targetIds.length===0){
-        return;
-      }
-      if(on){
-        const templateSnapshot = { ...ensureTemplateSelection() };
-        targetIds.forEach(id => {
-          assignedSet.add(id);
-          selections.set(id, { ...templateSnapshot, guestId: id });
-        });
-      }else{
-        targetIds.forEach(id => {
-          assignedSet.delete(id);
-          selections.delete(id);
-        });
-      }
-      updateGuestControls();
-      refreshAllControls();
-    }
-
-    // When a guest flips back ON, clone the current staged config template so the
-    // latest settings apply immediately while preserving other guests' snapshots.
-    function includeGuest(id,{ silent=false }={}){
-      if(!id || !modalGuestSet.has(id) || assignedSet.has(id)){
-        return;
-      }
-      const templateSnapshot = { ...ensureTemplateSelection() };
-      assignedSet.add(id);
-      selections.set(id, { ...templateSnapshot, guestId: id });
-      if(!silent){
-        updateGuestControls();
-        refreshAllControls();
-      }
-    }
-
-    // OFF guests simply drop out of the assigned set; snapshots remain per-guest
-    // so a subsequent ON applies the latest template instead of mutating history.
-    function removeGuest(id,{ silent=false }={}){
-      if(!assignedSet.has(id)) return;
-      assignedSet.delete(id);
-      selections.delete(id);
-      if(!silent){
-        updateGuestControls();
-        refreshAllControls();
-      }
-    }
-
-    guestToggleAllBtn.addEventListener('click',()=>{
-      if(areGuestsReady()){
-        setAllGuests(false);
-      }else{
-        setAllGuests(true);
-      }
-    });
-
-    function markGuestsDirty(){
-      updateConfirmState();
-    }
-
-    const serviceSection=document.createElement('section');
-    serviceSection.className='modal-section spa-section spa-section-services';
-    const serviceCard=document.createElement('div');
-    serviceCard.className='spa-block spa-service-card';
+    // SPA: layout-only fix; restore interactions; right-align footer; hide labels via sr-only
+    const serviceSection=document.createElement('div');
+    serviceSection.className='spa-services';
     const serviceHeading=document.createElement('h3');
-    serviceHeading.textContent='Service';
-    serviceCard.appendChild(serviceHeading);
+    serviceHeading.className='spa-section-title sr-only';
+    serviceHeading.id = `${pickerNamespace}-service-heading`;
+    serviceHeading.textContent='Service list';
+    serviceSection.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
     serviceList.setAttribute('role','tree');
-    serviceList.setAttribute('aria-label','Spa services');
+    serviceList.setAttribute('aria-label','Service list');
+    serviceList.setAttribute('aria-labelledby', serviceHeading.id);
     const serviceScroll=document.createElement('div');
     serviceScroll.className='spa-service-scroll';
     serviceScroll.appendChild(serviceList);
-    serviceCard.appendChild(serviceScroll);
-    serviceSection.appendChild(serviceCard);
+    serviceSection.appendChild(serviceScroll);
+    servicesColumn.appendChild(serviceSection);
 
     // Auto-hide scrollbar: apply a class while the user scrolls or hovers so we
     // can expose a thin thumb, then clear it after a short idle period.
@@ -3086,18 +2907,14 @@
 
     applyCascadeState();
 
-    layout.appendChild(serviceSection);
+    // Service column already mounted above.
 
-    const detailsSection=document.createElement('section');
-    detailsSection.className='modal-section spa-section spa-section-details';
-    const detailsGrid=document.createElement('div');
-    // SPA right pane → 2×4 grid; pills → scrollable hairline lists.
-    detailsGrid.className='spa-details-grid';
-    detailsSection.appendChild(detailsGrid);
-    layout.appendChild(detailsSection);
+    const detailStack=document.createElement('div');
+    detailStack.className='spa-detail-stack';
+    detailColumn.appendChild(detailStack);
 
     const durationGroup=document.createElement('div');
-    durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
+    durationGroup.className='spa-picker-card spa-picker-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
     durationHeading.id = `${pickerNamespace}-duration-heading`;
@@ -3113,12 +2930,24 @@
     durationPickerContainer.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
 
     const timeGroup=document.createElement('div');
-    timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
+    timeGroup.className='spa-time-block';
     const timeHeading=document.createElement('h3');
+    timeHeading.className='sr-only';
+    timeHeading.id = `${pickerNamespace}-start-time-heading`;
     timeHeading.textContent='Start Time';
     timeGroup.appendChild(timeHeading);
+    const timeColumns=document.createElement('div');
+    timeColumns.className='spa-time-columns-labels sr-only';
+    ['Hour','Minute','AM/PM'].forEach(label=>{
+      const span=document.createElement('span');
+      span.className='sr-only';
+      span.textContent=label;
+      timeColumns.appendChild(span);
+    });
+    timeGroup.appendChild(timeColumns);
     const timeContainer=document.createElement('div');
     timeContainer.className='spa-time-picker';
+    timeContainer.setAttribute('aria-labelledby', timeHeading.id);
     timeGroup.appendChild(timeContainer);
     const endPreview=document.createElement('div');
     endPreview.className='spa-end-preview';
@@ -3147,7 +2976,7 @@
     let startTimeEditing=false;
 
     const therapistGroup=document.createElement('div');
-    therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
+    therapistGroup.className='spa-picker-card spa-picker-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
     therapistHeading.id = `${pickerNamespace}-therapist-heading`;
@@ -3202,7 +3031,7 @@
     }
 
     const locationGroup=document.createElement('div');
-    locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
+    locationGroup.className='spa-picker-card spa-picker-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
     locationHeading.id = `${pickerNamespace}-location-heading`;
@@ -3266,34 +3095,46 @@
     // tech without reserving vertical space, preventing layout shifts when
     // availability toggles.
     locationGroup.appendChild(locationHelper);
-    detailsGrid.appendChild(therapistGroup);
-    detailsGrid.appendChild(locationGroup);
-    detailsGrid.appendChild(durationGroup);
-    detailsGrid.appendChild(timeGroup);
-    detailsGrid.appendChild(guestSection);
+    detailStack.appendChild(timeGroup);
+    detailStack.appendChild(therapistGroup);
+    detailStack.appendChild(locationGroup);
+    detailStack.appendChild(durationGroup);
 
     const footer=document.createElement('div');
-    footer.className='modal-footer';
-    const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
-    const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
+    footer.className='modal-footer spa-footer';
+    // Reuse the existing guest toggles inside a footer row so assignment logic
+    // and analytics hooks remain unchanged while matching the new shell layout.
+    const footerInner=document.createElement('div');
+    footerInner.className='spa-footer-inner';
+    footer.appendChild(footerInner);
+
+    const footerGuests=document.createElement('div');
+    footerGuests.className='spa-footer-guests';
+    footerInner.appendChild(footerGuests);
+    guestHeading.classList.add('sr-only');
+    footerGuests.appendChild(guestHeading);
+    guestRow=document.createElement('div');
+    guestRow.className='spa-footer-guest-row';
+    guestRow.appendChild(guestToggleAllBtn);
+    guestRow.appendChild(guestList);
+    footerGuests.appendChild(guestRow);
+    footerGuests.appendChild(guestHint);
+
+    const footerActions=document.createElement('div');
+    footerActions.className='spa-footer-actions';
+    footerInner.appendChild(footerActions);
     const confirmIsEdit = mode==='edit' && !!existing;
     const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
     const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
     confirmBtn.classList.add('spa-confirm');
     confirmBtn.setAttribute('aria-describedby', guestHint.id);
-    footerEnd.appendChild(confirmBtn);
     let removeBtn=null;
     if(confirmIsEdit){
-      // Editing exposes a destructive control that clears the entire merged
-      // appointment; inline chips remain responsible for single-guest removals.
       removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete spa appointment', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(removeBtn);
+      footerActions.appendChild(removeBtn);
     }
-    footer.appendChild(footerStart);
-    footer.appendChild(footerEnd);
+    footerActions.appendChild(confirmBtn);
     dialog.appendChild(footer);
 
     const previousFocus=document.activeElement;
@@ -3358,7 +3199,7 @@
       minuteStep:5,
       showAmPm:true,
       defaultValue: initialTimeValue,
-      ariaLabels:{ hours:'Spa hour', minutes:'Spa minutes', meridiem:'AM or PM' },
+      ariaLabels:{ hours:'Time Hours', minutes:'Time Minutes', meridiem:'AM or PM' },
       onChange: handleTimeChange
     }) : null;
 
