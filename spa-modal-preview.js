@@ -431,13 +431,8 @@
       initial.textContent = guest.name.charAt(0).toUpperCase();
       row.appendChild(initial);
 
-      if(guest.primary){
-        const star = document.createElement('span');
-        star.className = 'spa-guest-chip-star';
-        star.textContent = '★';
-        star.setAttribute('aria-hidden','true');
-        row.appendChild(star);
-      }
+      // Preview keeps parity with production: aria-labels still call out primary
+      // guests, but the decorative star is removed so the chips stay inline.
 
       list.appendChild(row);
     });

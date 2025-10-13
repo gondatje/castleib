@@ -2681,13 +2681,9 @@
         initial.textContent = initialsSource ? initialsSource.charAt(0).toUpperCase() : '';
         row.appendChild(initial);
 
-        if(guest.primary){
-          const star=document.createElement('span');
-          star.className='spa-guest-chip-star';
-          star.textContent='★';
-          star.setAttribute('aria-hidden','true');
-          row.appendChild(star);
-        }
+        // Primary guests continue to read as such via the aria-label, but the
+        // visual star is removed per the follow-up so the inline chips stay
+        // uniformly sized beside the toggle.
 
         row.addEventListener('click',()=>{
           toggleGuest(guest.id);
