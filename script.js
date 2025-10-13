@@ -2553,9 +2553,9 @@
     const pickerNamespace = `spa-picker-${++spaPickerSerial}`;
     const therapistLabelById = new Map(SPA_THERAPIST_OPTIONS.map(opt => [opt.id, opt.label]));
     const locationLabelById = new Map(SPA_LOCATION_OPTIONS.map(opt => [opt.id, opt.label]));
-    let therapistDisplayText = null;
-    let locationDisplayText = null;
-    let durationDisplayText = null;
+    let therapistFieldDisplay = null;
+    let locationFieldDisplay = null;
+    let durationFieldDisplay = null;
     let therapistWheel = null;
     let locationWheel = null;
     let durationWheel = null;
@@ -2579,16 +2579,21 @@
       const therapistDisplay = therapistLabelById.get(therapistId)
         || therapistLabelById.get('no-preference')
         || 'No Preference';
+      const therapistIsDerived = !therapistPreference;
 
       const singleGuest = guestsCount === 1;
       let locationId = location || '';
+      let locationIsDerived = false;
       if(singleGuest){
         locationId = 'not-applicable';
-      }else if(!locationId || locationId === 'not-applicable'){
+        locationIsDerived = !location;
+      }else if(!locationId){
         locationId = 'same-cabana';
+        locationIsDerived = true;
       }
       if(!locationId){
-        locationId = defaultLocationId;
+        locationId = 'not-applicable';
+        locationIsDerived = true;
       }
       const locationDisplay = locationLabelById.get(locationId)
         || (singleGuest ? 'No Preference' : (locationLabelById.get('same-cabana') || 'Same Cabana'));
@@ -2597,6 +2602,7 @@
         ? serviceDurations.filter(value => Number.isFinite(Number(value))).map(Number).sort((a,b)=>a-b)
         : [];
       let resolvedDuration = Number.isFinite(duration) ? Number(duration) : null;
+      let durationIsDerived = !Number.isFinite(duration);
       if(resolvedDuration === null){
         if(selectedService && orderedDurations.length){
           resolvedDuration = orderedDurations[0];
@@ -2605,8 +2611,18 @@
       const durationDisplay = Number.isFinite(resolvedDuration)
         ? formatDurationDisplay(resolvedDuration)
         : '60 Minutes';
+      if(Number.isFinite(resolvedDuration) && Number.isFinite(duration)){
+        durationIsDerived = false;
+      }
 
-      return { therapistDisplay, locationDisplay, durationDisplay };
+      return {
+        therapistDisplay,
+        locationDisplay,
+        durationDisplay,
+        therapistIsDerived,
+        locationIsDerived,
+        durationIsDerived
+      };
     };
 
     const overlay = document.createElement('div');
@@ -3205,12 +3221,9 @@
     durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
     const durationField=document.createElement('div');
     durationField.className='spa-picker-field';
-    durationDisplayText=document.createElement('div');
-    durationDisplayText.className='spa-picker-display';
-    durationDisplayText.setAttribute('aria-hidden','true');
-    durationField.appendChild(durationDisplayText);
-    durationField.appendChild(durationPickerContainer);
     durationGroup.appendChild(durationField);
+    durationGroup.appendChild(durationPickerContainer);
+    durationFieldDisplay = durationField;
     durationValueLabel=document.createElement('span');
     durationValueLabel.className='sr-only spa-picker-value';
     durationValueLabel.id = `${pickerNamespace}-duration-value`;
@@ -3266,12 +3279,9 @@
     therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
     const therapistField=document.createElement('div');
     therapistField.className='spa-picker-field';
-    therapistDisplayText=document.createElement('div');
-    therapistDisplayText.className='spa-picker-display';
-    therapistDisplayText.setAttribute('aria-hidden','true');
-    therapistField.appendChild(therapistDisplayText);
-    therapistField.appendChild(therapistPickerContainer);
     therapistGroup.appendChild(therapistField);
+    therapistGroup.appendChild(therapistPickerContainer);
+    therapistFieldDisplay = therapistField;
     therapistValueLabel=document.createElement('span');
     therapistValueLabel.className='sr-only spa-picker-value';
     therapistValueLabel.id = `${pickerNamespace}-therapist-value`;
@@ -3329,12 +3339,9 @@
     locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
     const locationField=document.createElement('div');
     locationField.className='spa-picker-field';
-    locationDisplayText=document.createElement('div');
-    locationDisplayText.className='spa-picker-display';
-    locationDisplayText.setAttribute('aria-hidden','true');
-    locationField.appendChild(locationDisplayText);
-    locationField.appendChild(locationPickerContainer);
     locationGroup.appendChild(locationField);
+    locationGroup.appendChild(locationPickerContainer);
+    locationFieldDisplay = locationField;
     locationValueLabel=document.createElement('span');
     locationValueLabel.className='sr-only spa-picker-value';
     locationValueLabel.id = `${pickerNamespace}-location-value`;
@@ -3795,7 +3802,7 @@
     }
 
     function updatePickerDisplays(){
-      if(!therapistDisplayText && !locationDisplayText && !durationDisplayText){
+      if(!therapistFieldDisplay && !locationFieldDisplay && !durationFieldDisplay){
         return;
       }
       const canonical = getCanonicalSelection();
@@ -3803,7 +3810,14 @@
       const serviceDurations = service?.durations
         ? service.durations.filter(value => Number.isFinite(Number(value))).map(Number)
         : [];
-      const { therapistDisplay, locationDisplay, durationDisplay } = deriveSpaDisplayValues({
+      const {
+        therapistDisplay,
+        locationDisplay,
+        durationDisplay,
+        therapistIsDerived,
+        locationIsDerived,
+        durationIsDerived
+      } = deriveSpaDisplayValues({
         therapistPreference: canonical?.therapist,
         location: canonical?.location,
         duration: canonical?.durationMinutes,
@@ -3811,14 +3825,20 @@
         serviceDurations,
         guestsCount: state.guests.length
       });
-      if(therapistDisplayText){
-        therapistDisplayText.textContent = therapistDisplay;
+      // Tag derived placeholders so the visual treatment can soften the text
+      // without mutating the underlying selection. This keeps the inputs
+      // populated on open while still reflecting true user choices once set.
+      if(therapistFieldDisplay){
+        therapistFieldDisplay.textContent = therapistDisplay;
+        therapistFieldDisplay.classList.toggle('is-derived', !!therapistIsDerived);
       }
-      if(locationDisplayText){
-        locationDisplayText.textContent = locationDisplay;
+      if(locationFieldDisplay){
+        locationFieldDisplay.textContent = locationDisplay;
+        locationFieldDisplay.classList.toggle('is-derived', !!locationIsDerived);
       }
-      if(durationDisplayText){
-        durationDisplayText.textContent = durationDisplay;
+      if(durationFieldDisplay){
+        durationFieldDisplay.textContent = durationDisplay;
+        durationFieldDisplay.classList.toggle('is-derived', !!durationIsDerived);
       }
       if(therapistValueLabel){
         therapistValueLabel.textContent = therapistDisplay;
