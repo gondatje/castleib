@@ -2223,54 +2223,54 @@
       }
     }) : null;
 
-    const layout=document.createElement('div');
-    layout.className='modal-sections dinner-layout';
-    body.appendChild(layout);
+    const timeShell=document.createElement('div');
+    timeShell.className='dinner-time-shell';
+    body.appendChild(timeShell);
 
     const timeSection=document.createElement('section');
-    // Unified modal layout structure keeps dinner controls aligned with spa/custom flows.
-    timeSection.className='modal-section dinner-section';
+    // Unified modal layout structure keeps the dinner modal aligned with other sheets while allowing the new sticky shell.
+    timeSection.className='dinner-time-section';
     const timeHeading=document.createElement('h3');
+    timeHeading.className='dinner-time-heading';
     timeHeading.textContent='Time';
     timeSection.appendChild(timeHeading);
 
-    const pickerShell=document.createElement('div');
-    pickerShell.className='dinner-picker-shell';
+    const timeContent=document.createElement('div');
+    timeContent.className='dinner-time-content';
     if(!timePicker){
       const fallback = document.createElement('div');
       fallback.className = 'time-picker-fallback';
       fallback.textContent = 'Time picker failed to load.';
-      pickerShell.appendChild(fallback);
+      timeContent.appendChild(fallback);
     }else{
-      pickerShell.appendChild(timePicker.element);
+      // The picker gets a scoped class so CSS can switch to the grid layout without touching other consumers.
+      timePicker.element.classList.add('dinner-time-picker');
+      timeContent.appendChild(timePicker.element);
     }
-    timeSection.appendChild(pickerShell);
-    layout.appendChild(timeSection);
+    timeSection.appendChild(timeContent);
+    timeShell.appendChild(timeSection);
 
     dialog.appendChild(body);
 
     const footer=document.createElement('div');
-    footer.className='modal-footer';
-    const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
+    footer.className='modal-footer dinner-footer';
+    // Dinner is always all-guests; guest UI removed.
     const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
-    // Shared footer layout keeps destructive controls on the left while primary
-    // actions stay grouped on the right for every modal.
+    footerEnd.className='modal-footer-end dinner-footer-end';
 
     const confirmIsEdit = mode==='edit' && !!existing;
     const confirmLabel = confirmIsEdit ? 'Save dinner time' : 'Add dinner time';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
     const confirmBtn = createIconButton({ icon: confirmIcon, label: confirmLabel, extraClass: 'btn-icon--primary' });
-    footerEnd.appendChild(confirmBtn);
 
     let removeBtn=null;
     if(confirmIsEdit){
       removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete dinner', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(removeBtn);
+      footerEnd.appendChild(removeBtn);
     }
 
-    footer.appendChild(footerStart);
+    footerEnd.appendChild(confirmBtn);
+
     footer.appendChild(footerEnd);
     dialog.appendChild(footer);
 
