@@ -34,40 +34,6 @@
 
   const formatDurationDisplay = minutes => `${minutes} Minutes`;
 
-  function derivePreviewDisplayValues({ therapist, location, duration }, { guestsCount }){
-    const therapistDisplay = (therapistOptions.find(opt => opt.id === therapist)?.label) || 'No Preference';
-    const therapistIsDerived = !therapist;
-    const singleGuest = guestsCount === 1;
-    let locationId = location || '';
-    let locationIsDerived = false;
-    if(singleGuest){
-      locationId = 'not-applicable';
-      locationIsDerived = !location;
-    }else if(!locationId){
-      locationId = 'same-cabana';
-      locationIsDerived = true;
-    }
-    if(!locationId){
-      locationId = 'not-applicable';
-      locationIsDerived = true;
-    }
-    const locationDisplay = (locationOptions.find(opt => opt.id === locationId)?.label)
-      || (singleGuest ? 'No Preference' : 'Same Cabana');
-    const hasDuration = typeof duration === 'number' && Number.isFinite(duration);
-    const durationDisplay = hasDuration
-      ? formatDurationDisplay(duration)
-      : '60 Minutes';
-    const durationIsDerived = !hasDuration;
-    return {
-      therapistDisplay,
-      locationDisplay,
-      durationDisplay,
-      therapistIsDerived,
-      locationIsDerived,
-      durationIsDerived
-    };
-  }
-
   const viewports = [
     { key:'desktop', label:'Desktop', time:{ hour:9, minute:15, meridiem:'AM' }, end:'10:45 AM', therapist:'no-preference', location:'not-applicable', duration:60 },
     { key:'ipad', label:'iPad', time:{ hour:8, minute:0, meridiem:'AM' }, end:'10:00 AM', therapist:'female', location:'same-cabana', duration:90 },
@@ -253,13 +219,6 @@
 
     grid.appendChild(buildTimeCard(viewport));
 
-    const guestsCount = mode && mode.guestsOn ? guests.length : 1;
-    const displayValues = derivePreviewDisplayValues({
-      therapist: viewport.therapist,
-      location: viewport.location,
-      duration: viewport.duration
-    }, { guestsCount });
-
     const pickerStack = document.createElement('div');
     pickerStack.className = 'spa-picker-stack';
     pickerStack.appendChild(buildPickerCard({
@@ -267,8 +226,6 @@
       srOnly:true,
       options:therapistOptions,
       selected:viewport.therapist,
-      displayValue:displayValues.therapistDisplay,
-      isDerived:displayValues.therapistIsDerived,
       className:'spa-detail-card spa-detail-card-therapist',
       listClass:'spa-option-list spa-option-list-therapist list-hairline'
     }));
@@ -277,12 +234,10 @@
       srOnly:true,
       options:locationOptions,
       selected:viewport.location,
-      displayValue:displayValues.locationDisplay,
-      isDerived:displayValues.locationIsDerived,
       className:'spa-detail-card spa-detail-card-location',
       listClass:'spa-option-list spa-option-list-location list-hairline'
     }));
-    pickerStack.appendChild(buildDurationCard(viewport.duration, displayValues.durationDisplay, displayValues.durationIsDerived));
+    pickerStack.appendChild(buildDurationCard(viewport.duration));
     grid.appendChild(pickerStack);
 
     return section;
@@ -343,7 +298,7 @@
     return card;
   }
 
-  function buildPickerCard({ title, srOnly, options, selected, displayValue, isDerived, className, listClass = 'spa-option-list list-hairline' }){
+  function buildPickerCard({ title, srOnly, options, selected, className, listClass = 'spa-option-list list-hairline' }){
     const card = document.createElement('div');
     card.className = `spa-block spa-detail-card ${className}`;
 
@@ -353,14 +308,6 @@
       heading.className = 'sr-only';
     }
     card.appendChild(heading);
-
-    const field = document.createElement('div');
-    field.className = 'spa-picker-field';
-    field.textContent = displayValue || (options.find(opt => opt.id === selected)?.label) || options[0]?.label || '';
-    if(isDerived){
-      field.classList.add('is-derived');
-    }
-    card.appendChild(field);
 
     const list = document.createElement('div');
     list.className = listClass;
@@ -388,7 +335,7 @@
     return card;
   }
 
-  function buildDurationCard(selected, displayValue, isDerived){
+  function buildDurationCard(selected){
     const card = document.createElement('div');
     card.className = 'spa-block spa-detail-card spa-detail-card-duration';
 
@@ -396,14 +343,6 @@
     heading.textContent = 'Duration';
     heading.className = 'sr-only';
     card.appendChild(heading);
-
-    const field = document.createElement('div');
-    field.className = 'spa-picker-field';
-    field.textContent = displayValue || formatDurationDisplay(selected || durationOptions[0]);
-    if(isDerived){
-      field.classList.add('is-derived');
-    }
-    card.appendChild(field);
 
     const list = document.createElement('div');
     list.className = 'spa-option-list spa-option-list-duration list-hairline';

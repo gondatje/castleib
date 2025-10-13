@@ -2553,9 +2553,6 @@
     const pickerNamespace = `spa-picker-${++spaPickerSerial}`;
     const therapistLabelById = new Map(SPA_THERAPIST_OPTIONS.map(opt => [opt.id, opt.label]));
     const locationLabelById = new Map(SPA_LOCATION_OPTIONS.map(opt => [opt.id, opt.label]));
-    let therapistFieldDisplay = null;
-    let locationFieldDisplay = null;
-    let durationFieldDisplay = null;
     let therapistWheel = null;
     let locationWheel = null;
     let durationWheel = null;
@@ -2563,67 +2560,6 @@
     let therapistValueLabel = null;
     let locationValueLabel = null;
     let durationValueLabel = null;
-
-    // Display-only defaults keep the UI populated on first paint without mutating
-    // the underlying selection state. Callers pass the current selection and
-    // catalogue context; the helper resolves readable strings for the fields.
-    const deriveSpaDisplayValues = ({
-      therapistPreference,
-      location,
-      duration,
-      selectedService,
-      serviceDurations,
-      guestsCount
-    } = {}) => {
-      const therapistId = therapistPreference || 'no-preference';
-      const therapistDisplay = therapistLabelById.get(therapistId)
-        || therapistLabelById.get('no-preference')
-        || 'No Preference';
-      const therapistIsDerived = !therapistPreference;
-
-      const singleGuest = guestsCount === 1;
-      let locationId = location || '';
-      let locationIsDerived = false;
-      if(singleGuest){
-        locationId = 'not-applicable';
-        locationIsDerived = !location;
-      }else if(!locationId){
-        locationId = 'same-cabana';
-        locationIsDerived = true;
-      }
-      if(!locationId){
-        locationId = 'not-applicable';
-        locationIsDerived = true;
-      }
-      const locationDisplay = locationLabelById.get(locationId)
-        || (singleGuest ? 'No Preference' : (locationLabelById.get('same-cabana') || 'Same Cabana'));
-
-      const orderedDurations = Array.isArray(serviceDurations)
-        ? serviceDurations.filter(value => Number.isFinite(Number(value))).map(Number).sort((a,b)=>a-b)
-        : [];
-      let resolvedDuration = Number.isFinite(duration) ? Number(duration) : null;
-      let durationIsDerived = !Number.isFinite(duration);
-      if(resolvedDuration === null){
-        if(selectedService && orderedDurations.length){
-          resolvedDuration = orderedDurations[0];
-        }
-      }
-      const durationDisplay = Number.isFinite(resolvedDuration)
-        ? formatDurationDisplay(resolvedDuration)
-        : '60 Minutes';
-      if(Number.isFinite(resolvedDuration) && Number.isFinite(duration)){
-        durationIsDerived = false;
-      }
-
-      return {
-        therapistDisplay,
-        locationDisplay,
-        durationDisplay,
-        therapistIsDerived,
-        locationIsDerived,
-        durationIsDerived
-      };
-    };
 
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
@@ -3219,11 +3155,7 @@
     durationGroup.appendChild(durationHeading);
     const durationPickerContainer=document.createElement('div');
     durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
-    const durationField=document.createElement('div');
-    durationField.className='spa-picker-field';
-    durationGroup.appendChild(durationField);
     durationGroup.appendChild(durationPickerContainer);
-    durationFieldDisplay = durationField;
     durationValueLabel=document.createElement('span');
     durationValueLabel.className='sr-only spa-picker-value';
     durationValueLabel.id = `${pickerNamespace}-duration-value`;
@@ -3277,11 +3209,7 @@
     therapistGroup.appendChild(therapistHeading);
     const therapistPickerContainer=document.createElement('div');
     therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
-    const therapistField=document.createElement('div');
-    therapistField.className='spa-picker-field';
-    therapistGroup.appendChild(therapistField);
     therapistGroup.appendChild(therapistPickerContainer);
-    therapistFieldDisplay = therapistField;
     therapistValueLabel=document.createElement('span');
     therapistValueLabel.className='sr-only spa-picker-value';
     therapistValueLabel.id = `${pickerNamespace}-therapist-value`;
@@ -3337,11 +3265,7 @@
     locationGroup.appendChild(locationHeading);
     const locationPickerContainer=document.createElement('div');
     locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
-    const locationField=document.createElement('div');
-    locationField.className='spa-picker-field';
-    locationGroup.appendChild(locationField);
     locationGroup.appendChild(locationPickerContainer);
-    locationFieldDisplay = locationField;
     locationValueLabel=document.createElement('span');
     locationValueLabel.className='sr-only spa-picker-value';
     locationValueLabel.id = `${pickerNamespace}-location-value`;
@@ -3801,56 +3725,6 @@
       locationHelper.textContent = helperMessages.join(' ');
     }
 
-    function updatePickerDisplays(){
-      if(!therapistFieldDisplay && !locationFieldDisplay && !durationFieldDisplay){
-        return;
-      }
-      const canonical = getCanonicalSelection();
-      const service = canonical?.serviceName ? findService(canonical.serviceName) : null;
-      const serviceDurations = service?.durations
-        ? service.durations.filter(value => Number.isFinite(Number(value))).map(Number)
-        : [];
-      const {
-        therapistDisplay,
-        locationDisplay,
-        durationDisplay,
-        therapistIsDerived,
-        locationIsDerived,
-        durationIsDerived
-      } = deriveSpaDisplayValues({
-        therapistPreference: canonical?.therapist,
-        location: canonical?.location,
-        duration: canonical?.durationMinutes,
-        selectedService: canonical?.serviceName,
-        serviceDurations,
-        guestsCount: state.guests.length
-      });
-      // Tag derived placeholders so the visual treatment can soften the text
-      // without mutating the underlying selection. This keeps the inputs
-      // populated on open while still reflecting true user choices once set.
-      if(therapistFieldDisplay){
-        therapistFieldDisplay.textContent = therapistDisplay;
-        therapistFieldDisplay.classList.toggle('is-derived', !!therapistIsDerived);
-      }
-      if(locationFieldDisplay){
-        locationFieldDisplay.textContent = locationDisplay;
-        locationFieldDisplay.classList.toggle('is-derived', !!locationIsDerived);
-      }
-      if(durationFieldDisplay){
-        durationFieldDisplay.textContent = durationDisplay;
-        durationFieldDisplay.classList.toggle('is-derived', !!durationIsDerived);
-      }
-      if(therapistValueLabel){
-        therapistValueLabel.textContent = therapistDisplay;
-      }
-      if(locationValueLabel){
-        locationValueLabel.textContent = locationDisplay;
-      }
-      if(durationValueLabel){
-        durationValueLabel.textContent = durationDisplay;
-      }
-    }
-
     function refreshTimePickerSelection(){
       const selection = getCanonicalSelection();
       if(!selection || !timePicker) return;
@@ -3894,7 +3768,6 @@
       refreshLocationOptions();
       refreshTimePickerSelection();
       refreshEndPreview();
-      updatePickerDisplays();
       updateConfirmState();
     }
 
