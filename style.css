@@ -1973,8 +1973,8 @@ body.custom-lock{overflow:hidden;}
 .spa-dialog .modal-header{top:0;}
 .spa-dialog .modal-footer{
   bottom:0;
-  align-items:flex-start;
-  flex-wrap:wrap;
+  align-items:center;
+  flex-wrap:nowrap;
   gap:var(--space-4);
 }
 .spa-body{
@@ -2153,8 +2153,9 @@ body.custom-lock{overflow:hidden;}
   flex:1 1 auto;
   min-width:0;
   display:flex;
-  flex-direction:column;
-  gap:6px;
+  flex-direction:row;
+  align-items:center;
+  gap:var(--space-3);
 }
 .spa-footer-end{
   flex:0 0 auto;
@@ -2164,11 +2165,18 @@ body.custom-lock{overflow:hidden;}
   gap:var(--space-3);
   margin-inline-start:auto;
 }
+/* Footer guest grid keeps the toggle + chips locked to a single row while
+ * letting the optional hint consume a full-width line when it appears. */
 .spa-footer-guests{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:8px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  grid-template-rows:auto auto;
+  grid-template-areas:
+    "toggle chips"
+    "hint hint";
+  align-items:center;
+  column-gap:var(--space-3);
+  row-gap:6px;
   min-width:0;
   width:100%;
 }
@@ -2177,6 +2185,7 @@ body.custom-lock{overflow:hidden;}
   align-items:center;
   gap:var(--space-3);
   justify-content:flex-start;
+  grid-area:toggle;
 }
 .spa-guest-switch{
   width:48px;
@@ -2190,6 +2199,7 @@ body.custom-lock{overflow:hidden;}
   padding:0;
   transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
 }
+.spa-footer-guests .spa-guest-switch{flex:0 0 auto;}
 .spa-guest-switch:hover{
   border-color:color-mix(in srgb,var(--brand) 32%,var(--border));
   box-shadow:0 6px 16px rgba(42,107,255,.12);
@@ -2200,14 +2210,24 @@ body.custom-lock{overflow:hidden;}
 }
 .spa-guest-chip-list{
   display:flex;
-  flex-wrap:wrap;
+  align-items:center;
+  flex-wrap:nowrap;
   gap:8px;
   border:0;
   background:transparent;
   padding:0;
   max-block-size:none;
-  overflow:visible;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  flex:1 1 auto;
+  min-width:0;
+  grid-area:chips;
 }
+/* Keep the guest chips inline beside the toggle and prefer horizontal scroll
+ * over wrapping so the footer height stays stable across breakpoints. */
+.spa-footer-guests .spa-guest-chip-list{scrollbar-width:thin;}
+.spa-footer-guests .spa-guest-hint{grid-area:hint;}
 .spa-footer-guests .spa-option-row{
   border-radius:999px;
   border:1px solid var(--border-hairline);
@@ -2264,5 +2284,4 @@ body.custom-lock{overflow:hidden;}
     --spa-dialog-max-width:420px;
     --spa-dialog-max-height:640px;
   }
-  .spa-footer-end{width:100%;justify-content:flex-end;}
 }
