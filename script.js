@@ -67,7 +67,7 @@
   // inside the fixed grid cell; downstream outputs continue to call the full
   // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
-  const formatDurationButtonLabel = minutes => minutes.toString();
+  const formatDurationButtonLabel = minutes => `${minutes} Minutes`;
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -182,7 +182,7 @@
   ];
 
   const SPA_LOCATION_OPTIONS = [
-    { id: 'not-applicable', label: 'N/A' },
+    { id: 'not-applicable', label: 'No Preference' },
     { id: 'same-cabana', label: 'Same Cabana' },
     { id: 'separate-cabanas', label: 'Separate Cabanas' },
     { id: 'couples-massage', label: 'Couple’s Massage' },
@@ -2386,7 +2386,7 @@
     const defaultLocationId = singleGuestStay ? 'not-applicable' : 'same-cabana';
     const knownLocationIds = new Set(SPA_LOCATION_OPTIONS.map(opt => opt.id));
     // Normalise persisted location selections so single-guest stays resolve to
-    // “N/A” while multi-guest itineraries always fall back to Same Cabana. This
+    // “No Preference” while multi-guest itineraries always fall back to Same Cabana. This
     // keeps historic data valid without exposing unsupported choices.
     const normalizeLocationId = (value, { supportsInRoom = true } = {}) => {
       let next = value;
@@ -3140,10 +3140,12 @@
     // Details column now stacks the time block above the picker stack while
     // keeping each wheel/list wired to the existing handlers.
     detailsGrid.className='spa-details-grid';
+    detailsGrid.classList.add('col-body');
     detailsSection.appendChild(detailsGrid);
     detailsColumn.appendChild(detailsSection);
     const pickerStack=document.createElement('div');
     pickerStack.className='spa-picker-stack';
+    pickerStack.classList.add('picker-stack');
 
     const durationGroup=document.createElement('div');
     durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
@@ -3169,6 +3171,7 @@
     timeHeading.classList.add('sr-only');
     timeGroup.appendChild(timeHeading);
     timeGroup.classList.add('spa-time-block');
+    timeGroup.classList.add('time-block');
     const timeContainer=document.createElement('div');
     timeContainer.className='spa-time-picker';
     timeGroup.appendChild(timeContainer);
@@ -3577,7 +3580,7 @@
               loop: false,
               idPrefix: `${pickerNamespace}-duration`,
               formatValue: value => formatDurationButtonLabel(value),
-              getOptionLabel: value => formatDurationLabel(value),
+              getOptionLabel: value => formatDurationButtonLabel(value),
               ariaLabel: 'Duration',
               onChange(value){
                 selectDuration(value);
@@ -3586,6 +3589,7 @@
             durationWheel.element.classList.add('spa-single-wheel');
             durationWheel.element.setAttribute('aria-labelledby', `${durationHeading.id} ${durationValueLabel.id}`);
             durationPickerContainer.appendChild(durationWheel.element);
+            durationPickerContainer.classList.add('picker-field');
           }
         }
         if(durationWheel){
@@ -3593,7 +3597,7 @@
           const fallback = durations.includes(canonical) ? canonical : durations[0];
           if(fallback !== undefined){
             durationWheel.setValue(fallback);
-            const label = formatDurationLabel(fallback);
+            const label = formatDurationButtonLabel(fallback);
             durationValueLabel.textContent = label;
             durationWheel.element.setAttribute('aria-label', `Duration, ${label}`);
           }else{
@@ -3619,7 +3623,7 @@
           const labelSpan=document.createElement('span');
           labelSpan.className='spa-option-label';
           labelSpan.textContent=formatDurationButtonLabel(minutes);
-          btn.setAttribute('aria-label', formatDurationLabel(minutes));
+          btn.setAttribute('aria-label', formatDurationButtonLabel(minutes));
           const checkSpan=document.createElement('span');
           checkSpan.className='spa-option-check';
           checkSpan.innerHTML=checkmarkSvg;
@@ -3634,9 +3638,9 @@
         });
         let fallbackLabel='';
         if(canonical !== undefined){
-          fallbackLabel = formatDurationLabel(canonical);
+          fallbackLabel = formatDurationButtonLabel(canonical);
         }else if(durations.length){
-          fallbackLabel = formatDurationLabel(durations[0]);
+          fallbackLabel = formatDurationButtonLabel(durations[0]);
         }
         durationValueLabel.textContent = fallbackLabel;
         durationPickerContainer.setAttribute('aria-label', fallbackLabel ? `Duration, ${fallbackLabel}` : 'Duration');
@@ -3651,6 +3655,7 @@
         therapistWheel.setValue(current);
         therapistValueLabel.textContent = label;
         therapistWheel.element.setAttribute('aria-label', `Therapist Preference, ${label}`);
+        therapistPickerContainer.classList.add('picker-field');
       }else{
         const rows = therapistPickerContainer.querySelectorAll('.spa-option-row');
         rows.forEach(btn => {
@@ -3676,7 +3681,7 @@
         }
         return false;
       };
-      // Ensure every selection reflects the latest availability so stale “N/A”
+      // Ensure every selection reflects the latest availability so stale “No Preference”
       // or In-Room values snap to a valid choice when guest counts or services
       // change while the modal is open.
       selections.forEach(sel => {
@@ -3696,6 +3701,7 @@
         const label = locationLabelById.get(fallbackLocation) || '';
         locationValueLabel.textContent = label;
         locationWheel.element.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+        locationPickerContainer.classList.add('picker-field');
       }else{
         const buttons = locationPickerContainer.querySelectorAll('.spa-option-row');
         buttons.forEach(btn => {
@@ -3719,7 +3725,7 @@
         helperMessages.push('In-Room service is unavailable for this treatment.');
       }
       if(singleGuestStay){
-        helperMessages.push('Location defaults to N/A until another guest is added to the stay.');
+        helperMessages.push('Location defaults to No Preference until another guest is added to the stay.');
       }
       locationHelper.textContent = helperMessages.join(' ');
     }

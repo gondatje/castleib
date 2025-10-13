@@ -22,6 +22,7 @@
   --chipText:#1e1b4b;
   --fg:var(--text-primary);
   --hairline:var(--border-hairline);
+  --line:var(--border-hairline);
   /* Slightly stronger hairline for elements that need an outline against accent fills. */
   --hairline-strong:color-mix(in srgb,var(--text-primary) 12%,transparent);
   --surface-tint:color-mix(in srgb,var(--surface) 92%,var(--brand) 8%);
@@ -2050,19 +2051,23 @@ body.custom-lock{overflow:hidden;}
 }
 .spa-service-button::after{left:52px;right:18px;}
 .spa-cascade-panel::before{left:18px;right:18px;}
+.col-body{
+  display:grid;
+  gap:var(--space-6);
+  align-content:start;
+  justify-items:stretch;
+}
 .spa-details-grid{
   --spa-detail-max-width:min(100%,420px);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:0;
   min-height:0;
 }
-.spa-time-block{
-  display:flex;
-  flex-direction:column;
+.time-block{
+  display:grid;
   gap:var(--space-5);
-  align-items:stretch;
+  justify-items:stretch;
+}
+.spa-time-block{
+  gap:var(--space-5);
 }
 .spa-time-block .spa-time-picker{
   display:flex;
@@ -2120,12 +2125,15 @@ body.custom-lock{overflow:hidden;}
   color:var(--muted);
 }
 .spa-time-block .spa-time-hint{text-align:center;}
-.spa-picker-stack{
+.picker-stack{
   display:grid;
   gap:var(--space-5);
+  justify-items:stretch;
+  margin-top:var(--space-5);
+}
+.spa-picker-stack{
   min-height:0;
   width:100%;
-  margin-top:var(--space-5);
 }
 .spa-picker-stack .spa-detail-card{
   align-items:stretch;
@@ -2133,15 +2141,29 @@ body.custom-lock{overflow:hidden;}
 }
 .spa-picker-stack .spa-option-list{
   width:100%;
-  border:1px solid var(--border-hairline);
-  border-radius:16px;
+  border:1px solid var(--line);
+  border-radius:10px;
   background:var(--surface);
-  box-shadow:0 1px 0 rgba(15,23,42,.04);
+  box-shadow:none;
 }
-.spa-picker-stack .spa-single-picker{padding-block:12px;}
 .spa-picker-stack .spa-option-row{
   justify-content:center;
   text-align:center;
+}
+.picker-field{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:44px;
+  padding:0 var(--space-4);
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--ink);
+}
+.picker-field .wheel-viewport{
+  height:100%;
+  width:100%;
 }
 /* Follow-up aligns the footer into a single row so the toggle + chips stay
  * inline. Gap mirrors the spec’s 8px spacing between the switch and chips. */
