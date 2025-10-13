@@ -1369,12 +1369,130 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 }
 .modal-footer-start,.modal-footer-end{display:flex;align-items:center;gap:var(--space-3);}
 .modal-footer-end{justify-content:flex-end;}
-.dinner-overlay{position:fixed;inset:0;background:rgba(12,18,32,.46);display:flex;align-items:center;justify-content:center;padding:24px;z-index:2000;}
-.dinner-dialog{background:#fff;border-radius:20px;min-width:280px;max-width:384px;width:100%;box-shadow:0 22px 44px rgba(12,18,32,.18);border:1px solid rgba(226,232,240,.8);display:flex;flex-direction:column;overflow:hidden;}
-.dinner-body{display:flex;flex-direction:column;gap:var(--space-4);padding:clamp(var(--space-5),6vw,var(--space-6));}
-.dinner-layout{grid-template-columns:minmax(0,1fr);}
-.dinner-section h3{margin:0;font-size:16px;font-weight:600;letter-spacing:.01em;color:var(--ink);}
-.dinner-picker-shell{display:flex;justify-content:center;}
+.dinner-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(12,18,32,0.46);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  z-index:2000;
+  /* Breakpoint-specific sizing stays in CSS so the JS dialog logic can remain untouched. */
+  --dinner-modal-width:560px;
+  --dinner-modal-min-height:360px;
+  --dinner-modal-max-height:420px;
+  --dinner-time-visual-min-height:112px;
+}
+@media (max-width:1024px){
+  .dinner-overlay{
+    --dinner-modal-width:520px;
+    --dinner-modal-min-height:340px;
+    --dinner-modal-max-height:400px;
+    --dinner-time-visual-min-height:100px;
+  }
+}
+@media (max-width:640px){
+  .dinner-overlay{
+    --dinner-modal-width:360px;
+    --dinner-modal-min-height:360px;
+    --dinner-modal-max-height:420px;
+    --dinner-time-visual-min-height:92px;
+  }
+}
+.dinner-dialog{
+  background:var(--surface);
+  border-radius:20px;
+  width:min(var(--dinner-modal-width), calc(100vw - 32px));
+  min-height:min(var(--dinner-modal-min-height), calc(100dvh - 32px));
+  max-height:min(var(--dinner-modal-max-height), calc(100dvh - 32px));
+  box-shadow:0 22px 44px rgba(12,18,32,0.18);
+  border:1px solid color-mix(in srgb,var(--hairline) 65%,rgba(226,232,240,0.8));
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+.dinner-dialog .modal-header,
+.dinner-dialog .modal-footer{
+  /* Sticky rails anchor the title/actions without introducing scroll handlers in JS. */
+  position:sticky;
+  left:0;
+  right:0;
+  background:var(--surface);
+  z-index:2;
+}
+.dinner-dialog .modal-header{top:0;}
+.dinner-dialog .modal-footer{bottom:0;}
+.dinner-body{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-5);
+  padding:clamp(var(--space-5),5vw,var(--space-6));
+  min-height:0;
+}
+.dinner-time-shell{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.dinner-time-section{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-4);
+  min-height:0;
+}
+.dinner-time-heading{
+  margin:0;
+  font-size:16px;
+  font-weight:600;
+  letter-spacing:0.01em;
+  color:var(--ink);
+}
+.dinner-time-content{
+  flex:1 1 auto;
+  display:flex;
+}
+.dinner-time-picker{
+  width:100%;
+  display:grid;
+  grid-template-rows:1fr auto;
+  gap:var(--space-4);
+}
+.dinner-time-picker .time-picker{
+  width:100%;
+  display:grid;
+  grid-template-rows:1fr auto;
+  gap:var(--space-4);
+  align-items:stretch;
+  justify-items:stretch;
+}
+.dinner-time-picker .time-picker-wheels{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:var(--space-4);
+  align-items:stretch;
+  justify-items:stretch;
+}
+.dinner-time-picker .time-picker-column,
+.dinner-time-picker .time-picker-meridiem-static{
+  min-height:var(--dinner-time-visual-min-height);
+}
+.dinner-time-picker .time-picker-inline-field{
+  justify-content:flex-start;
+}
+.dinner-time-picker .time-picker-inline-input{
+  width:100%;
+  max-width:none;
+}
+.dinner-footer{
+  gap:var(--space-3);
+  justify-content:flex-end;
+}
+.dinner-footer-end{gap:10px;}
 .time-picker{display:flex;flex-direction:column;align-items:center;gap:16px;}
 .time-picker-wheels{display:flex;align-items:center;gap:12px;}
 .time-picker-column{position:relative;padding:8px;border-radius:16px;background:linear-gradient(180deg,rgba(241,245,249,.9),#fff);box-shadow:inset 0 0 0 1px rgba(148,163,184,.25);}
