@@ -23,7 +23,7 @@
   ];
 
   const locationOptions = [
-    { id:'not-applicable', label:'N/A' },
+    { id:'not-applicable', label:'No Preference' },
     { id:'same-cabana', label:'Same Cabana' },
     { id:'separate-cabanas', label:'Separate Cabanas' },
     { id:'couples-massage', label:'Couple’s Massage' },
@@ -213,12 +213,14 @@
 
     const grid = document.createElement('div');
     grid.className = 'spa-details-grid';
+    grid.classList.add('col-body');
     section.appendChild(grid);
 
     grid.appendChild(buildTimeCard(viewport));
 
     const pickerStack = document.createElement('div');
     pickerStack.className = 'spa-picker-stack';
+    pickerStack.classList.add('picker-stack');
     pickerStack.appendChild(buildPickerCard({
       title:'Therapist Preference',
       srOnly:true,
@@ -244,6 +246,7 @@
   function buildTimeCard(viewport){
     const card = document.createElement('div');
     card.className = 'spa-block spa-detail-card spa-detail-card-time spa-time-block';
+    card.classList.add('time-block');
 
     const heading = document.createElement('h3');
     heading.className = 'sr-only';
