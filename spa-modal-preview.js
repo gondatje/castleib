@@ -23,7 +23,7 @@
   ];
 
   const locationOptions = [
-    { id:'not-applicable', label:'N/A' },
+    { id:'not-applicable', label:'No Preference' },
     { id:'same-cabana', label:'Same Cabana' },
     { id:'separate-cabanas', label:'Separate Cabanas' },
     { id:'couples-massage', label:'Couple’s Massage' },
@@ -31,6 +31,25 @@
   ];
 
   const durationOptions = [60, 90, 120];
+
+  const formatDurationDisplay = minutes => `${minutes} Minutes`;
+
+  function derivePreviewDisplayValues({ therapist, location, duration }, { guestsCount }){
+    const therapistDisplay = (therapistOptions.find(opt => opt.id === therapist)?.label) || 'No Preference';
+    const singleGuest = guestsCount === 1;
+    let locationId = location || '';
+    if(singleGuest){
+      locationId = 'not-applicable';
+    }else if(!locationId || locationId === 'not-applicable'){
+      locationId = 'same-cabana';
+    }
+    const locationDisplay = (locationOptions.find(opt => opt.id === locationId)?.label)
+      || (singleGuest ? 'No Preference' : 'Same Cabana');
+    const durationDisplay = typeof duration === 'number' && Number.isFinite(duration)
+      ? formatDurationDisplay(duration)
+      : '60 Minutes';
+    return { therapistDisplay, locationDisplay, durationDisplay };
+  }
 
   const viewports = [
     { key:'desktop', label:'Desktop', time:{ hour:9, minute:15, meridiem:'AM' }, end:'10:45 AM', therapist:'no-preference', location:'not-applicable', duration:60 },
@@ -93,7 +112,7 @@
     overlay.appendChild(dialog);
 
     dialog.appendChild(buildHeader());
-    dialog.appendChild(buildBody(viewport));
+    dialog.appendChild(buildBody(viewport, mode));
     dialog.appendChild(buildFooter(mode));
 
     return overlay;
@@ -114,7 +133,7 @@
     return header;
   }
 
-  function buildBody(viewport){
+  function buildBody(viewport, mode){
     const body = document.createElement('div');
     body.className = 'modal-body spa-body';
 
@@ -139,7 +158,7 @@
     const detailsColumn = document.createElement('div');
     detailsColumn.className = 'spa-layout-column spa-layout-column-details';
     grid.appendChild(detailsColumn);
-    detailsColumn.appendChild(buildDetailsSection(viewport));
+    detailsColumn.appendChild(buildDetailsSection(viewport, mode));
 
     return body;
   }
@@ -207,7 +226,7 @@
     return section;
   }
 
-  function buildDetailsSection(viewport){
+  function buildDetailsSection(viewport, mode){
     const section = document.createElement('section');
     section.className = 'modal-section spa-section spa-section-details';
 
@@ -217,6 +236,13 @@
 
     grid.appendChild(buildTimeCard(viewport));
 
+    const guestsCount = mode && mode.guestsOn ? guests.length : 1;
+    const displayValues = derivePreviewDisplayValues({
+      therapist: viewport.therapist,
+      location: viewport.location,
+      duration: viewport.duration
+    }, { guestsCount });
+
     const pickerStack = document.createElement('div');
     pickerStack.className = 'spa-picker-stack';
     pickerStack.appendChild(buildPickerCard({
@@ -224,6 +250,7 @@
       srOnly:true,
       options:therapistOptions,
       selected:viewport.therapist,
+      displayValue:displayValues.therapistDisplay,
       className:'spa-detail-card spa-detail-card-therapist',
       listClass:'spa-option-list spa-option-list-therapist list-hairline'
     }));
@@ -232,10 +259,11 @@
       srOnly:true,
       options:locationOptions,
       selected:viewport.location,
+      displayValue:displayValues.locationDisplay,
       className:'spa-detail-card spa-detail-card-location',
       listClass:'spa-option-list spa-option-list-location list-hairline'
     }));
-    pickerStack.appendChild(buildDurationCard(viewport.duration));
+    pickerStack.appendChild(buildDurationCard(viewport.duration, displayValues.durationDisplay));
     grid.appendChild(pickerStack);
 
     return section;
@@ -296,7 +324,7 @@
     return card;
   }
 
-  function buildPickerCard({ title, srOnly, options, selected, className, listClass = 'spa-option-list list-hairline' }){
+  function buildPickerCard({ title, srOnly, options, selected, displayValue, className, listClass = 'spa-option-list list-hairline' }){
     const card = document.createElement('div');
     card.className = `spa-block spa-detail-card ${className}`;
 
@@ -309,7 +337,16 @@
 
     const list = document.createElement('div');
     list.className = listClass;
-    card.appendChild(list);
+
+    const field = document.createElement('div');
+    field.className = 'spa-picker-field';
+    const display = document.createElement('div');
+    display.className = 'spa-picker-display';
+    display.setAttribute('aria-hidden','true');
+    display.textContent = displayValue || (options.find(opt => opt.id === selected)?.label) || options[0]?.label || '';
+    field.appendChild(display);
+    field.appendChild(list);
+    card.appendChild(field);
 
     options.forEach(option => {
       const btn = document.createElement('button');
@@ -333,7 +370,7 @@
     return card;
   }
 
-  function buildDurationCard(selected){
+  function buildDurationCard(selected, displayValue){
     const card = document.createElement('div');
     card.className = 'spa-block spa-detail-card spa-detail-card-duration';
 
@@ -344,7 +381,16 @@
 
     const list = document.createElement('div');
     list.className = 'spa-option-list spa-option-list-duration list-hairline';
-    card.appendChild(list);
+
+    const field = document.createElement('div');
+    field.className = 'spa-picker-field';
+    const display = document.createElement('div');
+    display.className = 'spa-picker-display';
+    display.setAttribute('aria-hidden','true');
+    display.textContent = displayValue || formatDurationDisplay(selected || durationOptions[0]);
+    field.appendChild(display);
+    field.appendChild(list);
+    card.appendChild(field);
 
     durationOptions.forEach(value => {
       const btn = document.createElement('button');
@@ -353,7 +399,7 @@
       btn.dataset.value = String(value);
       const label = document.createElement('span');
       label.className = 'spa-option-label';
-      label.textContent = `${value} Minutes`;
+      label.textContent = formatDurationDisplay(value);
       const check = document.createElement('span');
       check.className = 'spa-option-check';
       check.innerHTML = '<span aria-hidden="true">✓</span>';

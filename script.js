@@ -68,6 +68,7 @@
   // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
   const formatDurationButtonLabel = minutes => minutes.toString();
+  const formatDurationDisplay = minutes => `${minutes} Minutes`;
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -182,7 +183,7 @@
   ];
 
   const SPA_LOCATION_OPTIONS = [
-    { id: 'not-applicable', label: 'N/A' },
+    { id: 'not-applicable', label: 'No Preference' },
     { id: 'same-cabana', label: 'Same Cabana' },
     { id: 'separate-cabanas', label: 'Separate Cabanas' },
     { id: 'couples-massage', label: 'Couple’s Massage' },
@@ -2386,7 +2387,7 @@
     const defaultLocationId = singleGuestStay ? 'not-applicable' : 'same-cabana';
     const knownLocationIds = new Set(SPA_LOCATION_OPTIONS.map(opt => opt.id));
     // Normalise persisted location selections so single-guest stays resolve to
-    // “N/A” while multi-guest itineraries always fall back to Same Cabana. This
+    // “No Preference” while multi-guest itineraries always fall back to Same Cabana. This
     // keeps historic data valid without exposing unsupported choices.
     const normalizeLocationId = (value, { supportsInRoom = true } = {}) => {
       let next = value;
@@ -2552,6 +2553,9 @@
     const pickerNamespace = `spa-picker-${++spaPickerSerial}`;
     const therapistLabelById = new Map(SPA_THERAPIST_OPTIONS.map(opt => [opt.id, opt.label]));
     const locationLabelById = new Map(SPA_LOCATION_OPTIONS.map(opt => [opt.id, opt.label]));
+    let therapistDisplayText = null;
+    let locationDisplayText = null;
+    let durationDisplayText = null;
     let therapistWheel = null;
     let locationWheel = null;
     let durationWheel = null;
@@ -2559,6 +2563,51 @@
     let therapistValueLabel = null;
     let locationValueLabel = null;
     let durationValueLabel = null;
+
+    // Display-only defaults keep the UI populated on first paint without mutating
+    // the underlying selection state. Callers pass the current selection and
+    // catalogue context; the helper resolves readable strings for the fields.
+    const deriveSpaDisplayValues = ({
+      therapistPreference,
+      location,
+      duration,
+      selectedService,
+      serviceDurations,
+      guestsCount
+    } = {}) => {
+      const therapistId = therapistPreference || 'no-preference';
+      const therapistDisplay = therapistLabelById.get(therapistId)
+        || therapistLabelById.get('no-preference')
+        || 'No Preference';
+
+      const singleGuest = guestsCount === 1;
+      let locationId = location || '';
+      if(singleGuest){
+        locationId = 'not-applicable';
+      }else if(!locationId || locationId === 'not-applicable'){
+        locationId = 'same-cabana';
+      }
+      if(!locationId){
+        locationId = defaultLocationId;
+      }
+      const locationDisplay = locationLabelById.get(locationId)
+        || (singleGuest ? 'No Preference' : (locationLabelById.get('same-cabana') || 'Same Cabana'));
+
+      const orderedDurations = Array.isArray(serviceDurations)
+        ? serviceDurations.filter(value => Number.isFinite(Number(value))).map(Number).sort((a,b)=>a-b)
+        : [];
+      let resolvedDuration = Number.isFinite(duration) ? Number(duration) : null;
+      if(resolvedDuration === null){
+        if(selectedService && orderedDurations.length){
+          resolvedDuration = orderedDurations[0];
+        }
+      }
+      const durationDisplay = Number.isFinite(resolvedDuration)
+        ? formatDurationDisplay(resolvedDuration)
+        : '60 Minutes';
+
+      return { therapistDisplay, locationDisplay, durationDisplay };
+    };
 
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
@@ -3154,7 +3203,14 @@
     durationGroup.appendChild(durationHeading);
     const durationPickerContainer=document.createElement('div');
     durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
-    durationGroup.appendChild(durationPickerContainer);
+    const durationField=document.createElement('div');
+    durationField.className='spa-picker-field';
+    durationDisplayText=document.createElement('div');
+    durationDisplayText.className='spa-picker-display';
+    durationDisplayText.setAttribute('aria-hidden','true');
+    durationField.appendChild(durationDisplayText);
+    durationField.appendChild(durationPickerContainer);
+    durationGroup.appendChild(durationField);
     durationValueLabel=document.createElement('span');
     durationValueLabel.className='sr-only spa-picker-value';
     durationValueLabel.id = `${pickerNamespace}-duration-value`;
@@ -3208,7 +3264,14 @@
     therapistGroup.appendChild(therapistHeading);
     const therapistPickerContainer=document.createElement('div');
     therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
-    therapistGroup.appendChild(therapistPickerContainer);
+    const therapistField=document.createElement('div');
+    therapistField.className='spa-picker-field';
+    therapistDisplayText=document.createElement('div');
+    therapistDisplayText.className='spa-picker-display';
+    therapistDisplayText.setAttribute('aria-hidden','true');
+    therapistField.appendChild(therapistDisplayText);
+    therapistField.appendChild(therapistPickerContainer);
+    therapistGroup.appendChild(therapistField);
     therapistValueLabel=document.createElement('span');
     therapistValueLabel.className='sr-only spa-picker-value';
     therapistValueLabel.id = `${pickerNamespace}-therapist-value`;
@@ -3264,7 +3327,14 @@
     locationGroup.appendChild(locationHeading);
     const locationPickerContainer=document.createElement('div');
     locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
-    locationGroup.appendChild(locationPickerContainer);
+    const locationField=document.createElement('div');
+    locationField.className='spa-picker-field';
+    locationDisplayText=document.createElement('div');
+    locationDisplayText.className='spa-picker-display';
+    locationDisplayText.setAttribute('aria-hidden','true');
+    locationField.appendChild(locationDisplayText);
+    locationField.appendChild(locationPickerContainer);
+    locationGroup.appendChild(locationField);
     locationValueLabel=document.createElement('span');
     locationValueLabel.className='sr-only spa-picker-value';
     locationValueLabel.id = `${pickerNamespace}-location-value`;
@@ -3593,7 +3663,7 @@
           const fallback = durations.includes(canonical) ? canonical : durations[0];
           if(fallback !== undefined){
             durationWheel.setValue(fallback);
-            const label = formatDurationLabel(fallback);
+            const label = formatDurationDisplay(fallback);
             durationValueLabel.textContent = label;
             durationWheel.element.setAttribute('aria-label', `Duration, ${label}`);
           }else{
@@ -3619,7 +3689,7 @@
           const labelSpan=document.createElement('span');
           labelSpan.className='spa-option-label';
           labelSpan.textContent=formatDurationButtonLabel(minutes);
-          btn.setAttribute('aria-label', formatDurationLabel(minutes));
+          btn.setAttribute('aria-label', formatDurationDisplay(minutes));
           const checkSpan=document.createElement('span');
           checkSpan.className='spa-option-check';
           checkSpan.innerHTML=checkmarkSvg;
@@ -3634,9 +3704,9 @@
         });
         let fallbackLabel='';
         if(canonical !== undefined){
-          fallbackLabel = formatDurationLabel(canonical);
+          fallbackLabel = formatDurationDisplay(canonical);
         }else if(durations.length){
-          fallbackLabel = formatDurationLabel(durations[0]);
+          fallbackLabel = formatDurationDisplay(durations[0]);
         }
         durationValueLabel.textContent = fallbackLabel;
         durationPickerContainer.setAttribute('aria-label', fallbackLabel ? `Duration, ${fallbackLabel}` : 'Duration');
@@ -3719,9 +3789,46 @@
         helperMessages.push('In-Room service is unavailable for this treatment.');
       }
       if(singleGuestStay){
-        helperMessages.push('Location defaults to N/A until another guest is added to the stay.');
+        helperMessages.push('Location defaults to No Preference until another guest is added to the stay.');
       }
       locationHelper.textContent = helperMessages.join(' ');
+    }
+
+    function updatePickerDisplays(){
+      if(!therapistDisplayText && !locationDisplayText && !durationDisplayText){
+        return;
+      }
+      const canonical = getCanonicalSelection();
+      const service = canonical?.serviceName ? findService(canonical.serviceName) : null;
+      const serviceDurations = service?.durations
+        ? service.durations.filter(value => Number.isFinite(Number(value))).map(Number)
+        : [];
+      const { therapistDisplay, locationDisplay, durationDisplay } = deriveSpaDisplayValues({
+        therapistPreference: canonical?.therapist,
+        location: canonical?.location,
+        duration: canonical?.durationMinutes,
+        selectedService: canonical?.serviceName,
+        serviceDurations,
+        guestsCount: state.guests.length
+      });
+      if(therapistDisplayText){
+        therapistDisplayText.textContent = therapistDisplay;
+      }
+      if(locationDisplayText){
+        locationDisplayText.textContent = locationDisplay;
+      }
+      if(durationDisplayText){
+        durationDisplayText.textContent = durationDisplay;
+      }
+      if(therapistValueLabel){
+        therapistValueLabel.textContent = therapistDisplay;
+      }
+      if(locationValueLabel){
+        locationValueLabel.textContent = locationDisplay;
+      }
+      if(durationValueLabel){
+        durationValueLabel.textContent = durationDisplay;
+      }
     }
 
     function refreshTimePickerSelection(){
@@ -3767,6 +3874,7 @@
       refreshLocationOptions();
       refreshTimePickerSelection();
       refreshEndPreview();
+      updatePickerDisplays();
       updateConfirmState();
     }
 
