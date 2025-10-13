@@ -2554,6 +2554,21 @@
     const layout=document.createElement('div');
     layout.className='modal-sections spa-layout';
     body.appendChild(layout);
+    // Layout wrapper keeps the original service/detail trees intact while the
+    // two-column grid + hairline divider handle the updated visual spec.
+    const layoutGrid=document.createElement('div');
+    layoutGrid.className='spa-layout-grid';
+    layout.appendChild(layoutGrid);
+    const serviceColumn=document.createElement('div');
+    serviceColumn.className='spa-layout-column spa-layout-column-services';
+    layoutGrid.appendChild(serviceColumn);
+    const layoutDivider=document.createElement('div');
+    layoutDivider.className='spa-layout-divider';
+    layoutDivider.setAttribute('aria-hidden','true');
+    layoutGrid.appendChild(layoutDivider);
+    const detailsColumn=document.createElement('div');
+    detailsColumn.className='spa-layout-column spa-layout-column-details';
+    layoutGrid.appendChild(detailsColumn);
 
     const guestSection=document.createElement('section');
     guestSection.className='modal-section spa-section spa-section-guests spa-block spa-guest-card spa-detail-card spa-detail-card-guests';
@@ -2565,6 +2580,7 @@
     const guestToggleAllBtn=document.createElement('button');
     guestToggleAllBtn.type='button';
     guestToggleAllBtn.className='icon-btn spa-toggle-all';
+    guestToggleAllBtn.classList.add('spa-guest-switch');
     guestToggleAllBtn.dataset.spaNoSubmit='true';
     guestToggleAllBtn.setAttribute('aria-pressed','false');
     guestToggleAllBtn.setAttribute('aria-label','Turn all guests on');
@@ -2574,6 +2590,7 @@
     guestSection.appendChild(guestHeader);
     const guestList=document.createElement('div');
     guestList.className='spa-option-list spa-option-list-guests list-hairline';
+    guestList.classList.add('spa-guest-chip-list');
     guestList.setAttribute('role','listbox');
     guestList.setAttribute('aria-label','Guests');
     guestList.setAttribute('aria-multiselectable','true');
@@ -2636,52 +2653,41 @@
         return;
       }
 
+      // Render each guest with the shared initial chip styling so the inline footer
+      // cluster matches the rest of the app without altering any toggle handlers.
       visibleGuests.forEach(guest => {
         const guestLabel = buildGuestLabel(guest);
         const isOn = assignedSet.has(guest.id);
         const row=document.createElement('button');
         row.type='button';
-        row.className='spa-option-row spa-guest-row';
+        row.className='chip spa-guest-chip spa-guest-row';
         row.dataset.guestId = guest.id;
         row.dataset.spaNoSubmit='true';
+        row.dataset.guestChip='true';
         row.setAttribute('role','option');
         row.setAttribute('aria-selected', isOn ? 'true' : 'false');
         row.classList.toggle('is-selected', isOn);
         row.classList.toggle('is-off', !isOn);
+        row.title = guestLabel;
+        const ariaLabel = guest.primary ? `${guestLabel} (Primary guest)` : guestLabel;
+        row.setAttribute('aria-label', ariaLabel);
+        if(guest.color){
+          row.style.setProperty('--chip-color', guest.color);
+        }
+
+        const initial=document.createElement('span');
+        initial.className='initial';
+        const initialsSource = (guestLabel || '').trim();
+        initial.textContent = initialsSource ? initialsSource.charAt(0).toUpperCase() : '';
+        row.appendChild(initial);
+
+        // Primary guests continue to read as such via the aria-label, but the
+        // visual star is removed per the follow-up so the inline chips stay
+        // uniformly sized beside the toggle.
+
         row.addEventListener('click',()=>{
           toggleGuest(guest.id);
         });
-
-        const swatch=document.createElement('span');
-        swatch.className='spa-guest-swatch';
-        swatch.setAttribute('aria-hidden','true');
-        if(guest.color){
-          swatch.style.setProperty('--spa-guest-color', guest.color);
-        }
-
-        const labelWrapper=document.createElement('span');
-        labelWrapper.className='spa-option-label';
-        labelWrapper.title = guestLabel;
-        if(guest.primary){
-          const star=document.createElement('span');
-          star.className='spa-guest-star';
-          star.textContent='★';
-          star.setAttribute('aria-hidden','true');
-          labelWrapper.appendChild(star);
-        }
-        const labelText=document.createElement('span');
-        labelText.className='spa-option-text';
-        labelText.textContent=guestLabel;
-        labelWrapper.appendChild(labelText);
-
-        const checkSpan=document.createElement('span');
-        checkSpan.className='spa-option-check';
-        checkSpan.innerHTML=checkmarkSvg;
-        checkSpan.setAttribute('aria-hidden','true');
-
-        row.appendChild(swatch);
-        row.appendChild(labelWrapper);
-        row.appendChild(checkSpan);
 
         guestList.appendChild(row);
       });
@@ -2781,6 +2787,7 @@
     serviceCard.className='spa-block spa-service-card';
     const serviceHeading=document.createElement('h3');
     serviceHeading.textContent='Service';
+    serviceHeading.classList.add('sr-only');
     serviceCard.appendChild(serviceHeading);
     const serviceList=document.createElement('div');
     serviceList.className='spa-service-list';
@@ -3086,20 +3093,24 @@
 
     applyCascadeState();
 
-    layout.appendChild(serviceSection);
+    serviceColumn.appendChild(serviceSection);
 
     const detailsSection=document.createElement('section');
     detailsSection.className='modal-section spa-section spa-section-details';
     const detailsGrid=document.createElement('div');
-    // SPA right pane → 2×4 grid; pills → scrollable hairline lists.
+    // Details column now stacks the time block above the picker stack while
+    // keeping each wheel/list wired to the existing handlers.
     detailsGrid.className='spa-details-grid';
     detailsSection.appendChild(detailsGrid);
-    layout.appendChild(detailsSection);
+    detailsColumn.appendChild(detailsSection);
+    const pickerStack=document.createElement('div');
+    pickerStack.className='spa-picker-stack';
 
     const durationGroup=document.createElement('div');
     durationGroup.className='spa-block spa-detail-card spa-detail-card-duration';
     const durationHeading=document.createElement('h3');
     durationHeading.textContent='Duration';
+    durationHeading.classList.add('sr-only');
     durationHeading.id = `${pickerNamespace}-duration-heading`;
     durationGroup.appendChild(durationHeading);
     const durationPickerContainer=document.createElement('div');
@@ -3116,7 +3127,9 @@
     timeGroup.className='spa-block spa-detail-card spa-detail-card-time';
     const timeHeading=document.createElement('h3');
     timeHeading.textContent='Start Time';
+    timeHeading.classList.add('sr-only');
     timeGroup.appendChild(timeHeading);
+    timeGroup.classList.add('spa-time-block');
     const timeContainer=document.createElement('div');
     timeContainer.className='spa-time-picker';
     timeGroup.appendChild(timeContainer);
@@ -3135,7 +3148,8 @@
     endPreview.appendChild(startTimeDisplay);
     endPreview.appendChild(timeSeparator);
     endPreview.appendChild(endTimeValue);
-    timeGroup.appendChild(endPreview);
+    // Keep the preview nodes wired for assistive updates, but skip mounting the
+    // range row so the redundant "start – end" line stays hidden.
     const timeHint=document.createElement('p');
     timeHint.className='spa-helper-text spa-time-hint';
     timeHint.id='spa-time-hint';
@@ -3150,6 +3164,7 @@
     therapistGroup.className='spa-block spa-detail-card spa-detail-card-therapist';
     const therapistHeading=document.createElement('h3');
     therapistHeading.textContent='Therapist Preference';
+    therapistHeading.classList.add('sr-only');
     therapistHeading.id = `${pickerNamespace}-therapist-heading`;
     therapistGroup.appendChild(therapistHeading);
     const therapistPickerContainer=document.createElement('div');
@@ -3205,6 +3220,7 @@
     locationGroup.className='spa-block spa-detail-card spa-detail-card-location';
     const locationHeading=document.createElement('h3');
     locationHeading.textContent='Location';
+    locationHeading.classList.add('sr-only');
     locationHeading.id = `${pickerNamespace}-location-heading`;
     locationGroup.appendChild(locationHeading);
     const locationPickerContainer=document.createElement('div');
@@ -3266,18 +3282,18 @@
     // tech without reserving vertical space, preventing layout shifts when
     // availability toggles.
     locationGroup.appendChild(locationHelper);
-    detailsGrid.appendChild(therapistGroup);
-    detailsGrid.appendChild(locationGroup);
-    detailsGrid.appendChild(durationGroup);
     detailsGrid.appendChild(timeGroup);
-    detailsGrid.appendChild(guestSection);
+    pickerStack.appendChild(therapistGroup);
+    pickerStack.appendChild(locationGroup);
+    pickerStack.appendChild(durationGroup);
+    detailsGrid.appendChild(pickerStack);
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
     const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
+    footerStart.className='modal-footer-start spa-footer-start';
     const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
+    footerEnd.className='modal-footer-end spa-footer-end';
     const confirmIsEdit = mode==='edit' && !!existing;
     const confirmLabel = confirmIsEdit ? 'Save spa appointment' : 'Add spa appointment';
     const confirmIcon = confirmIsEdit ? saveIconSvg : addIconSvg;
@@ -3290,8 +3306,13 @@
       // Editing exposes a destructive control that clears the entire merged
       // appointment; inline chips remain responsible for single-guest removals.
       removeBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete spa appointment', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(removeBtn);
+      footerEnd.insertBefore(removeBtn, confirmBtn);
     }
+    // Footer keeps the original guest toggle logic; only the container shifts so
+    // the chips render beside the light switch while actions stay right-aligned.
+    guestSection.classList.add('spa-footer-guests');
+    guestHeading.classList.add('sr-only');
+    footerStart.appendChild(guestSection);
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
     dialog.appendChild(footer);

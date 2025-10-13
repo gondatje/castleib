@@ -1366,6 +1366,7 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   background:var(--surface);
   border-top:1px solid var(--hairline);
   flex-shrink:0;
+  flex-wrap:nowrap;
 }
 .modal-footer-start,.modal-footer-end{display:flex;align-items:center;gap:var(--space-3);}
 .modal-footer-end{justify-content:flex-end;}
@@ -1715,13 +1716,8 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
 .spa-option-check{inline-size:20px;block-size:20px;border-radius:999px;border:1px solid var(--hairline);display:inline-flex;align-items:center;justify-content:center;color:var(--brand);opacity:0;transform:scale(.86);transition:opacity .16s ease,transform .16s ease,border-color .16s ease,background-color .16s ease,box-shadow .16s ease;}
 .spa-option-row.is-selected .spa-option-check{opacity:1;transform:scale(1);background:color-mix(in srgb,var(--brand) 18%,var(--surface));border-color:color-mix(in srgb,var(--brand) 56%,var(--hairline));box-shadow:0 6px 16px rgba(42,107,255,.16);}
 .spa-option-row.is-disabled .spa-option-check{opacity:0;box-shadow:none;}
-.spa-guest-row{--spa-guest-color:var(--muted);}
-.spa-guest-row.is-off{color:var(--muted);}
-.spa-guest-row .spa-option-label{gap:10px;}
-.spa-guest-swatch{inline-size:12px;block-size:12px;border-radius:999px;background:var(--spa-guest-color);box-shadow:0 0 0 1px color-mix(in srgb,var(--spa-guest-color) 45%,transparent);}
-.spa-guest-row.is-off .spa-guest-swatch{opacity:.45;}
-.spa-guest-star{font-size:12px;color:var(--muted);line-height:1;}
-.spa-guest-row.is-selected .spa-guest-star{color:var(--brand);opacity:.85;}
+.spa-guest-row{--chip-color:var(--ink);}
+.spa-guest-row.is-off{opacity:.38;}
 .spa-time-picker{display:flex;flex-direction:column;align-items:center;gap:12px;}
 .spa-end-preview{display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;color:var(--muted);}
 .spa-start-time-display{border:0;border-radius:10px;padding:6px 14px;font:inherit;font-size:18px;font-weight:600;color:var(--ink);background:transparent;cursor:text;transition:background-color .16s ease,color .16s ease,box-shadow .16s ease;}
@@ -1930,3 +1926,379 @@ body.custom-lock{overflow:hidden;}
 .time-picker-demo-physics-column h4{margin:0;font-size:15px;}
 .time-picker-demo-physics-hint{margin:0;font-size:13px;color:var(--muted);}
 .time-picker-demo-host--physics{justify-content:center;}
+/*
+ * SPA modal responsive shell refresh (layout only).
+ * Device clamp variables map to the desktop/iPad/mobile presets so the body avoids
+ * internal scrolling at the reference sizes.
+ */
+.spa-dialog{
+  --spa-dialog-max-width:880px;
+  --spa-dialog-min-height:600px;
+  --spa-dialog-max-height:680px;
+  width:min(var(--spa-dialog-max-width), calc(100vw - 2*var(--spa-viewport-gutter)));
+  max-width:var(--spa-dialog-max-width);
+  min-height:var(--spa-dialog-min-height);
+  height:min(var(--spa-dialog-max-height), calc(100vh - 2*var(--spa-viewport-gutter)));
+  max-height:min(var(--spa-dialog-max-height), calc(100vh - 2*var(--spa-viewport-gutter)));
+  block-size:min(var(--spa-dialog-max-height), calc(100vh - 2*var(--spa-viewport-gutter)));
+  max-block-size:min(var(--spa-dialog-max-height), calc(100vh - 2*var(--spa-viewport-gutter)));
+}
+@supports (height:100svh){
+  .spa-dialog{
+    height:min(var(--spa-dialog-max-height), calc(100svh - 2*var(--spa-viewport-gutter)));
+    block-size:min(var(--spa-dialog-max-height), calc(100svh - 2*var(--spa-viewport-gutter)));
+    max-height:min(var(--spa-dialog-max-height), calc(100svh - 2*var(--spa-viewport-gutter)));
+    max-block-size:min(var(--spa-dialog-max-height), calc(100svh - 2*var(--spa-viewport-gutter)));
+  }
+}
+@supports (height:100dvh){
+  .spa-dialog{
+    height:min(var(--spa-dialog-max-height), calc(100dvh - 2*var(--spa-viewport-gutter)));
+    block-size:min(var(--spa-dialog-max-height), calc(100dvh - 2*var(--spa-viewport-gutter)));
+    max-height:min(var(--spa-dialog-max-height), calc(100dvh - 2*var(--spa-viewport-gutter)));
+    max-block-size:min(var(--spa-dialog-max-height), calc(100dvh - 2*var(--spa-viewport-gutter)));
+  }
+}
+/* Sticky header/footer keep actions visible while the body scrolls. */
+.spa-dialog .modal-header,
+.spa-dialog .modal-footer{
+  position:sticky;
+  z-index:3;
+  background:var(--surface);
+}
+.spa-dialog .modal-header{top:0;}
+.spa-dialog .modal-footer{
+  bottom:0;
+  align-items:center;
+  flex-wrap:nowrap;
+  gap:var(--space-4);
+}
+.spa-body{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-6);
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  --spa-body-padding:clamp(var(--space-6),5vw,var(--space-7));
+  padding:var(--spa-body-padding);
+  padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));
+}
+.spa-layout{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-6);
+  flex:1 1 auto;
+  min-height:0;
+}
+/* Two-column grid + hairline live here so the interactive subtrees stay intact. */
+.spa-layout-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);
+  gap:var(--space-6);
+  flex:1 1 auto;
+  min-height:0;
+}
+.spa-layout-column{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-5);
+  min-height:0;
+}
+.spa-layout-divider{
+  width:1px;
+  background:var(--hairline);
+  border-radius:999px;
+  align-self:stretch;
+  min-height:0;
+}
+.spa-dialog .spa-block{
+  padding:0;
+  border:0;
+  border-radius:16px;
+  background:transparent;
+  box-shadow:none;
+}
+.spa-section{gap:var(--space-5);}
+.spa-section-services{min-height:0;}
+.spa-service-card{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-4);
+  min-height:0;
+}
+.spa-service-list{
+  border:0;
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:none;
+}
+.spa-service-scroll{
+  flex:1 1 auto;
+  min-height:0;
+  padding:0;
+  padding-inline-end:0;
+}
+.spa-cascade-row{
+  padding:12px 18px;
+  min-height:46px;
+}
+.spa-subcategory-row{padding-inline-start:30px;}
+.spa-cascade-row::after,
+.spa-service-button::after{
+  inset-inline:18px;
+}
+.spa-subcategory-row::after{left:30px;right:18px;}
+.spa-service-button{
+  padding:12px 18px 12px 52px;
+}
+.spa-service-button::after{left:52px;right:18px;}
+.spa-cascade-panel::before{left:18px;right:18px;}
+.spa-details-grid{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-6);
+  min-height:0;
+}
+.spa-time-block{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-5);
+  align-items:center;
+}
+.spa-time-block .spa-time-picker{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:var(--space-4);
+  width:100%;
+}
+.spa-time-block .time-picker-wheels{
+  width:100%;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:var(--space-4);
+}
+.spa-time-block .time-picker-column{
+  border:1px solid var(--border-hairline);
+  border-radius:16px;
+  background:var(--surface);
+  min-height:108px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:12px;
+}
+.spa-time-block .time-picker-inline-field{
+  width:100%;
+  display:flex;
+  justify-content:center;
+}
+.spa-time-block .time-picker-inline-input{
+  width:100%;
+  max-width:220px;
+  height:44px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  padding:0 16px;
+  font-size:16px;
+  font-weight:600;
+  text-align:center;
+  color:var(--ink);
+  background:var(--surface);
+  box-shadow:0 2px 6px rgba(15,23,42,.08);
+}
+.spa-time-block .time-picker-inline-input[aria-invalid='true']{
+  border-color:var(--brand);
+  box-shadow:0 0 0 2px rgba(42,107,255,.16);
+}
+.spa-time-block .spa-end-preview{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  gap:var(--space-3);
+  font-size:14px;
+  color:var(--muted);
+}
+.spa-time-block .spa-time-hint{text-align:center;}
+.spa-picker-stack{
+  display:flex;
+  flex-direction:column;
+  gap:var(--space-5);
+  min-height:0;
+}
+.spa-picker-stack .spa-detail-card{
+  align-items:center;
+  gap:var(--space-4);
+}
+.spa-picker-stack .spa-option-list{
+  width:100%;
+  border:1px solid var(--border-hairline);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:0 1px 0 rgba(15,23,42,.04);
+}
+.spa-picker-stack .spa-single-picker{padding-block:12px;}
+.spa-picker-stack .spa-option-row{
+  justify-content:center;
+  text-align:center;
+}
+/* Follow-up aligns the footer into a single row so the toggle + chips stay
+ * inline. Gap mirrors the spec’s 8px spacing between the switch and chips. */
+.spa-footer-start{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  flex-wrap:nowrap;
+}
+.spa-footer-end{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:var(--space-5);
+  margin-inline-start:auto;
+  flex-wrap:nowrap;
+}
+/* Keep the footer as a single, non-wrapping row so the toggle, chips, and
+ * actions stay aligned while long guest lists scroll horizontally. */
+.spa-footer-guests{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-width:0;
+  width:100%;
+  flex:1 1 auto;
+  flex-wrap:nowrap;
+}
+.spa-footer-guests .spa-guest-header{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+}
+/* Follow-up aligns the guest toggle with the chip rail by switching to the
+ * square 40px button spec while keeping the existing toggle handlers. */
+.spa-guest-switch{
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  border:1px solid var(--border-hairline);
+  background:var(--surface);
+  display:grid;
+  place-items:center;
+  padding:0;
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.spa-footer-guests .spa-guest-switch{
+  flex:0 0 auto;
+  align-self:center;
+}
+.spa-guest-switch:hover{
+  border-color:color-mix(in srgb,var(--brand) 32%,var(--border));
+  box-shadow:0 6px 16px rgba(42,107,255,.12);
+}
+.spa-guest-switch:focus-visible{
+  outline:2px solid var(--activity-focus-ring);
+  outline-offset:2px;
+}
+/* Chips scroll horizontally instead of wrapping so the footer height stays
+ * fixed across desktop/iPad/mobile breakpoints. */
+.spa-guest-chip-list{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  justify-content:flex-start;
+  gap:6px;
+  border:0;
+  background:transparent;
+  padding:0;
+  max-block-size:none;
+  flex:1 1 auto;
+  min-width:0;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+/* Maintain inline chips beside the toggle; horizontal scroll absorbs overflow
+ * instead of wrapping so the footer height never changes. */
+.spa-footer-guests .spa-guest-chip-list{scrollbar-width:thin;}
+.spa-footer-guests .spa-guest-hint{
+  margin:0;
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  flex:0 1 auto;
+  align-self:center;
+}
+.spa-footer-guests .spa-guest-chip{
+  --chip-size:32px;
+  --chip-color:var(--ink);
+  width:var(--chip-size);
+  height:var(--chip-size);
+  display:inline-grid;
+  place-items:center;
+  border-radius:50%;
+  border:1px solid var(--chip-color);
+  background:var(--surface);
+  color:var(--chip-color);
+  font-weight:600;
+  position:relative;
+  transition:box-shadow .18s ease,opacity .18s ease;
+}
+.spa-footer-guests .spa-guest-chip .initial{
+  font-size:14px;
+  font-weight:600;
+  color:inherit;
+}
+.spa-footer-guests .spa-guest-chip.is-selected{
+  background:color-mix(in srgb,var(--chip-color) 18%,var(--surface));
+  box-shadow:0 6px 14px rgba(15,23,42,.14);
+}
+.spa-footer-guests .spa-guest-chip.is-off{opacity:.38;}
+.spa-footer-guests .spa-guest-chip:focus-visible{
+  outline:2px solid var(--activity-focus-ring);
+  outline-offset:2px;
+}
+@media (max-width:900px){
+  .spa-dialog{
+    --spa-dialog-max-width:700px;
+    --spa-dialog-max-height:660px;
+  }
+  .spa-body{
+    --spa-body-padding:clamp(var(--space-5),6vw,var(--space-6));
+  }
+  .spa-time-block .time-picker-column{min-height:100px;}
+}
+@media (max-width:760px){
+  .spa-layout-grid{
+    grid-template-columns:1fr;
+    gap:var(--space-5);
+  }
+  .spa-layout-divider{display:none;}
+  .spa-time-block .time-picker-wheels{display:none;}
+  .spa-body{
+    --spa-body-padding:clamp(var(--space-4),6vw,var(--space-5));
+  }
+}
+@media (max-width:540px){
+  .spa-dialog{
+    --spa-dialog-max-width:420px;
+    --spa-dialog-max-height:640px;
+  }
+}
