@@ -29,6 +29,7 @@
   ];
 
   const durationOptions = [60, 90, 120];
+  const formatDurationFieldValue = minutes => Number.isFinite(minutes) ? `${minutes} Minutes` : '';
 
   const viewports = [
     { key:'desktop', label:'Desktop', time:{ hour:9, minute:15, meridiem:'AM' }, end:'10:45 AM', therapist:'no-preference', location:'any', duration:90 },
@@ -222,6 +223,7 @@
       srOnly:true,
       options:therapistOptions,
       selected:viewport.therapist,
+      displayLabel: therapistOptions.find(opt => opt.id===viewport.therapist)?.label || therapistOptions[0]?.label || 'No Preference',
       className:'spa-detail-card spa-detail-card-therapist',
       listClass:'spa-option-list spa-option-list-therapist list-hairline'
     }));
@@ -230,6 +232,7 @@
       srOnly:true,
       options:locationOptions,
       selected:viewport.location,
+      displayLabel: locationOptions.find(opt => opt.id===viewport.location)?.label || 'Same Cabana',
       className:'spa-detail-card spa-detail-card-location',
       listClass:'spa-option-list spa-option-list-location list-hairline'
     }));
@@ -294,7 +297,7 @@
     return card;
   }
 
-  function buildPickerCard({ title, srOnly, options, selected, className, listClass = 'spa-option-list list-hairline' }){
+  function buildPickerCard({ title, srOnly, options, selected, displayLabel, className, listClass = 'spa-option-list list-hairline' }){
     const card = document.createElement('div');
     card.className = `spa-block spa-detail-card ${className}`;
 
@@ -304,6 +307,13 @@
       heading.className = 'sr-only';
     }
     card.appendChild(heading);
+
+    const resolvedLabel = displayLabel || options.find(option => option.id === selected)?.label || options[0]?.label || '';
+    const field = document.createElement('div');
+    field.className = 'spa-picker-field';
+    field.textContent = resolvedLabel;
+    field.dataset.empty = resolvedLabel ? 'false' : 'true';
+    card.appendChild(field);
 
     const list = document.createElement('div');
     list.className = listClass;
@@ -339,6 +349,14 @@
     heading.textContent = 'Duration';
     heading.className = 'sr-only';
     card.appendChild(heading);
+
+    const fallback = Number.isFinite(selected) ? selected : durationOptions[0];
+    const field = document.createElement('div');
+    field.className = 'spa-picker-field';
+    const display = formatDurationFieldValue(fallback);
+    field.textContent = display;
+    field.dataset.empty = display ? 'false' : 'true';
+    card.appendChild(field);
 
     const list = document.createElement('div');
     list.className = 'spa-option-list spa-option-list-duration list-hairline';

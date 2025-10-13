@@ -68,6 +68,10 @@
   // label helper so confirmation copy retains the "-Minute" suffix.
   const formatDurationLabel = minutes => `${minutes}-Minute`;
   const formatDurationButtonLabel = minutes => minutes.toString();
+  const formatDurationFieldValue = minutes => {
+    if(!Number.isFinite(minutes)) return '';
+    return `${minutes} Minutes`;
+  };
   const keyDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 
   // Utility focus helper so we can safely focus elements without the browser
@@ -2520,6 +2524,9 @@
     let therapistValueLabel = null;
     let locationValueLabel = null;
     let durationValueLabel = null;
+    let therapistValueDisplay = null;
+    let locationValueDisplay = null;
+    let durationValueDisplay = null;
 
     const overlay = document.createElement('div');
     overlay.className='spa-overlay';
@@ -3113,6 +3120,12 @@
     durationHeading.classList.add('sr-only');
     durationHeading.id = `${pickerNamespace}-duration-heading`;
     durationGroup.appendChild(durationHeading);
+    durationValueDisplay=document.createElement('div');
+    // Visible summary mirrors the active picker value so the field never
+    // renders blank while the wheel/list loads.
+    durationValueDisplay.className='spa-picker-field';
+    durationValueDisplay.setAttribute('aria-hidden','true');
+    durationGroup.appendChild(durationValueDisplay);
     const durationPickerContainer=document.createElement('div');
     durationPickerContainer.className='spa-option-list spa-option-list-duration spa-single-picker list-hairline';
     durationGroup.appendChild(durationPickerContainer);
@@ -3167,6 +3180,10 @@
     therapistHeading.classList.add('sr-only');
     therapistHeading.id = `${pickerNamespace}-therapist-heading`;
     therapistGroup.appendChild(therapistHeading);
+    therapistValueDisplay=document.createElement('div');
+    therapistValueDisplay.className='spa-picker-field';
+    therapistValueDisplay.setAttribute('aria-hidden','true');
+    therapistGroup.appendChild(therapistValueDisplay);
     const therapistPickerContainer=document.createElement('div');
     therapistPickerContainer.className='spa-option-list spa-option-list-therapist spa-single-picker list-hairline';
     therapistGroup.appendChild(therapistPickerContainer);
@@ -3223,6 +3240,10 @@
     locationHeading.classList.add('sr-only');
     locationHeading.id = `${pickerNamespace}-location-heading`;
     locationGroup.appendChild(locationHeading);
+    locationValueDisplay=document.createElement('div');
+    locationValueDisplay.className='spa-picker-field';
+    locationValueDisplay.setAttribute('aria-hidden','true');
+    locationGroup.appendChild(locationValueDisplay);
     const locationPickerContainer=document.createElement('div');
     locationPickerContainer.className='spa-option-list spa-option-list-location spa-single-picker list-hairline';
     locationGroup.appendChild(locationPickerContainer);
@@ -3522,6 +3543,7 @@
       const selection = getCanonicalSelection();
       const service = findService(selection?.serviceName) || defaultService;
       const durations = service?.durations?.slice() || [];
+      let resolvedMinutes = Number.isFinite(selection?.durationMinutes) ? selection.durationMinutes : null;
       if(typeof createWheel === 'function'){
         const changed = durations.length !== durationWheelValues.length || durations.some((value, index) => value !== durationWheelValues[index]);
         if(changed){
@@ -3550,19 +3572,11 @@
           }
         }
         if(durationWheel){
-          const canonical = selection?.durationMinutes;
-          const fallback = durations.includes(canonical) ? canonical : durations[0];
-          if(fallback !== undefined){
+          const fallback = durations.includes(resolvedMinutes) ? resolvedMinutes : durations[0];
+          if(Number.isFinite(fallback)){
             durationWheel.setValue(fallback);
-            const label = formatDurationLabel(fallback);
-            durationValueLabel.textContent = label;
-            durationWheel.element.setAttribute('aria-label', `Duration, ${label}`);
-          }else{
-            durationValueLabel.textContent = '';
-            durationWheel.element.setAttribute('aria-label', 'Duration');
+            resolvedMinutes = fallback;
           }
-        }else{
-          durationValueLabel.textContent = '';
         }
       }else{
         durationWheel = null;
@@ -3570,7 +3584,6 @@
         durationPickerContainer.innerHTML='';
         durationPickerContainer.setAttribute('role','listbox');
         durationPickerContainer.setAttribute('aria-label','Duration');
-        const canonical = selection?.durationMinutes;
         durations.forEach(minutes => {
           const btn=document.createElement('button');
           btn.type='button';
@@ -3587,40 +3600,65 @@
           checkSpan.setAttribute('aria-hidden','true');
           btn.appendChild(labelSpan);
           btn.appendChild(checkSpan);
-          const selected = canonical===minutes;
+          const selected = selection?.durationMinutes===minutes;
           btn.classList.toggle('is-selected', selected);
           btn.setAttribute('aria-selected', selected ? 'true' : 'false');
           btn.addEventListener('click',()=> selectDuration(minutes));
           durationPickerContainer.appendChild(btn);
         });
-        let fallbackLabel='';
-        if(canonical !== undefined){
-          fallbackLabel = formatDurationLabel(canonical);
-        }else if(durations.length){
-          fallbackLabel = formatDurationLabel(durations[0]);
+        const fallback = durations.includes(resolvedMinutes) ? resolvedMinutes : durations[0];
+        if(Number.isFinite(fallback)){
+          resolvedMinutes = fallback;
         }
-        durationValueLabel.textContent = fallbackLabel;
-        durationPickerContainer.setAttribute('aria-label', fallbackLabel ? `Duration, ${fallbackLabel}` : 'Duration');
+      }
+      if(!Number.isFinite(resolvedMinutes)){
+        resolvedMinutes = Number.isFinite(selection?.durationMinutes) ? selection.durationMinutes : durations[0];
+      }
+      if(!Number.isFinite(resolvedMinutes)){
+        resolvedMinutes = 60;
+      }
+      if(selection && !Number.isFinite(selection.durationMinutes)){
+        selection.durationMinutes = resolvedMinutes;
+      }
+      const assistiveLabel = formatDurationLabel(resolvedMinutes);
+      durationValueLabel.textContent = assistiveLabel;
+      if(durationWheel){
+        durationWheel.element.setAttribute('aria-label', `Duration, ${assistiveLabel}`);
+      }else{
+        durationPickerContainer.setAttribute('aria-label', assistiveLabel ? `Duration, ${assistiveLabel}` : 'Duration');
+      }
+      if(durationValueDisplay){
+        const fieldLabel = formatDurationFieldValue(resolvedMinutes);
+        durationValueDisplay.textContent = fieldLabel;
+        durationValueDisplay.dataset.empty = fieldLabel ? 'false' : 'true';
       }
     }
 
     function refreshTherapistOptions(){
       const selection = getCanonicalSelection();
-      const current = selection?.therapist || 'no-preference';
-      const label = therapistLabelById.get(current) || therapistLabelById.get('no-preference') || 'No Preference';
+      const canonical = selection?.therapist;
+      const resolved = therapistLabelById.has(canonical) ? canonical : 'no-preference';
+      const label = therapistLabelById.get(resolved) || therapistLabelById.get('no-preference') || 'No Preference';
       if(therapistWheel){
-        therapistWheel.setValue(current);
+        therapistWheel.setValue(resolved);
         therapistValueLabel.textContent = label;
         therapistWheel.element.setAttribute('aria-label', `Therapist Preference, ${label}`);
       }else{
         const rows = therapistPickerContainer.querySelectorAll('.spa-option-row');
         rows.forEach(btn => {
-          const selected = btn.dataset.value===current;
+          const selected = btn.dataset.value===resolved;
           btn.classList.toggle('is-selected', selected);
           btn.setAttribute('aria-selected', selected ? 'true' : 'false');
         });
         therapistValueLabel.textContent = label;
         therapistPickerContainer.setAttribute('aria-label', `Therapist preference, ${label}`);
+      }
+      if(selection && !selection.therapist){
+        selection.therapist = resolved;
+      }
+      if(therapistValueDisplay){
+        therapistValueDisplay.textContent = label;
+        therapistValueDisplay.dataset.empty = label ? 'false' : 'true';
       }
     }
 
@@ -3632,19 +3670,21 @@
         const singleGuestLocked = singleGuestStay && value !== 'in-room';
         return (value==='in-room' && !supportsInRoom) || singleGuestLocked;
       };
+      const enabledFallback = SPA_LOCATION_OPTIONS.find(opt => !disabledFn(opt.id))?.id || 'same-cabana';
+      let resolvedLocation = selection?.location;
+      if(disabledFn(resolvedLocation)){ resolvedLocation = enabledFallback; }
+      if(!resolvedLocation){ resolvedLocation = enabledFallback; }
       if(locationWheel){
         locationWheel.setDisabledChecker(disabledFn);
         const activeSelection = getCanonicalSelection();
         const activeLocation = activeSelection?.location;
         const validLocation = activeLocation && !disabledFn(activeLocation)
           ? activeLocation
-          : (SPA_LOCATION_OPTIONS.find(opt => !disabledFn(opt.id))?.id || activeLocation || '');
+          : resolvedLocation;
         if(validLocation){
+          resolvedLocation = validLocation;
           locationWheel.setValue(validLocation);
         }
-        const label = locationLabelById.get(validLocation) || locationLabelById.get(activeLocation) || '';
-        locationValueLabel.textContent = label;
-        locationWheel.element.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
       }else{
         const buttons = locationPickerContainer.querySelectorAll('.spa-option-row');
         buttons.forEach(btn => {
@@ -3657,9 +3697,26 @@
           btn.disabled = disabled;
           btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         });
-        const label = locationLabelById.get(selection?.location) || '';
-        locationValueLabel.textContent = label;
-        locationPickerContainer.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
+        if(disabledFn(resolvedLocation)){
+          resolvedLocation = enabledFallback;
+        }
+      }
+      if(!resolvedLocation){
+        resolvedLocation = enabledFallback;
+      }
+      if(selection && !selection.location && resolvedLocation){
+        selection.location = resolvedLocation;
+      }
+      const locationLabel = locationLabelById.get(resolvedLocation) || locationLabelById.get(enabledFallback) || 'Same Cabana';
+      locationValueLabel.textContent = locationLabel;
+      if(locationWheel){
+        locationWheel.element.setAttribute('aria-label', `Location, ${locationLabel}`);
+      }else{
+        locationPickerContainer.setAttribute('aria-label', locationLabel ? `Location, ${locationLabel}` : 'Location');
+      }
+      if(locationValueDisplay){
+        locationValueDisplay.textContent = locationLabel;
+        locationValueDisplay.dataset.empty = locationLabel ? 'false' : 'true';
       }
       // The helper content remains present for screen readers only; visually the
       // layout stays fixed because the element never takes up space.
