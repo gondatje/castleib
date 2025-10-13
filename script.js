@@ -182,6 +182,7 @@
   ];
 
   const SPA_LOCATION_OPTIONS = [
+    { id: 'not-applicable', label: 'N/A' },
     { id: 'same-cabana', label: 'Same Cabana' },
     { id: 'separate-cabanas', label: 'Separate Cabanas' },
     { id: 'couples-massage', label: 'Couple’s Massage' },
@@ -2382,6 +2383,30 @@
     const catalog = state.spaCatalog;
     const stayGuestLookup = new Map(state.guests.map(g=>[g.id,g]));
     const singleGuestStay = state.guests.length === 1;
+    const defaultLocationId = singleGuestStay ? 'not-applicable' : 'same-cabana';
+    const knownLocationIds = new Set(SPA_LOCATION_OPTIONS.map(opt => opt.id));
+    // Normalise persisted location selections so single-guest stays resolve to
+    // “N/A” while multi-guest itineraries always fall back to Same Cabana. This
+    // keeps historic data valid without exposing unsupported choices.
+    const normalizeLocationId = (value, { supportsInRoom = true } = {}) => {
+      let next = value;
+      if(!knownLocationIds.has(next)){
+        next = undefined;
+      }
+      if(next === undefined || next === null || next === ''){
+        next = defaultLocationId;
+      }
+      if(next === 'not-applicable' && !singleGuestStay){
+        next = 'same-cabana';
+      }
+      if(next === 'in-room' && supportsInRoom === false){
+        next = singleGuestStay ? 'not-applicable' : 'same-cabana';
+      }
+      if(!knownLocationIds.has(next)){
+        next = defaultLocationId;
+      }
+      return next;
+    };
     const normalizeGuestIds = ids => {
       const requested = Array.isArray(ids) ? ids.filter(Boolean) : [];
       const requestedSet = new Set(requested);
@@ -2423,7 +2448,8 @@
 
     const createSelection = (service, overrides={}) => {
       const svc = service || defaultService;
-      const baseDuration = Array.isArray(svc?.durations) && svc.durations.length ? svc.durations[0] : 60;
+      const orderedDurations = Array.isArray(svc?.durations) ? svc.durations.slice().sort((a,b)=>a-b) : [];
+      const baseDuration = orderedDurations.length ? orderedDurations[0] : 60;
       const duration = overrides.durationMinutes ?? baseDuration;
       const start = overrides.start || defaultSpaStartTime;
       const derivedEnd = addMinutesToTime(start, duration);
@@ -2431,6 +2457,8 @@
       const hasOverrideEnd = overrideEnd !== '';
       const explicitEnd = overrides.explicitEnd ?? (hasOverrideEnd && overrideEnd !== derivedEnd);
       const end = explicitEnd ? overrideEnd : derivedEnd;
+      const supportsInRoom = svc?.supportsInRoom !== false;
+      const normalizedLocation = normalizeLocationId(overrides.location, { supportsInRoom });
       return {
         guestId: overrides.guestId || '',
         serviceName: svc?.name || overrides.serviceName || '',
@@ -2440,8 +2468,8 @@
         end,
         explicitEnd,
         therapist: overrides.therapist || 'no-preference',
-        location: overrides.location || 'same-cabana',
-        supportsInRoom: svc?.supportsInRoom !== false
+        location: normalizedLocation,
+        supportsInRoom
       };
     };
 
@@ -2464,8 +2492,8 @@
         location: baseExisting.location,
         supportsInRoom: svc?.supportsInRoom !== false
       });
-      if(seededTemplate.location==='in-room' && seededTemplate.supportsInRoom===false){
-        seededTemplate.location = 'same-cabana';
+      if(seededTemplate.supportsInRoom===false){
+        seededTemplate.location = normalizeLocationId(seededTemplate.location, { supportsInRoom: false });
       }
       selections.set(TEMPLATE_ID, seededTemplate);
     }else{
@@ -2486,6 +2514,10 @@
     const syncTemplateFromSourceId = sourceId => {
       const source = sourceId ? selections.get(sourceId) : null;
       const base = source ? { ...source, guestId: TEMPLATE_ID } : createSelection(defaultService, { guestId: TEMPLATE_ID });
+      const baseService = findService(base.serviceName) || defaultService;
+      const baseSupports = baseService?.supportsInRoom !== false;
+      base.supportsInRoom = baseSupports;
+      base.location = normalizeLocationId(base.location, { supportsInRoom: baseSupports });
       selections.set(TEMPLATE_ID, base);
       return base;
     };
@@ -2504,6 +2536,13 @@
         selection = createSelection(fallbackService || defaultService, { guestId: id });
         selections.set(id, selection);
       }
+      const activeService = findService(selection.serviceName) || fallbackService || defaultService;
+      const activeSupports = activeService?.supportsInRoom !== false;
+      const coercedLocation = normalizeLocationId(selection.location, { supportsInRoom: activeSupports });
+      if(selection.location !== coercedLocation){
+        selection.location = coercedLocation;
+      }
+      selection.supportsInRoom = activeSupports;
       return selection;
     };
 
@@ -3521,7 +3560,7 @@
     function refreshDurationOptions(){
       const selection = getCanonicalSelection();
       const service = findService(selection?.serviceName) || defaultService;
-      const durations = service?.durations?.slice() || [];
+      const durations = service?.durations?.slice()?.sort((a,b)=>a-b) || [];
       if(typeof createWheel === 'function'){
         const changed = durations.length !== durationWheelValues.length || durations.some((value, index) => value !== durationWheelValues[index]);
         if(changed){
@@ -3629,20 +3668,32 @@
       const service = findService(selection?.serviceName) || defaultService;
       const supportsInRoom = service?.supportsInRoom !== false;
       const disabledFn = value => {
-        const singleGuestLocked = singleGuestStay && value !== 'in-room';
-        return (value==='in-room' && !supportsInRoom) || singleGuestLocked;
+        if(value === 'not-applicable'){
+          return !singleGuestStay;
+        }
+        if(value === 'in-room'){
+          return !supportsInRoom;
+        }
+        return false;
       };
+      // Ensure every selection reflects the latest availability so stale “N/A”
+      // or In-Room values snap to a valid choice when guest counts or services
+      // change while the modal is open.
+      selections.forEach(sel => {
+        const selService = findService(sel.serviceName) || defaultService;
+        const selSupportsInRoom = selService?.supportsInRoom !== false;
+        const coerced = normalizeLocationId(sel.location, { supportsInRoom: selSupportsInRoom });
+        if(sel.location !== coerced){
+          sel.location = coerced;
+        }
+      });
+      const activeSelection = getCanonicalSelection();
+      const activeLocation = activeSelection?.location;
+      const fallbackLocation = activeLocation || defaultLocationId;
       if(locationWheel){
         locationWheel.setDisabledChecker(disabledFn);
-        const activeSelection = getCanonicalSelection();
-        const activeLocation = activeSelection?.location;
-        const validLocation = activeLocation && !disabledFn(activeLocation)
-          ? activeLocation
-          : (SPA_LOCATION_OPTIONS.find(opt => !disabledFn(opt.id))?.id || activeLocation || '');
-        if(validLocation){
-          locationWheel.setValue(validLocation);
-        }
-        const label = locationLabelById.get(validLocation) || locationLabelById.get(activeLocation) || '';
+        locationWheel.setValue(fallbackLocation);
+        const label = locationLabelById.get(fallbackLocation) || '';
         locationValueLabel.textContent = label;
         locationWheel.element.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
       }else{
@@ -3650,14 +3701,14 @@
         buttons.forEach(btn => {
           const value = btn.dataset.value;
           const disabled = disabledFn(value);
-          const isSelected = selection?.location===value && !disabled;
+          const isSelected = fallbackLocation===value && !disabled;
           btn.classList.toggle('is-selected', isSelected);
           btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
           btn.classList.toggle('is-disabled', disabled);
           btn.disabled = disabled;
           btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
         });
-        const label = locationLabelById.get(selection?.location) || '';
+        const label = locationLabelById.get(fallbackLocation) || '';
         locationValueLabel.textContent = label;
         locationPickerContainer.setAttribute('aria-label', label ? `Location, ${label}` : 'Location');
       }
@@ -3668,7 +3719,7 @@
         helperMessages.push('In-Room service is unavailable for this treatment.');
       }
       if(singleGuestStay){
-        helperMessages.push('Cabana sharing is available once another guest is added to the stay.');
+        helperMessages.push('Location defaults to N/A until another guest is added to the stay.');
       }
       locationHelper.textContent = helperMessages.join(' ');
     }
@@ -3739,8 +3790,9 @@
         const prevEnd = selection.end;
         selection.serviceName = service?.name || name;
         selection.serviceCategory = service?.category || '';
-        selection.supportsInRoom = service?.supportsInRoom !== false;
-        const durations = service?.durations?.slice() || [];
+        const supportsInRoom = service?.supportsInRoom !== false;
+        selection.supportsInRoom = supportsInRoom;
+        const durations = service?.durations?.slice()?.sort((a,b)=>a-b) || [];
         if(!durations.includes(selection.durationMinutes)){
           selection.durationMinutes = durations[0] || selection.durationMinutes;
         }
@@ -3748,8 +3800,9 @@
         if(!selection.explicitEnd){
           selection.end = addMinutesToTime(selection.start, selection.durationMinutes);
         }
-        if(selection.location==='in-room' && selection.supportsInRoom===false){
-          selection.location='same-cabana';
+        const normalizedLocation = normalizeLocationId(selection.location, { supportsInRoom });
+        if(selection.location !== normalizedLocation){
+          selection.location = normalizedLocation;
         }
         if(selection.serviceName!==prevService || selection.durationMinutes!==prevDuration || selection.location!==prevLocation || selection.supportsInRoom!==prevSupports || selection.end!==prevEnd){
           touched = true;
@@ -3816,9 +3869,7 @@
     }
 
     function selectLocation(id){
-      if(singleGuestStay && id !== 'in-room'){
-        // Single-guest stays only allow in-room treatments; other cabana choices
-        // remain visible but locked so ignore programmatic attempts as well.
+      if(id==='not-applicable' && !singleGuestStay){
         return;
       }
       const canonical = getCanonicalSelection();
@@ -3841,7 +3892,8 @@
           return;
         }
         const prevLocation = selection.location;
-        selection.location = id;
+        const coerced = normalizeLocationId(id, { supportsInRoom });
+        selection.location = coerced;
         if(selection.location!==prevLocation){
           touched = true;
         }
