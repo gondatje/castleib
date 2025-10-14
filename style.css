@@ -23,6 +23,8 @@
   --fg:var(--text-primary);
   --hairline:var(--border-hairline);
   --line:var(--border-hairline);
+  /* SPA right column micro-centering offset; negative pulls content toward the divider. */
+  --col-nudge:-6px;
   /* Slightly stronger hairline for elements that need an outline against accent fills. */
   --hairline-strong:color-mix(in srgb,var(--text-primary) 12%,transparent);
   --surface-tint:color-mix(in srgb,var(--surface) 92%,var(--brand) 8%);
@@ -2056,9 +2058,19 @@ body.custom-lock{overflow:hidden;}
   gap:var(--space-6);
   align-content:start;
   justify-items:stretch;
-  padding:var(--space-6);
+  padding-top:var(--space-6);
+  padding-bottom:var(--space-6);
+  /* Nudge inline padding to center content between the divider and modal edge. */
+  padding-left:calc(var(--space-6) + var(--col-nudge));
+  padding-right:calc(var(--space-6) - var(--col-nudge));
+  box-sizing:border-box;
   min-height:0;
 }
+.col-body .time-block,
+.col-body .picker-col,
+.col-body .picker-stack,
+.col-body .time-inline{width:100%;}
+.col-body>*{margin-inline:0;}
 .spa-details-grid{
   --spa-detail-max-width:min(100%,420px);
   min-height:0;
