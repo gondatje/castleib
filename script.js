@@ -132,6 +132,9 @@
   const lockIconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false" class="icon icon-lock"><path d="M16 4a6 6 0 0 0-6 6v4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V16a2 2 0 0 0-2-2h-2v-4a6 6 0 0 0-6-6zm0 2a4 4 0 0 1 4 4v4h-8v-4a4 4 0 0 1 4-4zm-8 10h16v12H8V16zm8 2a2 2 0 0 0-2 2 2 2 0 0 0 1 1.732V24h2v-2.268A2 2 0 0 0 16 18z" fill="currentColor"/></svg>';
   const resetIconSvg = '<svg viewBox="0 0 512 512" aria-hidden="true" focusable="false" class="icon icon-reset"><path d="M64,256H34A222,222,0,0,1,430,118.15V85h30V190H355V160h67.27A192.21,192.21,0,0,0,256,64C150.13,64,64,150.13,64,256Zm384,0c0,105.87-86.13,192-192,192A192.21,192.21,0,0,1,89.73,352H157V322H52V427H82V393.85A222,222,0,0,0,478,256Z" fill="currentColor"/></svg>';
   const copyIconSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="icon icon-copy"><path d="M2 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V4zm8 12v4h10V10h-4v4a2 2 0 0 1-2 2h-4zm4-2V4H4v10h10z" fill="currentColor"/></svg>';
+  // Adopted new Custom modal shell (structure-only).
+  const hourglassStartSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12M6 21h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 3v3c0 2.2 2.2 4 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 3v3c0 2.2-2.2 4-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 21v-3c0-2.2 2.2-4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 21v-3c0-2.2-2.2-4-6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 6h8l-4 3z" fill="currentColor" opacity="0.85"/></svg>';
+  const hourglassEndSvg = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h12M6 21h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 3v3c0 2.2 2.2 4 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 3v3c0 2.2-2.2 4-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6 21v-3c0-2.2 2.2-4 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 21v-3c0-2.2-2.2-4-6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 18h8l-4-3z" fill="currentColor" opacity="0.85"/></svg>';
   // Shared modal glyphs keep every destructive/save affordance visually in sync while
   // letting the CSS drive color via `currentColor` so themes remain consistent.
   const saveIconSvg = '<svg viewBox="-3 -3 24 24" aria-hidden="true" focusable="false"><path d="M2 0h11.22a2 2 0 0 1 1.345.52l2.78 2.527A2 2 0 0 1 18 4.527V16a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm0 2v14h14V4.527L13.22 2H2zm4 8h6a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2zm0 2v4h6v-4H6zm7-9a1 1 0 0 1 1 1v3a1 1 0 0 1-2 0V4a1 1 0 0 1 1-1zM5 3h5a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm1 3h3V5H6v1z" fill="currentColor"/></svg>';
@@ -4151,84 +4154,6 @@
     headerBar.appendChild(closeBtn);
     header.appendChild(headerBar);
 
-    const titleSection=document.createElement('section');
-    // Reuse the spa card shell so Custom cards share the established spacing + radius tokens.
-    titleSection.className='modal-section custom-section custom-section-title spa-section spa-block custom-card custom-title-card';
-    titleSection.setAttribute('role','group');
-    const titleHeaderRow=document.createElement('div');
-    titleHeaderRow.className='custom-title-header';
-    const freeInputId = `custom-title-${Date.now()}`;
-    const titleHeading=document.createElement('label');
-    titleHeading.className='custom-field-label';
-    titleHeading.textContent='Title';
-    const titleHeadingId = `${freeInputId}-label`;
-    titleHeading.id = titleHeadingId;
-    titleHeading.setAttribute('for', freeInputId);
-    titleHeaderRow.appendChild(titleHeading);
-
-    const toggleGroup=document.createElement('div');
-    toggleGroup.className='custom-title-toggle-group';
-    titleHeaderRow.appendChild(toggleGroup);
-
-    titleSection.appendChild(titleHeaderRow);
-
-    const freeToggle=document.createElement('button');
-    freeToggle.type='button';
-    freeToggle.className='custom-title-toggle';
-    freeToggle.dataset.mode='free';
-    freeToggle.textContent='Type a title';
-    toggleGroup.appendChild(freeToggle);
-
-    const existingToggle=document.createElement('button');
-    existingToggle.type='button';
-    existingToggle.className='custom-title-toggle';
-    existingToggle.dataset.mode='existing';
-    existingToggle.textContent='Choose existing';
-    existingToggle.setAttribute('aria-haspopup','listbox');
-    if(!catalog.titles.length){ existingToggle.disabled = true; }
-    toggleGroup.appendChild(existingToggle);
-
-    const freePane=document.createElement('div');
-    freePane.className='custom-title-pane';
-    const freeInput=document.createElement('input');
-    freeInput.type='text';
-    freeInput.id=freeInputId;
-    freeInput.className='custom-title-input';
-    freeInput.placeholder='Name this activity';
-    freeInput.value = freeTitleValue;
-    freePane.appendChild(freeInput);
-
-    const existingPane=document.createElement('div');
-    existingPane.className='custom-title-pane custom-existing-pane';
-    const existingField=document.createElement('div');
-    existingField.className='custom-existing-field';
-    const existingHeader=document.createElement('div');
-    existingHeader.className='custom-existing-header';
-    const typeInsteadBtn=document.createElement('button');
-    typeInsteadBtn.type='button';
-    typeInsteadBtn.className='custom-existing-back';
-    typeInsteadBtn.textContent='Type instead';
-    typeInsteadBtn.setAttribute('aria-label','Return to typing');
-    typeInsteadBtn.addEventListener('click',()=> setTitleMode('free'));
-    existingHeader.appendChild(typeInsteadBtn);
-    existingField.appendChild(existingHeader);
-
-    // Inline list lives inside the field wrapper so the modal height stays fixed
-    // while still surfacing catalog titles without a separate popover.
-    const existingList=document.createElement('div');
-    const existingListId = `custom-existing-list-${Date.now()}`;
-    existingList.className='custom-existing-list';
-    existingList.id = existingListId;
-    existingList.setAttribute('role','listbox');
-    existingList.setAttribute('aria-labelledby', titleHeadingId);
-    existingToggle.setAttribute('aria-controls', existingListId);
-    existingField.appendChild(existingList);
-    existingPane.appendChild(existingField);
-
-    titleSection.appendChild(freePane);
-    titleSection.appendChild(existingPane);
-    titleSection.setAttribute('aria-labelledby', titleHeadingId);
-
     dialog.appendChild(header);
 
     const body=document.createElement('div');
@@ -4236,38 +4161,30 @@
     body.className='modal-body spa-body custom-body';
     dialog.appendChild(body);
 
-    const layout=document.createElement('div');
-    layout.className='modal-sections custom-layout';
-    body.appendChild(layout);
+    const shell=document.createElement('div');
+    shell.className='custom-modal-shell';
+    body.appendChild(shell);
 
-    // Custom modal grid: Title → cols 1–2, rows 1–3.
-    layout.appendChild(titleSection);
+    const timeBlock=document.createElement('div');
+    timeBlock.className='custom-time-block';
+    shell.appendChild(timeBlock);
 
-    const timeSection=document.createElement('section');
-    timeSection.className='modal-section custom-section custom-section-time spa-section spa-block custom-card';
-    // Custom modal: Time section reflow; stack hourglass buttons on right; no internal scroll.
-    const timeShell=document.createElement('div');
-    timeShell.className='custom-time-shell';
-    timeSection.appendChild(timeShell);
+    const timeVisual=document.createElement('div');
+    timeVisual.className='custom-time-visual';
+    timeBlock.appendChild(timeVisual);
+    ['Hours','Minutes','AM/PM'].forEach(label=>{
+      const col=document.createElement('div');
+      col.className='custom-time-col time-col';
+      col.textContent=label;
+      timeVisual.appendChild(col);
+    });
 
-    const timeContent=document.createElement('div');
-    timeContent.className='custom-time-content';
-    timeShell.appendChild(timeContent);
-
-    const timeHeaderRow=document.createElement('div');
-    timeHeaderRow.className='custom-time-header-row';
-    timeContent.appendChild(timeHeaderRow);
-
-    const timeHeading=document.createElement('h3');
-    timeHeading.textContent='Time';
-    timeHeaderRow.appendChild(timeHeading);
-
-    const timeSummary=document.createElement('div');
-    timeSummary.className='custom-time-summary';
-    timeHeaderRow.appendChild(timeSummary);
+    const timeActions=document.createElement('div');
+    timeActions.className='custom-time-actions';
+    timeBlock.appendChild(timeActions);
 
     const startPill=document.createElement('div');
-    startPill.className='custom-time-pill';
+    startPill.className='time-pill custom-time-pill';
     const startLabel=document.createElement('span');
     startLabel.className='custom-time-pill-label';
     startLabel.textContent='Start';
@@ -4275,10 +4192,9 @@
     startValueNode.className='custom-time-value';
     startPill.appendChild(startLabel);
     startPill.appendChild(startValueNode);
-    timeSummary.appendChild(startPill);
 
     const endPill=document.createElement('div');
-    endPill.className='custom-time-pill optional';
+    endPill.className='time-pill custom-time-pill optional';
     const endLabel=document.createElement('span');
     endLabel.className='custom-time-pill-label';
     endLabel.textContent='End';
@@ -4297,27 +4213,100 @@
     endPill.appendChild(endLabel);
     endPill.appendChild(endValueNode);
     endPill.appendChild(clearEndBtn);
-    timeSummary.appendChild(endPill);
 
     const pickerContainer=document.createElement('div');
-    pickerContainer.className='custom-picker';
-    timeContent.appendChild(pickerContainer);
+    pickerContainer.className='custom-picker-shell';
+    timeBlock.appendChild(pickerContainer);
 
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
     timeError.hidden=true;
-    timeContent.appendChild(timeError);
+    timeBlock.appendChild(timeError);
 
-    layout.appendChild(timeSection);
+    const divider=document.createElement('div');
+    divider.className='custom-divider';
+    shell.appendChild(divider);
 
-    const locationSection=document.createElement('section');
-    locationSection.className='modal-section custom-section custom-section-location spa-section spa-block custom-card';
-    const locationHeading=document.createElement('h3');
-    locationHeading.id='custom-location-heading';
-    locationHeading.textContent='Location (optional)';
-    locationSection.appendChild(locationHeading);
-    // Location list is sourced from the CHS activities metadata so preview copy
-    // and in-app chips both draw from the same canonical venue names.
+    const pickerRow=document.createElement('div');
+    pickerRow.className='custom-picker-row';
+    shell.appendChild(pickerRow);
+
+    const namePicker=document.createElement('div');
+    namePicker.className='custom-picker custom-picker-name';
+    pickerRow.appendChild(namePicker);
+
+    const nameActionBtn=document.createElement('button');
+    nameActionBtn.type='button';
+    nameActionBtn.className='inline-action custom-inline-action';
+    nameActionBtn.innerHTML=editIconSvg;
+    nameActionBtn.setAttribute('aria-label','Choose existing activity title');
+    namePicker.appendChild(nameActionBtn);
+
+    const freeInputId = `custom-title-${Date.now()}`;
+    const titleHeadingId = `${freeInputId}-label`;
+    const nameField=document.createElement('div');
+    nameField.className='picker-field custom-name-field';
+    namePicker.appendChild(nameField);
+
+    const hiddenTitleLabel=document.createElement('label');
+    hiddenTitleLabel.id=titleHeadingId;
+    hiddenTitleLabel.className='sr-only';
+    hiddenTitleLabel.setAttribute('for', freeInputId);
+    hiddenTitleLabel.textContent='Activity name';
+    nameField.appendChild(hiddenTitleLabel);
+
+    const freePane=document.createElement('div');
+    freePane.className='custom-title-pane';
+    const freeInput=document.createElement('input');
+    freeInput.type='text';
+    freeInput.id=freeInputId;
+    freeInput.className='custom-title-input';
+    freeInput.placeholder='Name this activity';
+    freeInput.value = freeTitleValue;
+    freeInput.setAttribute('aria-labelledby', titleHeadingId);
+    freePane.appendChild(freeInput);
+    nameField.appendChild(freePane);
+
+    const existingPane=document.createElement('div');
+    existingPane.className='custom-title-pane custom-existing-pane';
+    const existingField=document.createElement('div');
+    existingField.className='custom-existing-field';
+    const existingHeader=document.createElement('div');
+    existingHeader.className='custom-existing-header';
+    const typeInsteadBtn=document.createElement('button');
+    typeInsteadBtn.type='button';
+    typeInsteadBtn.className='custom-existing-back';
+    typeInsteadBtn.textContent='Type instead';
+    typeInsteadBtn.setAttribute('aria-label','Return to typing');
+    typeInsteadBtn.addEventListener('click',()=> setTitleMode('free'));
+    existingHeader.appendChild(typeInsteadBtn);
+    existingField.appendChild(existingHeader);
+
+    const existingList=document.createElement('div');
+    const existingListId = `custom-existing-list-${Date.now()}`;
+    existingList.className='custom-existing-list';
+    existingList.id = existingListId;
+    existingList.setAttribute('role','listbox');
+    existingList.setAttribute('aria-labelledby', titleHeadingId);
+    existingField.appendChild(existingList);
+    existingPane.appendChild(existingField);
+    nameField.appendChild(existingPane);
+
+    const locationPicker=document.createElement('div');
+    locationPicker.className='custom-picker custom-picker-location';
+    pickerRow.appendChild(locationPicker);
+
+    const locationField=document.createElement('button');
+    locationField.type='button';
+    locationField.className='picker-field custom-location-field';
+    locationField.setAttribute('aria-haspopup','listbox');
+    locationField.setAttribute('aria-expanded','false');
+    locationPicker.appendChild(locationField);
+
+    const locationValueNode=document.createElement('span');
+    locationValueNode.className='custom-location-value';
+    locationField.appendChild(locationValueNode);
+
     const locationOptions=[{ value:'', label:'No location' }];
     const seenLocations=new Set();
     catalog.locations.forEach(loc=>{
@@ -4327,12 +4316,19 @@
       locationOptions.push({ value: normalized, label: normalized });
     });
     if(locationValue && !seenLocations.has(locationValue)){ locationOptions.push({ value: locationValue, label: locationValue }); }
+
+    const locationDropdown=document.createElement('div');
+    locationDropdown.className='custom-location-dropdown';
+    locationDropdown.setAttribute('role','presentation');
+    locationPicker.appendChild(locationDropdown);
+
     const locationList=document.createElement('div');
-    // Swap the native select for a scrollable hairline list so the card matches the spa chooser interactions.
+    const locationListId = `custom-location-list-${Date.now()}`;
     locationList.className='custom-location-list list-hairline';
+    locationList.id = locationListId;
     locationList.setAttribute('role','listbox');
-    locationList.setAttribute('aria-labelledby','custom-location-heading');
-    locationSection.appendChild(locationList);
+    locationList.setAttribute('aria-label','Choose a location');
+    locationDropdown.appendChild(locationList);
 
     const locationRows=[];
     const findLocationIndex=value=>{
@@ -4341,6 +4337,17 @@
     };
     let locationActiveIndex = findLocationIndex(locationValue);
     if(locationActiveIndex<0){ locationActiveIndex = 0; locationValue = locationOptions[0]?.value || ''; }
+
+    locationDropdown.hidden = true;
+    let locationMenuOpen=false;
+
+    const updateLocationDisplay=()=>{
+      const option = locationOptions[locationActiveIndex] || locationOptions[0] || { value:'', label:'No location' };
+      locationValueNode.textContent = option.label || 'No location';
+      const hasValue = Boolean(option.value);
+      locationField.dataset.empty = hasValue ? 'false' : 'true';
+      locationField.setAttribute('aria-label', hasValue ? `Location ${option.label}` : 'No location selected');
+    };
 
     const setLocationActive=(index,{focus=true,fromPointer=false}={})=>{
       if(!locationRows.length) return;
@@ -4352,6 +4359,7 @@
         row.setAttribute('aria-selected',isSelected ? 'true' : 'false');
         row.tabIndex=isSelected ? 0 : -1;
       });
+      updateLocationDisplay();
       const target=locationRows[bounded];
       if(target){
         if(focus){ focusWithoutScroll(target); }
@@ -4369,13 +4377,38 @@
       setLocationActive(nextIndex,{ focus, fromPointer });
     };
 
+    const closeLocationMenu=({ focusField=false }={})=>{
+      if(!locationMenuOpen) return;
+      locationMenuOpen=false;
+      locationPicker.classList.remove('is-open');
+      locationField.setAttribute('aria-expanded','false');
+      locationDropdown.hidden = true;
+      if(focusField){
+        focusWithoutScroll(locationField);
+      }
+    };
+
+    const openLocationMenu=()=>{
+      if(!locationOptions.length) return;
+      locationMenuOpen=true;
+      locationPicker.classList.add('is-open');
+      locationField.setAttribute('aria-expanded','true');
+      locationDropdown.hidden = false;
+      requestAnimationFrame(()=> setLocationActive(locationActiveIndex,{ focus:true }));
+    };
+
     const chooseLocationByIndex=(index,{manual=true,focus=false,fromPointer=false}={})=>{
       if(index<0 || index>=locationOptions.length) return;
       const option=locationOptions[index];
       locationValue = option?.value || '';
       syncLocationSelection({ manual, focus, fromPointer });
       if(manual){ refreshSaveState(); }
+      if(manual || fromPointer){
+        closeLocationMenu({ focusField: !fromPointer });
+      }
     };
+
+    locationField.setAttribute('aria-controls', locationListId);
 
     locationOptions.forEach((opt,index)=>{
       const row=document.createElement('button');
@@ -4391,17 +4424,20 @@
         if(event.key==='ArrowDown'){
           event.preventDefault();
           const next=Math.min(locationRows.length-1,index+1);
-          chooseLocationByIndex(next,{ manual:true, focus:true });
+          chooseLocationByIndex(next,{ manual:false, focus:true });
         }else if(event.key==='ArrowUp'){
           event.preventDefault();
           const prev=Math.max(0,index-1);
-          chooseLocationByIndex(prev,{ manual:true, focus:true });
+          chooseLocationByIndex(prev,{ manual:false, focus:true });
         }else if(event.key==='Home'){
           event.preventDefault();
-          chooseLocationByIndex(0,{ manual:true, focus:true });
+          chooseLocationByIndex(0,{ manual:false, focus:true });
         }else if(event.key==='End'){
           event.preventDefault();
-          chooseLocationByIndex(locationRows.length-1,{ manual:true, focus:true });
+          chooseLocationByIndex(locationRows.length-1,{ manual:false, focus:true });
+        }else if(event.key==='Escape'){
+          event.preventDefault();
+          closeLocationMenu({ focusField:true });
         }
       });
       locationList.appendChild(row);
@@ -4409,17 +4445,71 @@
     });
 
     syncLocationSelection({ manual:false, focus:false, fromPointer:true });
-    layout.appendChild(locationSection);
 
-    const guestSection=document.createElement('section');
-    guestSection.className='modal-section custom-section custom-section-guests spa-section spa-block custom-card';
-    const guestHeading=document.createElement('h3');
-    guestHeading.textContent='Guests';
-    guestSection.appendChild(guestHeading);
-    const guestSummary=document.createElement('p');
-    guestSummary.className='custom-guest-summary';
-    guestSection.appendChild(guestSummary);
-    layout.appendChild(guestSection);
+    const handleLocationFieldKeyDown=event=>{
+      if(event.key==='ArrowDown' || event.key==='Down'){
+        event.preventDefault();
+        if(!locationMenuOpen){
+          openLocationMenu();
+        }else{
+          setLocationActive(locationActiveIndex,{ focus:true });
+        }
+        return;
+      }
+      if(event.key==='ArrowUp' || event.key==='Up'){
+        event.preventDefault();
+        if(!locationMenuOpen){
+          openLocationMenu();
+        }else{
+          setLocationActive(locationActiveIndex,{ focus:true });
+        }
+        return;
+      }
+      if(event.key==='Enter' || event.key===' ' || event.key==='Spacebar' || event.key==='Space'){
+        event.preventDefault();
+        if(locationMenuOpen){
+          closeLocationMenu({ focusField:true });
+        }else{
+          openLocationMenu();
+        }
+        return;
+      }
+      if(event.key==='Escape'){
+        event.preventDefault();
+        closeLocationMenu({ focusField:true });
+      }
+    };
+
+    const handleLocationFieldClick=event=>{
+      event.preventDefault();
+      if(locationMenuOpen){
+        closeLocationMenu({ focusField:true });
+      }else{
+        openLocationMenu();
+      }
+    };
+
+    locationField.addEventListener('click', handleLocationFieldClick);
+    locationField.addEventListener('keydown', handleLocationFieldKeyDown);
+
+    const handleLocationFocusOut=event=>{
+      if(!locationMenuOpen) return;
+      if(event.target && locationPicker.contains(event.target)) return;
+      if(event.relatedTarget && locationPicker.contains(event.relatedTarget)) return;
+      closeLocationMenu({ focusField:false });
+    };
+
+    const handleLocationPointer=event=>{
+      if(!locationMenuOpen) return;
+      if(event.target && locationPicker.contains(event.target)) return;
+      closeLocationMenu({ focusField:false });
+    };
+
+    document.addEventListener('focusin', handleLocationFocusOut);
+    document.addEventListener('mousedown', handleLocationPointer);
+    document.addEventListener('touchstart', handleLocationPointer);
+
+    updateLocationDisplay();
 
     const footer=document.createElement('div');
     footer.className='modal-footer';
@@ -4451,7 +4541,10 @@
       body.scrollTo?.({ top:0, left:0, behavior:'auto' });
     });
 
+    const guestSummary=null;
+
     const updateGuestSummary=()=>{
+      if(!guestSummary) return;
       const names=[];
       const seen=new Set();
       modalGuestIds.forEach(id=>{
@@ -4630,16 +4723,14 @@
     });
 
     const setTitleMode=mode=>{
-      const nextMode = (mode==='existing' && !existingToggle.disabled) ? 'existing' : 'free';
+      const nextMode = (mode==='existing' && catalog.titles.length) ? 'existing' : 'free';
       titleMode = nextMode;
       const listActive = titleMode==='existing';
       freePane.hidden = listActive;
       existingPane.hidden = !listActive;
-      freeToggle.classList.toggle('selected', !listActive);
-      existingToggle.classList.toggle('selected', listActive);
-      freeToggle.setAttribute('aria-pressed', !listActive ? 'true' : 'false');
-      existingToggle.setAttribute('aria-pressed', listActive ? 'true' : 'false');
-      existingToggle.setAttribute('aria-expanded', listActive ? 'true' : 'false');
+      nameActionBtn.classList.toggle('is-active', listActive);
+      nameActionBtn.setAttribute('aria-pressed', listActive ? 'true' : 'false');
+      nameActionBtn.setAttribute('aria-expanded', listActive ? 'true' : 'false');
       refreshSaveState();
       if(listActive){
         requestAnimationFrame(()=>{
@@ -4655,8 +4746,15 @@
       }
     };
 
-    freeToggle.addEventListener('click',()=> setTitleMode('free'));
-    existingToggle.addEventListener('click',()=>{
+    if(!catalog.titles.length){
+      nameActionBtn.disabled = true;
+      nameActionBtn.setAttribute('aria-disabled','true');
+    }else{
+      nameActionBtn.setAttribute('aria-controls', existingListId);
+      nameActionBtn.setAttribute('aria-haspopup','listbox');
+    }
+
+    nameActionBtn.addEventListener('click',()=>{
       if(titleMode==='existing'){
         setTitleMode('free');
       }else{
@@ -4734,6 +4832,8 @@
       refreshSaveState();
     };
 
+    let startButton=null;
+    let endButton=null;
     let timePicker=null;
     if(typeof createTimePicker === 'function'){
       // Reuse the shared time picker so visuals + physics remain identical to
@@ -4756,12 +4856,57 @@
 
     if(timePicker){
       pickerContainer.appendChild(timePicker.element);
+      const rangeActions=timePicker.element.querySelector('.time-picker-range-actions');
+      if(rangeActions){
+        const rangeButtons=Array.from(rangeActions.querySelectorAll('.time-picker-range-btn'));
+        if(rangeButtons[0]){
+          startButton = rangeButtons[0];
+          startButton.classList.remove('time-picker-range-btn');
+          startButton.classList.add('square-btn','custom-hourglass-btn');
+          startButton.innerHTML = hourglassStartSvg;
+          startButton.setAttribute('aria-label','Set Start Time');
+          startButton.title = 'Set Start Time';
+        }
+        if(rangeButtons[1]){
+          endButton = rangeButtons[1];
+          endButton.classList.remove('time-picker-range-btn');
+          endButton.classList.add('square-btn','custom-hourglass-btn');
+          endButton.innerHTML = hourglassEndSvg;
+          endButton.setAttribute('aria-label','Set End Time');
+          endButton.title = 'Set End Time';
+        }
+        rangeActions.remove();
+      }
     }else{
       const fallback=document.createElement('div');
       fallback.className='custom-picker-fallback';
       fallback.textContent='Time picker unavailable.';
       pickerContainer.appendChild(fallback);
     }
+
+    if(!startButton){
+      startButton=document.createElement('button');
+      startButton.type='button';
+      startButton.className='square-btn custom-hourglass-btn';
+      startButton.innerHTML=hourglassStartSvg;
+      startButton.disabled=true;
+      startButton.setAttribute('aria-label','Set Start Time');
+      startButton.title='Set Start Time';
+    }
+    if(!endButton){
+      endButton=document.createElement('button');
+      endButton.type='button';
+      endButton.className='square-btn custom-hourglass-btn';
+      endButton.innerHTML=hourglassEndSvg;
+      endButton.disabled=true;
+      endButton.setAttribute('aria-label','Set End Time');
+      endButton.title='Set End Time';
+    }
+
+    timeActions.appendChild(startButton);
+    timeActions.appendChild(startPill);
+    timeActions.appendChild(endButton);
+    timeActions.appendChild(endPill);
 
     const handleSave=()=>{
       const titleValue = resolveTitle();
@@ -4869,6 +5014,9 @@
       cleanup(){
         timePicker?.dispose?.();
         dialog.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('focusin', handleLocationFocusOut);
+        document.removeEventListener('mousedown', handleLocationPointer);
+        document.removeEventListener('touchstart', handleLocationPointer);
       }
     };
   }
