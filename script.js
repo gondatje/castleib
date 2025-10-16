@@ -4161,24 +4161,32 @@
     body.className='modal-body spa-body custom-body';
     dialog.appendChild(body);
 
-    const shell=document.createElement('div');
-    shell.className='custom-modal-shell';
-    body.appendChild(shell);
+    const bodyGrid=document.createElement('div');
+    bodyGrid.className='custom-body-grid';
+    body.appendChild(bodyGrid);
 
-    const timeBlock=document.createElement('div');
-    timeBlock.className='custom-time-block';
-    shell.appendChild(timeBlock);
+    const topGrid=document.createElement('section');
+    topGrid.className='top-grid';
+    bodyGrid.appendChild(topGrid);
 
-    const timeVisual=document.createElement('div');
-    timeVisual.className='custom-time-visual';
-    timeBlock.appendChild(timeVisual);
+    const timePickerArea=document.createElement('div');
+    timePickerArea.className='top-left time-picker-area';
+    topGrid.appendChild(timePickerArea);
 
-    const timeActions=document.createElement('div');
-    timeActions.className='custom-time-actions';
-    timeBlock.appendChild(timeActions);
+    const timePillsSection=document.createElement('div');
+    timePillsSection.className='top-right time-pills';
+    topGrid.appendChild(timePillsSection);
+
+    const startRow=document.createElement('div');
+    startRow.className='start-row';
+    timePillsSection.appendChild(startRow);
+
+    const endRow=document.createElement('div');
+    endRow.className='end-row';
+    timePillsSection.appendChild(endRow);
 
     const startPill=document.createElement('div');
-    startPill.className='pill custom-time-pill';
+    startPill.className='pill time-pill start-pill custom-time-pill';
     startPill.tabIndex=0;
     startPill.setAttribute('aria-label','Start time not set');
     startPill.setAttribute('aria-live','polite');
@@ -4188,7 +4196,7 @@
     startPill.appendChild(startValueNode);
 
     const endPill=document.createElement('div');
-    endPill.className='pill custom-time-pill';
+    endPill.className='pill time-pill end-pill custom-time-pill';
     endPill.tabIndex=0;
     endPill.setAttribute('aria-label','End time not set');
     endPill.setAttribute('aria-live','polite');
@@ -4224,19 +4232,22 @@
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
     timeError.hidden=true;
-    timeBlock.appendChild(timeError);
 
-    const divider=document.createElement('div');
-    divider.className='custom-divider';
-    shell.appendChild(divider);
+    const bottomGrid=document.createElement('section');
+    bottomGrid.className='bottom-grid';
+    bodyGrid.appendChild(bottomGrid);
 
-    const pickerRow=document.createElement('div');
-    pickerRow.className='custom-picker-row';
-    shell.appendChild(pickerRow);
+    const titleRow=document.createElement('div');
+    titleRow.className='row title-row';
+    bottomGrid.appendChild(titleRow);
+
+    const locationRow=document.createElement('div');
+    locationRow.className='row location-row';
+    bottomGrid.appendChild(locationRow);
 
     const namePicker=document.createElement('div');
     namePicker.className='custom-picker custom-picker-name';
-    pickerRow.appendChild(namePicker);
+    titleRow.appendChild(namePicker);
 
     const nameActionBtn=document.createElement('button');
     nameActionBtn.type='button';
@@ -4297,7 +4308,7 @@
 
     const locationPicker=document.createElement('div');
     locationPicker.className='custom-picker custom-picker-location';
-    pickerRow.appendChild(locationPicker);
+    locationRow.appendChild(locationPicker);
 
     const locationField=document.createElement('button');
     locationField.type='button';
@@ -4866,7 +4877,7 @@
     }
 
     if(timePicker){
-      timeVisual.appendChild(timePicker.element);
+      timePickerArea.appendChild(timePicker.element);
       const inlineField=timePicker.element.querySelector('.time-picker-inline-field');
       if(inlineField){ inlineField.remove(); }
       const rangeActions=timePicker.element.querySelector('.time-picker-range-actions');
@@ -4875,7 +4886,7 @@
         if(rangeButtons[0]){
           startButton = rangeButtons[0];
           startButton.classList.remove('time-picker-range-btn');
-          startButton.classList.add('square-btn','custom-hourglass-btn');
+          startButton.classList.add('square-btn','start-btn');
           startButton.innerHTML = hourglassStartSvg;
           startButton.setAttribute('aria-label','Set Start Time');
           startButton.title = 'Set Start Time';
@@ -4883,7 +4894,7 @@
         if(rangeButtons[1]){
           endButton = rangeButtons[1];
           endButton.classList.remove('time-picker-range-btn');
-          endButton.classList.add('square-btn','custom-hourglass-btn');
+          endButton.classList.add('square-btn','end-btn');
           endButton.innerHTML = hourglassEndSvg;
           endButton.setAttribute('aria-label','Set End Time');
           endButton.title = 'Set End Time';
@@ -4894,13 +4905,13 @@
       const fallback=document.createElement('div');
       fallback.className='custom-picker-fallback';
       fallback.textContent='Time picker unavailable.';
-      timeVisual.appendChild(fallback);
+      timePickerArea.appendChild(fallback);
     }
 
     if(!startButton){
       startButton=document.createElement('button');
       startButton.type='button';
-      startButton.className='square-btn custom-hourglass-btn';
+      startButton.className='square-btn start-btn';
       startButton.innerHTML=hourglassStartSvg;
       startButton.disabled=true;
       startButton.setAttribute('aria-label','Set Start Time');
@@ -4909,17 +4920,20 @@
     if(!endButton){
       endButton=document.createElement('button');
       endButton.type='button';
-      endButton.className='square-btn custom-hourglass-btn';
+      endButton.className='square-btn end-btn';
       endButton.innerHTML=hourglassEndSvg;
       endButton.disabled=true;
       endButton.setAttribute('aria-label','Set End Time');
       endButton.title='Set End Time';
     }
 
-    timeActions.appendChild(startButton);
-    timeActions.appendChild(startPill);
-    timeActions.appendChild(endButton);
-    timeActions.appendChild(endPill);
+    startRow.appendChild(startButton);
+    startRow.appendChild(startPill);
+    endRow.appendChild(endButton);
+    endRow.appendChild(endPill);
+    // Keep the validation helper inside the End row so it spans the two-column
+    // grid without introducing another structural wrapper.
+    endRow.appendChild(timeError);
 
     const handleSave=()=>{
       const titleValue = resolveTitle();
