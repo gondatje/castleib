@@ -4172,51 +4172,54 @@
     const timeVisual=document.createElement('div');
     timeVisual.className='custom-time-visual';
     timeBlock.appendChild(timeVisual);
-    ['Hours','Minutes','AM/PM'].forEach(label=>{
-      const col=document.createElement('div');
-      col.className='custom-time-col time-col';
-      col.textContent=label;
-      timeVisual.appendChild(col);
-    });
 
     const timeActions=document.createElement('div');
     timeActions.className='custom-time-actions';
     timeBlock.appendChild(timeActions);
 
     const startPill=document.createElement('div');
-    startPill.className='time-pill custom-time-pill';
-    const startLabel=document.createElement('span');
-    startLabel.className='custom-time-pill-label';
-    startLabel.textContent='Start';
+    startPill.className='pill custom-time-pill';
+    startPill.tabIndex=0;
+    startPill.setAttribute('aria-label','Start time not set');
+    startPill.setAttribute('aria-live','polite');
+    startPill.setAttribute('aria-atomic','true');
     const startValueNode=document.createElement('span');
     startValueNode.className='custom-time-value';
-    startPill.appendChild(startLabel);
     startPill.appendChild(startValueNode);
 
     const endPill=document.createElement('div');
-    endPill.className='time-pill custom-time-pill optional';
-    const endLabel=document.createElement('span');
-    endLabel.className='custom-time-pill-label';
-    endLabel.textContent='End';
+    endPill.className='pill custom-time-pill';
+    endPill.tabIndex=0;
+    endPill.setAttribute('aria-label','End time not set');
+    endPill.setAttribute('aria-live','polite');
+    endPill.setAttribute('aria-atomic','true');
     const endValueNode=document.createElement('span');
     endValueNode.className='custom-time-value';
     const clearEndBtn=document.createElement('button');
     clearEndBtn.type='button';
     clearEndBtn.className='custom-clear-end';
-    clearEndBtn.textContent='Clear';
+    clearEndBtn.setAttribute('aria-label','Clear end time');
+    clearEndBtn.title='Clear end time';
+    clearEndBtn.innerHTML='<span class="sr-only">Clear end time</span><span aria-hidden="true">×</span>';
     clearEndBtn.addEventListener('click',()=>{
       endValue='';
       updateEndDisplay();
       setTimeError('');
       refreshSaveState();
     });
-    endPill.appendChild(endLabel);
     endPill.appendChild(endValueNode);
     endPill.appendChild(clearEndBtn);
-
-    const pickerContainer=document.createElement('div');
-    pickerContainer.className='custom-picker-shell';
-    timeBlock.appendChild(pickerContainer);
+    // Preserve the optional end-time escape for keyboard users without adding a second input.
+    endPill.addEventListener('keydown',event=>{
+      if(!endValue) return;
+      if(event.key==='Delete' || event.key==='Backspace'){
+        event.preventDefault();
+        endValue='';
+        updateEndDisplay();
+        setTimeError('');
+        refreshSaveState();
+      }
+    });
 
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
@@ -4566,22 +4569,30 @@
 
     const updateStartDisplay=()=>{
       if(startValue){
-        startValueNode.textContent = formatTimeDisplay(startValue);
+        const displayText=formatTimeDisplay(startValue);
+        startValueNode.textContent = `Start: ${displayText}`;
         startPill.dataset.empty='false';
+        startPill.setAttribute('aria-label',`Start time ${displayText}`);
       }else{
-        startValueNode.textContent = 'Set start';
+        startValueNode.textContent = 'Start: Set start';
         startPill.dataset.empty='true';
+        startPill.setAttribute('aria-label','Start time not set');
       }
     };
 
     const updateEndDisplay=()=>{
       if(endValue){
-        endValueNode.textContent = formatTimeDisplay(endValue);
+        const displayText=formatTimeDisplay(endValue);
+        endValueNode.textContent = `End: ${displayText}`;
         endPill.dataset.empty='false';
+        endPill.setAttribute('aria-label',`End time ${displayText}`);
+        clearEndBtn.hidden=false;
         clearEndBtn.disabled=false;
       }else{
-        endValueNode.textContent = 'Optional';
+        endValueNode.textContent = 'End: Optional';
         endPill.dataset.empty='true';
+        endPill.setAttribute('aria-label','End time not set');
+        clearEndBtn.hidden=true;
         clearEndBtn.disabled=true;
       }
     };
@@ -4855,7 +4866,9 @@
     }
 
     if(timePicker){
-      pickerContainer.appendChild(timePicker.element);
+      timeVisual.appendChild(timePicker.element);
+      const inlineField=timePicker.element.querySelector('.time-picker-inline-field');
+      if(inlineField){ inlineField.remove(); }
       const rangeActions=timePicker.element.querySelector('.time-picker-range-actions');
       if(rangeActions){
         const rangeButtons=Array.from(rangeActions.querySelectorAll('.time-picker-range-btn'));
@@ -4881,7 +4894,7 @@
       const fallback=document.createElement('div');
       fallback.className='custom-picker-fallback';
       fallback.textContent='Time picker unavailable.';
-      pickerContainer.appendChild(fallback);
+      timeVisual.appendChild(fallback);
     }
 
     if(!startButton){
