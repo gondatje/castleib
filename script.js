@@ -4158,21 +4158,25 @@
     body.className='modal-body spa-body custom-body';
     dialog.appendChild(body);
 
-    const shell=document.createElement('div');
-    shell.className='custom-modal-shell';
-    body.appendChild(shell);
+    const bodyTop=document.createElement('div');
+    bodyTop.className='body-top custom-body-top';
+    body.appendChild(bodyTop);
 
-    const timeBlock=document.createElement('div');
-    timeBlock.className='custom-time-block';
-    shell.appendChild(timeBlock);
+    const timePickerRegion=document.createElement('div');
+    timePickerRegion.className='time-picker custom-time-picker-region';
+    bodyTop.appendChild(timePickerRegion);
 
     const timeVisual=document.createElement('div');
     timeVisual.className='custom-time-visual';
-    timeBlock.appendChild(timeVisual);
+    timePickerRegion.appendChild(timeVisual);
 
-    const timeActions=document.createElement('div');
-    timeActions.className='custom-time-actions';
-    timeBlock.appendChild(timeActions);
+    const startEndStack=document.createElement('div');
+    startEndStack.className='start-end-stack custom-start-end-stack';
+    bodyTop.appendChild(startEndStack);
+
+    const startRow=document.createElement('div');
+    startRow.className='start-row custom-start-row';
+    startEndStack.appendChild(startRow);
 
     const startPill=document.createElement('div');
     startPill.className='pill custom-time-pill';
@@ -4183,6 +4187,10 @@
     const startValueNode=document.createElement('span');
     startValueNode.className='custom-time-value';
     startPill.appendChild(startValueNode);
+
+    const endRow=document.createElement('div');
+    endRow.className='end-row custom-end-row';
+    startEndStack.appendChild(endRow);
 
     const endPill=document.createElement('div');
     endPill.className='pill custom-time-pill';
@@ -4221,19 +4229,24 @@
     const timeError=document.createElement('p');
     timeError.className='custom-time-error';
     timeError.hidden=true;
-    timeBlock.appendChild(timeError);
+    // Keep the error message paired with the stacked time inputs so screen readers announce contextually.
+    startEndStack.appendChild(timeError);
 
-    const divider=document.createElement('div');
-    divider.className='custom-divider';
-    shell.appendChild(divider);
+    const bodyBottom=document.createElement('div');
+    bodyBottom.className='body-bottom custom-body-bottom';
+    body.appendChild(bodyBottom);
 
-    const pickerRow=document.createElement('div');
-    pickerRow.className='custom-picker-row';
-    shell.appendChild(pickerRow);
+    const activityName=document.createElement('div');
+    activityName.className='activity-name custom-activity-name';
+    bodyBottom.appendChild(activityName);
+
+    const activityLocation=document.createElement('div');
+    activityLocation.className='activity-location custom-activity-location';
+    bodyBottom.appendChild(activityLocation);
 
     const namePicker=document.createElement('div');
     namePicker.className='custom-picker custom-picker-name';
-    pickerRow.appendChild(namePicker);
+    activityName.appendChild(namePicker);
 
     const nameActionBtn=document.createElement('button');
     nameActionBtn.type='button';
@@ -4294,7 +4307,7 @@
 
     const locationPicker=document.createElement('div');
     locationPicker.className='custom-picker custom-picker-location';
-    pickerRow.appendChild(locationPicker);
+    activityLocation.appendChild(locationPicker);
 
     const locationField=document.createElement('button');
     locationField.type='button';
@@ -4913,10 +4926,10 @@
       endButton.title='Set End Time';
     }
 
-    timeActions.appendChild(startButton);
-    timeActions.appendChild(startPill);
-    timeActions.appendChild(endButton);
-    timeActions.appendChild(endPill);
+    startRow.appendChild(startButton);
+    startRow.appendChild(startPill);
+    endRow.appendChild(endButton);
+    endRow.appendChild(endPill);
 
     const handleSave=()=>{
       const titleValue = resolveTitle();
