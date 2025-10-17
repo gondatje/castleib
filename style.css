@@ -1734,11 +1734,12 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
   overflow:auto;
   overscroll-behavior:contain;
   scrollbar-gutter:stable both-edges;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  padding:var(--space-6) var(--space-7);
-  padding-block-end:calc(var(--space-6) + env(safe-area-inset-bottom));
+  display:grid;
+  grid-template-rows:1fr auto 1fr;
+  gap:0;
+  padding-block-start:var(--spa-body-padding);
+  padding-block-end:calc(var(--spa-body-padding) + env(safe-area-inset-bottom));
+  padding-inline:var(--spa-body-padding);
   background:var(--panel);
   min-height:0;
   height:100%;
@@ -1749,21 +1750,66 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
 .custom-dialog .modal-footer{position:sticky;z-index:3;background:var(--surface);}
 .custom-dialog .modal-header{top:0;}
 .custom-dialog .modal-footer{bottom:0;}
+.body-divider{
+  height:1px;
+  background:var(--line);
+  margin:var(--space-5) 0;
+}
 .custom-body-top,
-.custom-body-bottom{flex:1 1 0%;min-height:0;width:100%;}
-.custom-body-top{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-7);align-items:center;justify-items:center;}
+.custom-body-bottom{min-height:0;width:100%;}
+.custom-body-top{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  align-items:center;
+  justify-items:center;
+  column-gap:var(--space-7);
+  min-height:0;
+}
+.custom-body-top > *{
+  width:100%;
+  max-width:520px;
+  min-width:360px;
+}
 .custom-time-picker-host{display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
-.custom-time-picker-host > .time-picker{width:100%;display:flex;flex-direction:column;gap:var(--space-5);align-items:stretch;}
+.custom-time-picker-host > .time-picker{width:100%;display:flex;flex-direction:column;gap:var(--space-5);align-items:center;justify-content:center;height:100%;}
 .custom-time-picker-host .time-picker-wheels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-5);align-items:center;justify-items:center;}
 .custom-time-picker-host .time-picker-inline-field{display:none;}
 .custom-time-picker-host .time-picker-column{min-height:calc(5 * var(--space-3));}
-.custom-start-end-stack{display:flex;flex-direction:column;justify-content:center;gap:var(--space-6);width:100%;}
+.custom-start-end-stack{display:flex;flex-direction:column;gap:var(--space-6);align-items:stretch;justify-content:center;width:100%;height:100%;}
 .custom-start-row,
-.custom-end-row{display:flex;align-items:center;gap:var(--space-3);width:100%;}
+.custom-end-row{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:var(--space-3);width:100%;}
+.custom-start-row .custom-time-pill,
+.custom-end-row .custom-time-pill{width:100%;}
 .custom-start-end-stack .custom-time-error{align-self:flex-start;}
-.custom-body-bottom{display:flex;flex-direction:column;gap:var(--space-5);margin-top:var(--space-8);width:100%;border-top:1px solid var(--border-hairline);padding-top:var(--space-6);}
+.custom-body-bottom{display:flex;flex-direction:column;gap:var(--space-5);align-items:stretch;justify-content:flex-start;padding-top:var(--space-1);width:100%;}
 .custom-body-bottom .activity-name,
 .custom-body-bottom .activity-location{width:100%;}
+.custom-body-bottom .custom-name-field,
+.custom-body-bottom .custom-location-field{
+  width:100%;
+  height:40px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--surface,#fff);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:0 var(--space-4);
+}
+@media (max-width:1024px){
+  .custom-body{
+    grid-template-rows:auto auto 1fr;
+  }
+  .custom-body-top{
+    grid-template-columns:1fr;
+    row-gap:var(--space-6);
+  }
+  .custom-body-top > *{
+    max-width:640px;
+    min-width:0;
+  }
+}
 .custom-hourglass-btn{width:40px;height:40px;border-radius:10px;border:1px solid var(--border-hairline);background:var(--surface,#fff);display:grid;place-items:center;padding:0;transition:box-shadow .18s ease,border-color .18s ease;}
 .custom-hourglass-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px;box-shadow:0 6px 16px rgba(42,107,255,.16);}
 .custom-hourglass-btn:disabled{opacity:.45;cursor:default;}
