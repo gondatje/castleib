@@ -1371,6 +1371,73 @@ button:focus{outline:2px solid var(--brand);outline-offset:2px}
   flex-shrink:0;
   flex-wrap:nowrap;
 }
+.close-btn{border-radius:999px;}
+.footer-content{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  inline-size:100%;
+}
+.btn-row{
+  display:flex;
+  align-items:center;
+  gap:var(--space-3);
+}
+.btn{
+  --btn-size:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:var(--btn-size);
+  min-width:var(--btn-size);
+  height:var(--btn-size);
+  min-height:var(--btn-size);
+  border-radius:12px;
+  border:1px solid var(--hairline);
+  background:var(--surface);
+  color:var(--muted);
+  padding:0;
+  cursor:pointer;
+  line-height:0;
+  transition:background-color .18s ease,color .18s ease,box-shadow .18s ease,border-color .18s ease,transform .18s ease;
+}
+.btn .icon{width:22px;height:22px;display:block;}
+.btn:focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:2px;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 20%,transparent);
+}
+@media(hover:hover){
+  .btn:not([disabled]):hover{
+    background:color-mix(in srgb,var(--brand) 16%,var(--surface));
+    border-color:color-mix(in srgb,var(--brand) 28%,var(--hairline));
+    color:var(--brand);
+  }
+}
+.btn:not([disabled]):active{
+  background:color-mix(in srgb,var(--brand) 22%,var(--surface));
+  transform:translateY(1px);
+}
+.btn[disabled]{
+  opacity:.45;
+  cursor:default;
+  box-shadow:none;
+}
+.btn.primary{
+  background:var(--brand);
+  border-color:color-mix(in srgb,var(--brand) 60%,var(--hairline));
+  color:var(--surface);
+}
+@media(hover:hover){
+  .btn.primary:not([disabled]):hover{
+    background:color-mix(in srgb,var(--brand) 85%,var(--surface) 15%);
+    color:var(--surface);
+  }
+}
+.btn.primary:not([disabled]):active{
+  background:color-mix(in srgb,var(--brand) 72%,var(--surface) 28%);
+  color:var(--surface);
+}
 .modal-footer-start,.modal-footer-end{display:flex;align-items:center;gap:var(--space-3);}
 .modal-footer-end{justify-content:flex-end;}
 .dinner-overlay{

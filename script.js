@@ -159,6 +159,7 @@
   // the "×" glyph remains purely presentational under a uniform "Close" label.
   const createModalCloseButton = onClick => {
     const button = createIconButton({ icon: '<span aria-hidden="true">×</span>', label: 'Close', extraClass: 'modal-close' });
+    button.classList.add('close-btn');
     if(typeof onClick === 'function'){
       button.addEventListener('click', onClick);
     }
@@ -4136,23 +4137,23 @@
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
-    const header=document.createElement('div');
+    // Custom modal: header/footer synced to SPA shell (visual only, no logic changes)
+    const header=document.createElement('header');
     header.className='modal-header custom-header';
-    const title=document.createElement('h2');
+    const title=document.createElement('div');
     title.className='modal-title';
     title.id='custom-dialog-title';
     title.textContent='Custom';
+    title.setAttribute('role','heading');
+    title.setAttribute('aria-level','2');
     const customModeDescriptor=document.createElement('span');
     customModeDescriptor.className='sr-only';
     customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
     title.appendChild(customModeDescriptor);
-    const headerBar=document.createElement('div');
-    headerBar.className='custom-header-bar';
-    headerBar.appendChild(title);
+    header.appendChild(title);
 
     const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
-    headerBar.appendChild(closeBtn);
-    header.appendChild(headerBar);
+    header.appendChild(closeBtn);
 
     dialog.appendChild(header);
 
@@ -4514,24 +4515,41 @@
 
     updateLocationDisplay();
 
-    const footer=document.createElement('div');
-    footer.className='modal-footer';
-    const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
-    const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
+    const ensureIconMarkup = svg => {
+      if(typeof svg !== 'string') return '';
+      if(svg.includes('class="icon"')) return svg;
+      return svg.replace('<svg', '<svg class="icon"');
+    };
+
+    const footer=document.createElement('footer');
+    footer.className='modal-footer custom-footer';
+    const footerContent=document.createElement('div');
+    footerContent.className='footer-content';
+    footer.appendChild(footerContent);
+    const btnRow=document.createElement('div');
+    btnRow.className='btn-row';
+    footerContent.appendChild(btnRow);
     const saveIsEdit = !!existing;
     const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
     const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
-    const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
-    footerEnd.appendChild(saveBtn);
+
+    const createFooterButton = ({ icon, label, isPrimary }) => {
+      const button = document.createElement('button');
+      button.type='button';
+      button.className = ['btn', isPrimary ? 'primary' : ''].filter(Boolean).join(' ');
+      button.setAttribute('aria-label', label);
+      button.title = label;
+      button.innerHTML = ensureIconMarkup(icon);
+      return button;
+    };
+
     let deleteBtn=null;
     if(saveIsEdit){
-      deleteBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete custom activity', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(deleteBtn);
+      deleteBtn=createFooterButton({ icon: deleteIconSvg, label: 'Delete custom activity', isPrimary: false });
+      btnRow.appendChild(deleteBtn);
     }
-    footer.appendChild(footerStart);
-    footer.appendChild(footerEnd);
+    const saveBtn=createFooterButton({ icon: saveIcon, label: saveLabel, isPrimary: true });
+    btnRow.appendChild(saveBtn);
     dialog.appendChild(footer);
 
     overlay.appendChild(dialog);
