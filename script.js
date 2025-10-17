@@ -4136,9 +4136,24 @@
     dialog.setAttribute('aria-modal','true');
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
-    const header=document.createElement('div');
-    header.className='modal-header custom-header';
-    const title=document.createElement('h2');
+    // Custom modal: header/footer synced to SPA shell (visual only, no logic changes)
+    const createFooterIcon = markup => {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = markup;
+      const svg = wrapper.firstElementChild;
+      if(svg){
+        svg.classList.add('icon');
+        if(!svg.hasAttribute('aria-hidden')){
+          svg.setAttribute('aria-hidden','true');
+        }
+        svg.setAttribute('focusable','false');
+      }
+      return svg;
+    };
+
+    const header=document.createElement('header');
+    header.className='modal-header';
+    const title=document.createElement('div');
     title.className='modal-title';
     title.id='custom-dialog-title';
     title.textContent='Custom';
@@ -4146,13 +4161,16 @@
     customModeDescriptor.className='sr-only';
     customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
     title.appendChild(customModeDescriptor);
-    const headerBar=document.createElement('div');
-    headerBar.className='custom-header-bar';
-    headerBar.appendChild(title);
+    header.appendChild(title);
 
-    const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
-    headerBar.appendChild(closeBtn);
-    header.appendChild(headerBar);
+    const closeBtn=document.createElement('button');
+    closeBtn.type='button';
+    closeBtn.className='close-btn modal-close';
+    closeBtn.setAttribute('aria-label','Close');
+    closeBtn.title='Close';
+    closeBtn.textContent='×';
+    closeBtn.addEventListener('click',()=> closeCustomBuilder({returnFocus:true}));
+    header.appendChild(closeBtn);
 
     dialog.appendChild(header);
 
@@ -4514,24 +4532,35 @@
 
     updateLocationDisplay();
 
-    const footer=document.createElement('div');
+    const footer=document.createElement('footer');
     footer.className='modal-footer';
-    const footerStart=document.createElement('div');
-    footerStart.className='modal-footer-start';
-    const footerEnd=document.createElement('div');
-    footerEnd.className='modal-footer-end';
+    const footerContent=document.createElement('div');
+    footerContent.className='footer-content';
+    const btnRow=document.createElement('div');
+    btnRow.className='btn-row';
+    footerContent.appendChild(btnRow);
+    footer.appendChild(footerContent);
     const saveIsEdit = !!existing;
-    const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
-    const saveIcon = saveIsEdit ? saveIconSvg : addIconSvg;
-    const saveBtn=createIconButton({ icon: saveIcon, label: saveLabel, extraClass: 'btn-icon--primary' });
-    footerEnd.appendChild(saveBtn);
     let deleteBtn=null;
     if(saveIsEdit){
-      deleteBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete custom activity', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(deleteBtn);
+      deleteBtn=document.createElement('button');
+      deleteBtn.type='button';
+      deleteBtn.className='btn';
+      deleteBtn.setAttribute('aria-label','Delete custom activity');
+      deleteBtn.title='Delete custom activity';
+      const deleteIconNode=createFooterIcon(deleteIconSvg);
+      if(deleteIconNode){ deleteBtn.appendChild(deleteIconNode); }
+      btnRow.appendChild(deleteBtn);
     }
-    footer.appendChild(footerStart);
-    footer.appendChild(footerEnd);
+    const saveBtn=document.createElement('button');
+    saveBtn.type='button';
+    saveBtn.className='btn primary';
+    const saveLabel = saveIsEdit ? 'Save custom activity' : 'Add custom activity';
+    saveBtn.setAttribute('aria-label', saveLabel);
+    saveBtn.title = saveLabel;
+    const saveIconNode=createFooterIcon(saveIsEdit ? saveIconSvg : addIconSvg);
+    if(saveIconNode){ saveBtn.appendChild(saveIconNode); }
+    btnRow.appendChild(saveBtn);
     dialog.appendChild(footer);
 
     overlay.appendChild(dialog);
