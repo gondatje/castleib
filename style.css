@@ -1743,9 +1743,9 @@ body[data-theme='dark'] .chip--custom{color:var(--chip-custom-fg,#000);}
 /* Adopted new Custom modal shell (structure-only). */
 .custom-dialog{display:grid;grid-template-rows:auto 1fr auto;min-height:0;}
 .custom-dialog .modal-header,
-.custom-dialog .modal-footer{position:sticky;z-index:2;background:var(--panel);padding:var(--rhythm);}
-.custom-dialog .modal-header{top:0;border-bottom:1px solid var(--border-hairline);}
-.custom-dialog .modal-footer{bottom:0;border-top:1px solid var(--border-hairline);}
+.custom-dialog .modal-footer{position:sticky;z-index:3;background:var(--surface);}
+.custom-dialog .modal-header{top:0;}
+.custom-dialog .modal-footer{bottom:0;}
 .custom-modal-shell{display:grid;gap:var(--rhythm);align-content:start;}
 .custom-time-block{display:grid;gap:var(--space-5);}
 .custom-time-visual{display:flex;justify-content:center;}

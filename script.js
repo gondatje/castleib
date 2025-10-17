@@ -4137,7 +4137,7 @@
     dialog.setAttribute('aria-labelledby','custom-dialog-title');
 
     const header=document.createElement('div');
-    header.className='modal-header custom-header';
+    header.className='modal-header';
     const title=document.createElement('h2');
     title.className='modal-title';
     title.id='custom-dialog-title';
@@ -4146,13 +4146,10 @@
     customModeDescriptor.className='sr-only';
     customModeDescriptor.textContent = existing ? ' – Editing custom activity' : ' – Add custom activity';
     title.appendChild(customModeDescriptor);
-    const headerBar=document.createElement('div');
-    headerBar.className='custom-header-bar';
-    headerBar.appendChild(title);
+    header.appendChild(title);
 
     const closeBtn=createModalCloseButton(()=> closeCustomBuilder({returnFocus:true}));
-    headerBar.appendChild(closeBtn);
-    header.appendChild(headerBar);
+    header.appendChild(closeBtn);
 
     dialog.appendChild(header);
 
@@ -4528,7 +4525,7 @@
     let deleteBtn=null;
     if(saveIsEdit){
       deleteBtn=createIconButton({ icon: deleteIconSvg, label: 'Delete custom activity', extraClass: 'btn-icon--subtle' });
-      footerStart.appendChild(deleteBtn);
+      footerEnd.insertBefore(deleteBtn, saveBtn);
     }
     footer.appendChild(footerStart);
     footer.appendChild(footerEnd);
