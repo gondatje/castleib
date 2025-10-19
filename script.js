@@ -4162,6 +4162,13 @@
     bodyTop.className='body-top custom-body-top';
     body.appendChild(bodyTop);
 
+    const bodyDivider=document.createElement('div');
+    bodyDivider.className='body-divider';
+    bodyDivider.setAttribute('aria-hidden','true');
+    // The divider participates in the grid layout so the halves stay 50/50
+    // without introducing extra wrapper math.
+    body.appendChild(bodyDivider);
+
     const timeVisual=document.createElement('div');
     // The host keeps Codex' requested `.time-picker` wrapper while preserving our custom hooks.
     timeVisual.className='time-picker custom-time-picker-host';
